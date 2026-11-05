@@ -135,7 +135,7 @@ jobs:
               clients = config.get("client", [])
               if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
-              payload = json.dumps(config, indent=2) + "\\n"
+              payload = json.dumps(config, indent=2) + "\n"
               for config_path in firebase_modules:
                   config_path.write_text(payload)
               print(f"Installed Firebase config in {len(firebase_modules)} Google Services modules.")
