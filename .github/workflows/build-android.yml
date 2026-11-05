@@ -105,6 +105,17 @@ jobs:
           gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger\.web['\"]", "namespace 'org.telebeta.messenger.web'", gradle, count=1)
           if count != 1:
               raise SystemExit("Could not patch standalone namespace")
+
+          # The upstream standalone buildType adds applicationIdSuffix ".web".
+          # Override it with an empty suffix: final applicationId must be exact.
+          gradle2, count = re.subn(
+              r'(standalone\\s*\\{[\\s\\S]*?applicationIdSuffix\\s+)"\\.web"',
+              r'\\1""',
+              gradle2,
+              count=1
+          )
+          if count != 1:
+              raise SystemExit("Could not remove standalone .web applicationIdSuffix")
           standalone.write_text(gradle2)
           PY
 
