@@ -103,29 +103,47 @@ jobs:
               raise SystemExit("Could not patch standalone launcher label")
           manifest.write_text(xml2)
 
-          # Fork namespace for application/library code; keep upstream Java
-          # package paths unchanged. Android namespace is independent of source packages.
+          # Keep the fork namespace stable; Java source package paths remain upstream.
           module = root / "TMessagesProj/build.gradle"
           gradle = module.read_text()
-          gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger['\"]", "namespace 'org.telebeta.messenger'", gradle, count=1)
+          gradle2, count = re.subn(
+              r"namespace ['\"]org\.telegram\.messenger['\"]",
+              "namespace 'org.telebeta.messenger'",
+              gradle,
+              count=1
+          )
           if count != 1:
               raise SystemExit("Could not patch TMessagesProj namespace")
-          # Find every Gradle module that applies the Google Services plugin.
-          # The Telegram upstream currently applies it to multiple app modules
-          # and TMessagesProj; keep this generic so future modules are covered.
-          gradle_files = list(root.rglob("build.gradle")) + list(root.rglob("build.gradle.kts"))
-          firebase_modules = []
-          for gradle_file in gradle_files:
-              gradle_text = gradle_file.read_text()
-              uses_google_services = (
-                  "com.google.gms.google-services" in gradle_text
-                  or "com.google.gms.google-services" in gradle_text.replace(" ", "")
-              )
-              if uses_google_services:
-                  firebase_modules.append(gradle_file.parent / "google-services.json")
+          module.write_text(gradle2)
 
-          if not firebase_modules:
-              raise SystemExit("No Gradle modules applying Google Services plugin were found.")
+          # Upstream standalone build type appends .web to applicationId.
+          # Remove that suffix and align the standalone namespace with the fork.
+          standalone = root / "TMessagesProj_AppStandalone/build.gradle"
+          standalone_gradle = standalone.read_text()
+          standalone_gradle, ns_count = re.subn(
+              r"namespace ['\"]org\.telegram\.messenger\.web['\"]",
+              "namespace 'org.telebeta.messenger'",
+              standalone_gradle,
+              count=1
+          )
+          standalone_gradle, suffix_count = re.subn(
+              r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
+              r'\1""',
+              standalone_gradle,
+              count=1
+          )
+          if ns_count != 1:
+              raise SystemExit("Could not set standalone namespace to org.telebeta.messenger")
+          if suffix_count != 1:
+              raise SystemExit("Could not remove standalone .web applicationIdSuffix")
+          standalone.write_text(standalone_gradle)
+
+          # The selected build task uses these two modules only. Do not copy a
+          # single-package Firebase config into unrelated app variants/modules.
+          firebase_modules = [
+              root / "TMessagesProj/google-services.json",
+              root / "TMessagesProj_AppStandalone/google-services.json",
+          ]
 
           import os
           firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
@@ -133,17 +151,28 @@ jobs:
               import json
               config = json.loads(firebase_json)
               clients = config.get("client", [])
-              if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
+              if not any(
+                  client.get("client_info", {}).get("android_client_info", {}).get("package_name")
+                  == "org.telebeta.messenger"
+                  for client in clients
+              ):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
               payload = json.dumps(config, indent=2) + "\n"
               for config_path in firebase_modules:
                   config_path.write_text(payload)
-              print(f"Installed Firebase config in {len(firebase_modules)} Google Services modules.")
+              print("Installed Firebase config in TMessagesProj and TMessagesProj_AppStandalone.")
           else:
-              # Prevent upstream Telegram configs from being used with the fork package ID.
               for config_path in firebase_modules:
                   config_path.unlink(missing_ok=True)
-              print(f"Removed upstream Firebase configs from {len(firebase_modules)} Google Services modules.")
+              print("Removed upstream Firebase configs from the two standalone build modules.")
+
+          # Validate identity before Gradle starts expensive native compilation.
+          if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text():
+              raise SystemExit("APP_PACKAGE must remain org.telebeta.messenger")
+          if "namespace 'org.telebeta.messenger'" not in module.read_text():
+              raise SystemExit("TMessagesProj namespace is not org.telebeta.messenger")
+          if "namespace 'org.telebeta.messenger'" not in standalone.read_text():
+              raise SystemExit("Standalone namespace is not org.telebeta.messenger")
           PY
 
       - name: Build standalone APK
