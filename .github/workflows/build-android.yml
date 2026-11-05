@@ -111,6 +111,13 @@ jobs:
           if not re.search(r"namespace ['\"]org\.telegram\.messenger['\"]", module_gradle):
               raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger for upstream R imports")
 
+          # The Google Services plugin must run in the app module only.
+          # Its library task otherwise looks for org.telegram.messenger.
+          plugin_line = "apply plugin: 'com.google.gms.google-services'"
+          if module_gradle.count(plugin_line) != 1:
+              raise SystemExit("Unexpected TMessagesProj Google Services plugin declaration")
+          module.write_text(module_gradle.replace(plugin_line, "", 1))
+
           # Upstream standalone build type appends .web to applicationId.
           # Remove that suffix and align the standalone namespace with the fork.
           standalone = root / "TMessagesProj_AppStandalone/build.gradle"
@@ -172,6 +179,8 @@ jobs:
         working-directory: upstream
         run: |
           chmod +x gradlew
+          # Check Firebase before expensive native compilation.
+          ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
       - name: Upload APK artifact
