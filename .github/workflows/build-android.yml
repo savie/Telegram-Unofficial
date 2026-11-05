@@ -142,6 +142,8 @@ jobs:
               if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
               (root / "TMessagesProj_AppStandalone/google-services.json").write_text(json.dumps(config, indent=2) + "\n")
+          else:
+              (root / "TMessagesProj_AppStandalone/google-services.json").unlink(missing_ok=True)
           PY
 
       - name: Build standalone APK
