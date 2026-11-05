@@ -103,18 +103,13 @@ jobs:
               raise SystemExit("Could not patch standalone launcher label")
           manifest.write_text(xml2)
 
-          # Keep the fork namespace stable; Java source package paths remain upstream.
+          # Keep the library namespace aligned with upstream source imports.
+          # TMessagesProj Java files explicitly import org.telegram.messenger.R;
+          # changing this library namespace breaks generated R references.
           module = root / "TMessagesProj/build.gradle"
-          gradle = module.read_text()
-          gradle2, count = re.subn(
-              r"namespace ['\"]org\.telegram\.messenger['\"]",
-              "namespace 'org.telebeta.messenger'",
-              gradle,
-              count=1
-          )
-          if count != 1:
-              raise SystemExit("Could not patch TMessagesProj namespace")
-          module.write_text(gradle2)
+          module_gradle = module.read_text()
+          if not re.search(r"namespace ['\"]org\.telegram\.messenger['\"]", module_gradle):
+              raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger for upstream R imports")
 
           # Upstream standalone build type appends .web to applicationId.
           # Remove that suffix and align the standalone namespace with the fork.
@@ -169,8 +164,8 @@ jobs:
           # Validate identity before Gradle starts expensive native compilation.
           if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text():
               raise SystemExit("APP_PACKAGE must remain org.telebeta.messenger")
-          if "namespace 'org.telebeta.messenger'" not in module.read_text():
-              raise SystemExit("TMessagesProj namespace is not org.telebeta.messenger")
+          if "namespace 'org.telegram.messenger'" not in module.read_text():
+              raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger")
           if "namespace 'org.telebeta.messenger'" not in standalone.read_text():
               raise SystemExit("Standalone namespace is not org.telebeta.messenger")
           PY
