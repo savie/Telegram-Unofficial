@@ -122,20 +122,16 @@ jobs:
           # Remove that suffix and align the standalone namespace with the fork.
           standalone = root / "TMessagesProj_AppStandalone/build.gradle"
           standalone_gradle = standalone.read_text()
-          standalone_gradle, ns_count = re.subn(
-              r"namespace ['\"]org\.telegram\.messenger\.web['\"]",
-              "namespace 'org.telebeta.messenger'",
-              standalone_gradle,
-              count=1
-          )
+          # Preserve upstream resource namespace: standalone Java sources import
+          # org.telegram.messenger.web.R. applicationId is configured separately.
+          if not re.search(r"namespace ['\\"]org\\.telegram\\.messenger\\.web['\\"]", standalone_gradle):
+              raise SystemExit("Standalone namespace must remain org.telegram.messenger.web for R imports")
           standalone_gradle, suffix_count = re.subn(
               r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
               r'\1""',
               standalone_gradle,
               count=1
           )
-          if ns_count != 1:
-              raise SystemExit("Could not set standalone namespace to org.telebeta.messenger")
           if suffix_count != 1:
               raise SystemExit("Could not remove standalone .web applicationIdSuffix")
           standalone.write_text(standalone_gradle)
@@ -171,8 +167,8 @@ jobs:
               raise SystemExit("APP_PACKAGE must remain org.telebeta.messenger")
           if "namespace 'org.telegram.messenger'" not in module.read_text():
               raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger")
-          if "namespace 'org.telebeta.messenger'" not in standalone.read_text():
-              raise SystemExit("Standalone namespace is not org.telebeta.messenger")
+          if "namespace 'org.telegram.messenger.web'" not in standalone.read_text():
+              raise SystemExit("Standalone namespace must remain org.telegram.messenger.web")
           PY
 
       - name: Build standalone APK
