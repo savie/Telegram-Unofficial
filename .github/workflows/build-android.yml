@@ -110,30 +110,22 @@ jobs:
           gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger['\"]", "namespace 'org.telebeta.messenger'", gradle, count=1)
           if count != 1:
               raise SystemExit("Could not patch TMessagesProj namespace")
-          # TMessagesProj is also processed by the Google Services plugin.
-          module_firebase = root / "TMessagesProj/google-services.json"
-          standalone_firebase = root / "TMessagesProj_AppStandalone/google-services.json"
+          # Find every Gradle module that applies the Google Services plugin.
+          # The Telegram upstream currently applies it to multiple app modules
+          # and TMessagesProj; keep this generic so future modules are covered.
+          gradle_files = list(root.rglob("build.gradle")) + list(root.rglob("build.gradle.kts"))
+          firebase_modules = []
+          for gradle_file in gradle_files:
+              gradle_text = gradle_file.read_text()
+              uses_google_services = (
+                  "com.google.gms.google-services" in gradle_text
+                  or "com.google.gms.google-services" in gradle_text.replace(" ", "")
+              )
+              if uses_google_services:
+                  firebase_modules.append(gradle_file.parent / "google-services.json")
 
-          standalone = root / "TMessagesProj_AppStandalone/build.gradle"
-          gradle = standalone.read_text()
-          gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger\.web['\"]", "namespace 'org.telebeta.messenger.web'", gradle, count=1)
-          if count != 1:
-              raise SystemExit("Could not patch standalone namespace")
-
-          # The upstream standalone buildType adds applicationIdSuffix ".web".
-          # Override it with an empty suffix: final applicationId must be exact.
-          gradle2, count = re.subn(
-              r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)"\.web"',
-              r'\1""',
-              gradle2,
-              count=1
-          )
-          if count != 1:
-              raise SystemExit("Could not remove standalone .web applicationIdSuffix")
-          # Firebase config must belong to the exact Tele-beta application ID.
-          # If the user has not supplied one yet, allow the APK build to proceed
-          # without generating Firebase resources (FCM remains unconfigured).
-          standalone.write_text(gradle2)
+          if not firebase_modules:
+              raise SystemExit("No Gradle modules applying Google Services plugin were found.")
 
           import os
           firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
@@ -143,14 +135,15 @@ jobs:
               clients = config.get("client", [])
               if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
-              payload = json.dumps(config, indent=2) + "\n"
-              module_firebase.write_text(payload)
-              standalone_firebase.write_text(payload)
+              payload = json.dumps(config, indent=2) + "\\n"
+              for config_path in firebase_modules:
+                  config_path.write_text(payload)
+              print(f"Installed Firebase config in {len(firebase_modules)} Google Services modules.")
           else:
-              # Do not let upstream Telegram Firebase clients conflict with the
-              # fork package ID when Firebase is intentionally not configured.
-              module_firebase.unlink(missing_ok=True)
-              standalone_firebase.unlink(missing_ok=True)
+              # Prevent upstream Telegram configs from being used with the fork package ID.
+              for config_path in firebase_modules:
+                  config_path.unlink(missing_ok=True)
+              print(f"Removed upstream Firebase configs from {len(firebase_modules)} Google Services modules.")
           PY
 
       - name: Build standalone APK
