@@ -110,7 +110,9 @@ jobs:
           gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger['\"]", "namespace 'org.telebeta.messenger'", gradle, count=1)
           if count != 1:
               raise SystemExit("Could not patch TMessagesProj namespace")
-          module.write_text(gradle2)
+          # TMessagesProj is also processed by the Google Services plugin.
+          module_firebase = root / "TMessagesProj/google-services.json"
+          standalone_firebase = root / "TMessagesProj_AppStandalone/google-services.json"
 
           standalone = root / "TMessagesProj_AppStandalone/build.gradle"
           gradle = standalone.read_text()
@@ -141,9 +143,14 @@ jobs:
               clients = config.get("client", [])
               if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
-              (root / "TMessagesProj_AppStandalone/google-services.json").write_text(json.dumps(config, indent=2) + "\n")
+              payload = json.dumps(config, indent=2) + "\n"
+              module_firebase.write_text(payload)
+              standalone_firebase.write_text(payload)
           else:
-              (root / "TMessagesProj_AppStandalone/google-services.json").unlink(missing_ok=True)
+              # Do not let upstream Telegram Firebase clients conflict with the
+              # fork package ID when Firebase is intentionally not configured.
+              module_firebase.unlink(missing_ok=True)
+              standalone_firebase.unlink(missing_ok=True)
           PY
 
       - name: Build standalone APK
