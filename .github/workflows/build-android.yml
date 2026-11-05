@@ -1,0 +1,81 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/build-android.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout project configuration
+        uses: actions/checkout@v4
+
+      - name: Validate Telegram API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          test -n "$TELEGRAM_API_ID" || { echo "::error::Set TELEGRAM_API_ID in repository secrets."; exit 1; }
+          test -n "$TELEGRAM_API_HASH" || { echo "::error::Set TELEGRAM_API_HASH in repository secrets."; exit 1; }
+          case "$TELEGRAM_API_ID" in *[!0-9]*|'') echo "::error::TELEGRAM_API_ID must be numeric."; exit 1;; esac
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android toolchain
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Fetch Telegram Android upstream
+        run: |
+          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/TelegramOrg/Telegram-Android.git upstream
+          test -f upstream/gradlew
+          test -f upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+
+      - name: Configure project API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          path = Path("upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java")
+          source = path.read_text()
+          app_id = os.environ["TELEGRAM_API_ID"]
+          app_hash = os.environ["TELEGRAM_API_HASH"]
+          source, n1 = re.subn(r"public static int APP_ID = [0-9]+;", f"public static int APP_ID = {app_id};", source, count=1)
+          source, n2 = re.subn(r'public static String APP_HASH = "[^"]*";', f'public static String APP_HASH = "{app_hash}";', source, count=1)
+          if n1 != 1 or n2 != 1:
+              raise SystemExit("BuildVars.java layout changed; refusing to patch credentials.")
+          path.write_text(source)
+          PY
+
+      - name: Build standalone APK
+        working-directory: upstream
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :TMessagesProj_AppStandalone:assembleAfatStandalone
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-unofficial-android-apk
+          path: upstream/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
