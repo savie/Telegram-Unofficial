@@ -33,11 +33,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle and restore caches
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-provider: basic
-
       - name: Set up Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
@@ -55,6 +50,12 @@ jobs:
           git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/TelegramOrg/Telegram-Android.git upstream
           test -f upstream/gradlew
           test -f upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+
+      - name: Set up Gradle and restore caches
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
 
       - name: Configure project API credentials
         env:
