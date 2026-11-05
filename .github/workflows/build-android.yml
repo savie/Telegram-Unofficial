@@ -109,8 +109,8 @@ jobs:
           # The upstream standalone buildType adds applicationIdSuffix ".web".
           # Override it with an empty suffix: final applicationId must be exact.
           gradle2, count = re.subn(
-              r'(standalone\\s*\\{[\\s\\S]*?applicationIdSuffix\\s+)"\\.web"',
-              r'\\1""',
+              r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)"\.web"',
+              r'\1""',
               gradle2,
               count=1
           )
