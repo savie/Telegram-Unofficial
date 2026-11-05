@@ -66,6 +66,48 @@ jobs:
           path.write_text(source)
           PY
 
+
+      - name: Apply Tele-beta branding and application ID
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("upstream")
+          # Application ID is set via upstream Gradle property and the standalone
+          # module appends ".web" for the standalone variant.
+          props = root / "gradle.properties"
+          data = props.read_text()
+          data, count = re.subn(r"(?m)^APP_PACKAGE=.*$", "APP_PACKAGE=org.telebeta.messenger", data)
+          if count != 1:
+              raise SystemExit("Could not locate APP_PACKAGE in gradle.properties")
+          props.write_text(data)
+
+          # The standalone manifest supplies the launcher label.
+          manifest = root / "TMessagesProj/config/release/AndroidManifest_standalone.xml"
+          xml = manifest.read_text()
+          xml2, count = re.subn(r'android:label="[^"]*"', 'android:label="Tele-ß"', xml, count=1)
+          if count != 1:
+              raise SystemExit("Could not patch standalone launcher label")
+          manifest.write_text(xml2)
+
+          # Fork namespace for application/library code; keep upstream Java
+          # package paths unchanged. Android namespace is independent of source packages.
+          module = root / "TMessagesProj/build.gradle"
+          gradle = module.read_text()
+          gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger['\"]", "namespace 'org.telebeta.messenger'", gradle, count=1)
+          if count != 1:
+              raise SystemExit("Could not patch TMessagesProj namespace")
+          module.write_text(gradle2)
+
+          standalone = root / "TMessagesProj_AppStandalone/build.gradle"
+          gradle = standalone.read_text()
+          gradle2, count = re.subn(r"namespace ['\"]org\.telegram\.messenger\.web['\"]", "namespace 'org.telebeta.messenger.web'", gradle, count=1)
+          if count != 1:
+              raise SystemExit("Could not patch standalone namespace")
+          standalone.write_text(gradle2)
+          PY
+
       - name: Build standalone APK
         working-directory: upstream
         run: |
