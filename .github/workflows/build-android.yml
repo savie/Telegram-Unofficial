@@ -133,12 +133,13 @@ jobs:
               raise SystemExit("Could not remove standalone .web applicationIdSuffix")
           standalone.write_text(standalone_gradle)
 
-          # The selected build task uses these two modules only. Do not copy a
-          # single-package Firebase config into unrelated app variants/modules.
-          firebase_modules = [
-              root / "TMessagesProj/google-services.json",
-              root / "TMessagesProj_AppStandalone/google-services.json",
-          ]
+          # Firebase belongs to the standalone application module only.
+          # TMessagesProj is an Android library whose namespace remains
+          # org.telegram.messenger; placing the app's google-services.json there
+          # makes processStandaloneGoogleServices search for the wrong package.
+          library_firebase = root / "TMessagesProj/google-services.json"
+          app_firebase = root / "TMessagesProj_AppStandalone/google-services.json"
+          library_firebase.unlink(missing_ok=True)
 
           import os
           firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
@@ -152,14 +153,11 @@ jobs:
                   for client in clients
               ):
                   raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
-              payload = json.dumps(config, indent=2) + "\n"
-              for config_path in firebase_modules:
-                  config_path.write_text(payload)
-              print("Installed Firebase config in TMessagesProj and TMessagesProj_AppStandalone.")
+              app_firebase.write_text(json.dumps(config, indent=2) + "\n")
+              print("Installed Firebase config in TMessagesProj_AppStandalone only.")
           else:
-              for config_path in firebase_modules:
-                  config_path.unlink(missing_ok=True)
-              print("Removed upstream Firebase configs from the two standalone build modules.")
+              app_firebase.unlink(missing_ok=True)
+              print("Removed Firebase config from the standalone app module.")
 
           # Validate identity before Gradle starts expensive native compilation.
           if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text():
