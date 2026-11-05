@@ -131,7 +131,6 @@ jobs:
           # Firebase config must belong to the exact Tele-beta application ID.
           # If the user has not supplied one yet, allow the APK build to proceed
           # without generating Firebase resources (FCM remains unconfigured).
-          gradle2 += '\n\ngoogleServices {\n    missingGoogleServicesStrategy = "IGNORE"\n}\n'
           standalone.write_text(gradle2)
 
           import os
