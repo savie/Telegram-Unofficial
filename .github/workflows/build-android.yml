@@ -33,6 +33,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Gradle and restore caches
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
       - name: Set up Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
@@ -72,6 +77,8 @@ jobs:
 
 
       - name: Apply Tele-beta branding and application ID
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -120,14 +127,28 @@ jobs:
           )
           if count != 1:
               raise SystemExit("Could not remove standalone .web applicationIdSuffix")
+          # Firebase config must belong to the exact Tele-beta application ID.
+          # If the user has not supplied one yet, allow the APK build to proceed
+          # without generating Firebase resources (FCM remains unconfigured).
+          gradle2 += '\n\ngoogleServices {\n    missingGoogleServicesStrategy = "IGNORE"\n}\n'
           standalone.write_text(gradle2)
+
+          import os
+          firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
+          if firebase_json:
+              import json
+              config = json.loads(firebase_json)
+              clients = config.get("client", [])
+              if not any(client.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for client in clients):
+                  raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
+              (root / "TMessagesProj_AppStandalone/google-services.json").write_text(json.dumps(config, indent=2) + "\\n")
           PY
 
       - name: Build standalone APK
         working-directory: upstream
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :TMessagesProj_AppStandalone:assembleAfatStandalone
+          ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5
