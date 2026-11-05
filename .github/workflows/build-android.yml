@@ -124,7 +124,7 @@ jobs:
           standalone_gradle = standalone.read_text()
           # Preserve upstream resource namespace: standalone Java sources import
           # org.telegram.messenger.web.R. applicationId is configured separately.
-          if not re.search(r"namespace ['\\"]org\\.telegram\\.messenger\\.web['\\"]", standalone_gradle):
+          if "namespace 'org.telegram.messenger.web'" not in standalone_gradle and 'namespace "org.telegram.messenger.web"' not in standalone_gradle:
               raise SystemExit("Standalone namespace must remain org.telegram.messenger.web for R imports")
           standalone_gradle, suffix_count = re.subn(
               r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
