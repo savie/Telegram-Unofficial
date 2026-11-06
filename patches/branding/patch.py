@@ -68,14 +68,22 @@ def configure_branding() -> None:
     ):
         raise SystemExit("Namespace standalone harus tetap org.telegram.messenger.web.")
 
-    standalone_text, count = re.subn(
-        r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
-        r'\1""',
-        standalone_text,
-        count=1,
+    standalone_start = standalone_text.find("        standalone {")
+    if standalone_start < 0:
+        raise SystemExit("Blok buildTypes.standalone tidak ditemukan.")
+    standalone_end = standalone_text.find("\n        }", standalone_start)
+    if standalone_end < 0:
+        raise SystemExit("Penutup blok buildTypes.standalone tidak ditemukan.")
+    standalone_block = standalone_text[standalone_start:standalone_end]
+    suffix = 'applicationIdSuffix ".web"'
+    if standalone_block.count(suffix) != 1:
+        raise SystemExit("applicationIdSuffix .web pada standalone tidak ditemukan secara unik.")
+    standalone_block = standalone_block.replace(suffix, 'applicationIdSuffix ""', 1)
+    standalone_text = (
+        standalone_text[:standalone_start]
+        + standalone_block
+        + standalone_text[standalone_end:]
     )
-    if count != 1:
-        raise SystemExit("Tidak bisa menghapus standalone .web applicationIdSuffix.")
     standalone_gradle.write_text(standalone_text, encoding="utf-8")
 
     if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text(encoding="utf-8"):
