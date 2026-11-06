@@ -77,6 +77,71 @@ jobs:
           PY
 
 
+      - name: Configure Tele-beta release signing
+        env:
+          TELEBETA_KEYSTORE_BASE64: ${{ secrets.TELEBETA_KEYSTORE_BASE64 }}
+          TELEBETA_KEYSTORE_PASSWORD: ${{ secrets.TELEBETA_KEYSTORE_PASSWORD }}
+          TELEBETA_KEY_ALIAS: ${{ secrets.TELEBETA_KEY_ALIAS }}
+          TELEBETA_KEY_PASSWORD: ${{ secrets.TELEBETA_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import os
+          import re
+          from pathlib import Path
+
+          required = (
+              "TELEBETA_KEYSTORE_BASE64",
+              "TELEBETA_KEYSTORE_PASSWORD",
+              "TELEBETA_KEY_ALIAS",
+              "TELEBETA_KEY_PASSWORD",
+          )
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Missing repository secrets: " + ", ".join(missing))
+
+          alias = os.environ["TELEBETA_KEY_ALIAS"]
+          if alias != "telebeta-release":
+              raise SystemExit("TELEBETA_KEY_ALIAS must match the alias created for this keystore.")
+
+          try:
+              keystore_bytes = base64.b64decode(
+                  os.environ["TELEBETA_KEYSTORE_BASE64"],
+                  validate=True,
+              )
+          except Exception as error:
+              raise SystemExit("TELEBETA_KEYSTORE_BASE64 is not valid Base64.") from error
+
+          if not keystore_bytes:
+              raise SystemExit("Decoded Tele-beta keystore is empty.")
+
+          keystore = Path("upstream/TMessagesProj/config/release.keystore")
+          keystore.parent.mkdir(parents=True, exist_ok=True)
+          keystore.write_bytes(keystore_bytes)
+
+          props = Path("upstream/gradle.properties")
+          data = props.read_text(encoding="utf-8")
+          values = {
+              "RELEASE_STORE_PASSWORD": os.environ["TELEBETA_KEYSTORE_PASSWORD"],
+              "RELEASE_KEY_ALIAS": alias,
+              "RELEASE_KEY_PASSWORD": os.environ["TELEBETA_KEY_PASSWORD"],
+          }
+          for key, value in values.items():
+              pattern = rf"(?m)^{key}=.*$"
+              data, count = re.subn(pattern, lambda _: f"{key}={value}", data, count=1)
+              if count != 1:
+                  raise SystemExit(f"Could not configure {key} in gradle.properties.")
+          props.write_text(data, encoding="utf-8")
+
+          if keystore.stat().st_size < 1024:
+              raise SystemExit("Decoded keystore is unexpectedly small.")
+          print("Tele-beta release keystore installed and Gradle signing properties configured.")
+          PY
+
+          keytool -list -keystore upstream/TMessagesProj/config/release.keystore \
+            -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
+          echo "Tele-beta keystore alias verified."
+
       - name: Apply Tele-beta branding and application ID
         env:
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
@@ -311,7 +376,9 @@ jobs:
           target.parent.mkdir(parents=True, exist_ok=True)
           target.write_text(source, encoding="utf-8")
           written = target.read_text(encoding="utf-8")
-          if "UserConfig.getInstance" in written or "TLRPC.User" in written:
+          import re
+          code = re.sub(r"/\\*.*?\\*/|//[^\\n]*", "", written, flags=re.S)
+          if "UserConfig.getInstance" in code or "TLRPC.User" in code or ".premium" in code:
               raise SystemExit("Freemium engine must not inspect or modify Telegram account entitlement")
           if "Tier.FREE.name()" not in written or "return false;" not in written:
               raise SystemExit("Freemium engine default-deny validation failed")
