@@ -103,10 +103,15 @@ jobs:
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
+      - name: Prepare artifact name
+        id: artifact
+        run: |
+          echo "name=tele-ß_$(printf '%02d' "$GITHUB_RUN_NUMBER")" >> "$GITHUB_OUTPUT"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5
         with:
-          name: tele-ß_${{ format('{0:02d}', github.run_number) }}
+          name: ${{ steps.artifact.outputs.name }}
           path: upstream/Telegram-Android/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
