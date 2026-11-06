@@ -41,7 +41,7 @@ def configure_branding():
     if "namespace 'org.telegram.messenger.web'" not in app_text and 'namespace "org.telegram.messenger.web"' not in app_text:
         raise SystemExit("Namespace standalone harus tetap org.telegram.messenger.web.")
     app_text, count = re.subn(
-        r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
+        r'(buildTypes\s*\{[\s\S]*?\bstandalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
         r'\1""',
         app_text,
         count=1,
