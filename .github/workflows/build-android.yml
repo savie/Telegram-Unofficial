@@ -106,23 +106,39 @@ jobs:
         run: |
           archive="tele-ß_${GITHUB_RUN_NUMBER}.zip"
           mkdir -p dist
-          find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' -exec cp {} dist/ +
-          test -n "$(find dist -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          mapfile -d '' apks < <(find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' -print0 | sort -z)
+          if (( ${#apks[@]} == 0 )); then
+            echo "::error::Tidak ditemukan APK hasil build di upstream/Telegram-Android."
+            exit 1
+          fi
+          printf 'APK ditemukan: %s\\n' "${apks[@]}"
+          for apk in "${apks[@]}"; do
+            cp -- "$apk" dist/
+          done
           python3 - "$archive" <<'PY'
           from pathlib import Path
           from zipfile import ZIP_DEFLATED, ZipFile
           import sys
+
           archive = Path(sys.argv[1])
           apks = sorted(Path("dist").glob("*.apk"))
           if not apks:
               raise SystemExit("Tidak ada APK untuk dikemas.")
+
           with ZipFile(archive, "w", compression=ZIP_DEFLATED) as output:
               for apk in apks:
                   output.write(apk, arcname=apk.name)
+
           with ZipFile(archive) as check:
-              if check.testzip() is not None or not check.namelist():
+              names = check.namelist()
+              if not names or check.testzip() is not None:
                   raise SystemExit("Validasi ZIP gagal.")
+              if len(names) != len(apks):
+                  raise SystemExit("Jumlah APK di ZIP tidak sesuai.")
+
+          print(f"Arsip valid: {archive} ({archive.stat().st_size} bytes, {len(apks)} APK)")
           PY
+          test -s "$archive"
 
       - name: Upload APK archive
         uses: actions/upload-artifact@v5
