@@ -89,9 +89,12 @@ jobs:
           ccache --set-config=cache_dir=$HOME/.cache/ccache
           ccache --set-config=max_size=5G
           ccache --set-config=compression=true
+          ccache --set-config=compiler_check=content
           ccache --zero-stats
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
           echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
           echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+          ccache --version
 
       - name: Set up Gradle and restore caches
         uses: gradle/actions/setup-gradle@v6
@@ -117,14 +120,19 @@ jobs:
         working-directory: upstream/Telegram-Android
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
-          ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
+          ./gradlew --no-daemon --build-cache --parallel \
+            :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
+            :TMessagesProj_AppStandalone:assembleAfatStandalone
 
-      - name: Show ccache statistics
+      - name: Show build cache statistics
         if: always()
+        working-directory: upstream/Telegram-Android
         run: |
+          echo "===== CCACHE ====="
           ccache --show-stats
           ccache --show-config
+          echo "===== GRADLE TASK CACHE SUMMARY ====="
+          find . -path '*/build/*' -prune -o -name 'build-scan-data' -print | head -20 || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
