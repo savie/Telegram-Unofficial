@@ -40,17 +40,20 @@ def configure_branding():
     app_text = standalone.read_text(encoding="utf-8")
     if "namespace 'org.telegram.messenger.web'" not in app_text and 'namespace "org.telegram.messenger.web"' not in app_text:
         raise SystemExit("Namespace standalone harus tetap org.telegram.messenger.web.")
-    start = app_text.find("        standalone {")
-    if start < 0:
+    build_types = app_text.find("    buildTypes {")
+    if build_types < 0:
+        raise SystemExit("Blok android.buildTypes tidak ditemukan.")
+    standalone_start = app_text.find("        standalone {", build_types)
+    if standalone_start < 0:
         raise SystemExit("Blok buildTypes.standalone tidak ditemukan.")
-    end = app_text.find("\n        }", start)
-    if end < 0:
+    next_build_type = app_text.find("\n        }", standalone_start)
+    if next_build_type < 0:
         raise SystemExit("Penutup blok buildTypes.standalone tidak ditemukan.")
-    block = app_text[start:end]
+    block = app_text[standalone_start:next_build_type]
     suffix = 'applicationIdSuffix ".web"'
     if block.count(suffix) != 1:
         raise SystemExit("applicationIdSuffix .web pada standalone tidak ditemukan secara unik.")
     block = block.replace(suffix, 'applicationIdSuffix ""', 1)
-    standalone.write_text(app_text[:start] + block + app_text[end:], encoding="utf-8")
+    standalone.write_text(app_text[:standalone_start] + block + app_text[next_build_type:], encoding="utf-8")
     if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text(encoding="utf-8"):
         raise SystemExit("Validasi identitas APP_PACKAGE gagal.")
