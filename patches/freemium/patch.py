@@ -85,7 +85,7 @@ public final class TeleBetaFreemium {
             raise SystemExit("Could not locate PremiumPreviewFragment import anchor.")
         preview_source = preview_source.replace(anchor, anchor + import_line, 1)
 
-    purchase_pattern = r"public static void buyPremium\\(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams\\.SubscriptionUpdateParams updateParams\\) \\{.*?(?=\\n    public static String getPremiumButtonText)"
+    purchase_pattern = re.escape("public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {") + r".*?(?=\n    public static String getPremiumButtonText)"
     grant_method = """public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
         // Tele-ß grants its own local entitlement; Telegram billing is not used here.
         TeleBetaFreemium.getInstance().grantFreemium();
@@ -99,7 +99,7 @@ public final class TeleBetaFreemium {
     if purchase_count != 1:
         raise SystemExit("Premium purchase entry point changed; refusing to patch.")
 
-    button_pattern = r"public static String getPremiumButtonText\\(int currentAccount, SubscriptionTier tier\\) \\{.*?(?=\\n    private void measureGradient)"
+    button_pattern = re.escape("public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {") + r".*?(?=\n    private void measureGradient)"
     button_method = """public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {
         return "Aktifkan Freemium";
     }
