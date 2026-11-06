@@ -146,21 +146,36 @@ jobs:
 
           import os
           firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
-          if firebase_json:
-              import json
+          if not firebase_json:
+              raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON is required; add the Tele-Beta Android config as a repository secret.")
+
+          import json
+          try:
               config = json.loads(firebase_json)
-              clients = config.get("client", [])
-              if not any(
-                  client.get("client_info", {}).get("android_client_info", {}).get("package_name")
-                  == "org.telebeta.messenger"
-                  for client in clients
-              ):
-                  raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no client for org.telebeta.messenger")
-              app_firebase.write_text(json.dumps(config, indent=2) + "\n")
-              print("Installed Firebase config in TMessagesProj_AppStandalone only.")
-          else:
-              app_firebase.unlink(missing_ok=True)
-              print("Removed Firebase config from the standalone app module.")
+          except json.JSONDecodeError as error:
+              raise SystemExit(f"FIREBASE_GOOGLE_SERVICES_JSON is not valid JSON: {error}")
+
+          clients = config.get("client", [])
+          if not any(
+              client.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              == "org.telebeta.messenger"
+              for client in clients
+          ):
+              raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no Android client for org.telebeta.messenger")
+
+          app_firebase.write_text(json.dumps(config, indent=2) + "\\n")
+          print("Installed Tele-Beta Firebase config in TMessagesProj_AppStandalone only.")
+
+          # Verify Google Services is applied only to the Android application module.
+          app_gradle = standalone.read_text()
+          if app_gradle.count(plugin_line) != 1:
+              raise SystemExit("Standalone app must apply the Google Services plugin exactly once")
+          if plugin_line in module.read_text():
+              raise SystemExit("Google Services plugin must not be applied to TMessagesProj library")
+
+          # Verify the final APK identity is not changed by a build-type suffix.
+          if 'applicationIdSuffix ".web"' in app_gradle or "applicationIdSuffix '.web'" in app_gradle:
+              raise SystemExit("Standalone applicationIdSuffix .web was not removed")
 
           # Validate identity before Gradle starts expensive native compilation.
           if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text():
