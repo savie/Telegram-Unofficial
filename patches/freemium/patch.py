@@ -1,4 +1,4 @@
-"""Fondasi entitlement Freemium lokal Tele-ß."""
+"""Entitlement lokal dan jalur Grant Freemium Tele-ß."""
 import re
 from pathlib import Path
 
@@ -57,7 +57,12 @@ public final class TeleBetaFreemium {
         return preferences.getStringSet(KEY_FEATURES, Collections.emptySet()).contains(feature.name());
     }
 
-    /** Future trusted Tele-beta entitlement integration only; never call from a client-side toggle. */
+    /** Grant the app-local Freemium tier without changing Telegram account premium. */
+    public void grantFreemium() {
+        Set<Feature> enabled = java.util.EnumSet.allOf(Feature.class);
+        applyEntitlement(Tier.FREEMIUM, enabled);
+    }
+
     public void applyEntitlement(Tier tier, Set<Feature> enabledFeatures) {
         if (tier == null) throw new IllegalArgumentException("tier must not be null");
         Set<String> values = new HashSet<>();
@@ -70,6 +75,35 @@ public final class TeleBetaFreemium {
 """
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(source, encoding="utf-8")
+
+    preview = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PremiumPreviewFragment.java"
+    preview_source = preview.read_text(encoding="utf-8")
+    import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    anchor = "import org.telegram.messenger.UserObject;\\n"
+    if import_line not in preview_source:
+        if preview_source.count(anchor) != 1:
+            raise SystemExit("Could not locate PremiumPreviewFragment import anchor.")
+        preview_source = preview_source.replace(anchor, anchor + import_line, 1)
+
+    purchase_signature = "public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {"
+    grant_flow = """public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
+        // Tele-ß grants its own local entitlement; Telegram billing is not used here.
+        TeleBetaFreemium.getInstance().grantFreemium();
+        if (fragment != null && fragment.getParentActivity() != null) {
+            android.widget.Toast.makeText(fragment.getParentActivity(), "Freemium Tele-ß berhasil diaktifkan", android.widget.Toast.LENGTH_LONG).show();
+        }
+        return;
+"""
+    if preview_source.count(purchase_signature) != 1:
+        raise SystemExit("Premium purchase entry point changed; refusing to patch.")
+    preview_source = preview_source.replace(purchase_signature, grant_flow, 1)
+
+    button_signature = "public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {"
+    button_flow = button_signature + '\\n        return "Aktifkan Freemium";'
+    if preview_source.count(button_signature) != 1:
+        raise SystemExit("Premium purchase button label entry point changed; refusing to patch.")
+    preview_source = preview_source.replace(button_signature, button_flow, 1)
+    preview.write_text(preview_source, encoding="utf-8")
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
