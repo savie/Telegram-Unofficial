@@ -40,7 +40,7 @@ def configure_branding():
     app_text = standalone.read_text(encoding="utf-8")
     if "namespace 'org.telegram.messenger.web'" not in app_text and 'namespace "org.telegram.messenger.web"' not in app_text:
         raise SystemExit("Namespace standalone harus tetap org.telegram.messenger.web.")
-    build_types_match = re.search(r"\\bbuildTypes\\s*\\{", app_text)
+    build_types_match = re.search(r"\bbuildTypes\s*\{", app_text)
     if not build_types_match:
         raise SystemExit("Could not locate buildTypes block in standalone Gradle file.")
 
@@ -58,7 +58,7 @@ def configure_branding():
     build_open = app_text.find("{", build_types_match.start())
     build_end = find_block_end(app_text, build_open)
     build_types_text = app_text[build_types_match.start():build_end]
-    standalone_match = re.search(r"\\bstandalone\\s*\\{", build_types_text)
+    standalone_match = re.search(r"\bstandalone\s*\{", build_types_text)
     if not standalone_match:
         raise SystemExit("Could not locate buildTypes.standalone block.")
 
@@ -66,8 +66,8 @@ def configure_branding():
     standalone_end = find_block_end(build_types_text, standalone_open)
     standalone_text = build_types_text[standalone_match.start():standalone_end]
     standalone_text, count = re.subn(
-        r'(applicationIdSuffix\\s+)["\\']\\.web["\\']',
-        r'\\1""',
+        r'(applicationIdSuffix\s+)["\']\.web["\']',
+        r'\1""',
         standalone_text,
         count=1,
     )
