@@ -5,6 +5,13 @@ from pathlib import Path
 
 ROOT = Path("upstream/Telegram-Android")
 
+def replace_once(path: Path, pattern: str, replacement: str, label: str, flags=0):
+    original = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, original, count=1, flags=flags)
+    if count != 1:
+        raise SystemExit(f"Patch target changed or missing: {label}")
+    path.write_text(updated, encoding="utf-8")
+
 def configure_api():
     path = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java"
     app_id = os.environ["TELEGRAM_API_ID"]
@@ -17,6 +24,7 @@ def configure_api():
     if n1 != 1 or n2 != 1:
         raise SystemExit("BuildVars.java layout changed; refusing to patch credentials.")
     path.write_text(source, encoding="utf-8")
+
 def configure_branding():
     props = ROOT / "gradle.properties"
     replace_once(props, r"(?m)^APP_PACKAGE=.*$", "APP_PACKAGE=org.telebeta.messenger", "APP_PACKAGE")
@@ -27,6 +35,8 @@ def configure_branding():
     module_text = module.read_text(encoding="utf-8")
     if not re.search(r"namespace ['\"]org\.telegram\.messenger['\"]", module_text):
         raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger.")
+
+def configure_standalone_suffix():
     standalone = ROOT / "TMessagesProj_AppStandalone/build.gradle"
     app_text = standalone.read_text(encoding="utf-8")
     if "namespace 'org.telegram.messenger.web'" not in app_text and 'namespace "org.telegram.messenger.web"' not in app_text:
@@ -35,4 +45,3 @@ def configure_branding():
     if count != 1:
         raise SystemExit("Could not remove standalone .web applicationIdSuffix.")
     standalone.write_text(app_text, encoding="utf-8")
-
