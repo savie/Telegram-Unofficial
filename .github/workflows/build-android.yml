@@ -30,7 +30,7 @@ jobs:
           echo "Pinned Telegram Android revision: $sha"
 
       - name: Restore Telegram submodule source cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .git/modules/upstream/Telegram-Android
           key: telegram-android-git-${{ steps.upstream.outputs.sha }}
@@ -101,47 +101,10 @@ jobs:
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
-      - name: Package APK archive
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ARCHIVE="tele-ß_${GITHUB_RUN_NUMBER}.zip"
-
-          mkdir -p dist
-
-          mapfile -d '' APKS < <(
-            find upstream/Telegram-Android \
-              -type f \
-              -path '*/build/outputs/apk/*' \
-              -name '*.apk' \
-              ! -name '*-androidTest*.apk' \
-              -print0 | sort -z
-          )
-
-          if (( ${#APKS[@]} == 0 )); then
-            echo "::error::Tidak ditemukan APK hasil build."
-            exit 1
-          fi
-
-          for APK in "${APKS[@]}"; do
-            cp -- "$APK" dist/
-          done
-
-          (
-            cd dist
-            zip -9 "../${ARCHIVE}" ./*.apk
-          )
-
-          unzip -t "$ARCHIVE"
-          unzip -l "$ARCHIVE"
-
-          test -s "$ARCHIVE"
-
-      - name: Upload APK archive
+      - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
           name: tele-ß_${{ github.run_number }}
-          path: tele-ß_${{ github.run_number }}.zip
+          path: upstream/Telegram-Android/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
           retention-days: 14
