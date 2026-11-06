@@ -40,14 +40,50 @@ def configure_branding():
     app_text = standalone.read_text(encoding="utf-8")
     if "namespace 'org.telegram.messenger.web'" not in app_text and 'namespace "org.telegram.messenger.web"' not in app_text:
         raise SystemExit("Namespace standalone harus tetap org.telegram.messenger.web.")
-    app_text, count = re.subn(
-        r'(buildTypes\s*\{[\s\S]*?\bstandalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
-        r'\1""',
-        app_text,
+    build_types_match = re.search(r"\\bbuildTypes\\s*\\{", app_text)
+    if not build_types_match:
+        raise SystemExit("Could not locate buildTypes block in standalone Gradle file.")
+
+    def find_block_end(text: str, opening_brace: int) -> int:
+        depth = 0
+        for index in range(opening_brace, len(text)):
+            if text[index] == "{":
+                depth += 1
+            elif text[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    return index + 1
+        raise SystemExit("Unbalanced braces in standalone Gradle file.")
+
+    build_open = app_text.find("{", build_types_match.start())
+    build_end = find_block_end(app_text, build_open)
+    build_types_text = app_text[build_types_match.start():build_end]
+    standalone_match = re.search(r"\\bstandalone\\s*\\{", build_types_text)
+    if not standalone_match:
+        raise SystemExit("Could not locate buildTypes.standalone block.")
+
+    standalone_open = build_types_text.find("{", standalone_match.start())
+    standalone_end = find_block_end(build_types_text, standalone_open)
+    standalone_text = build_types_text[standalone_match.start():standalone_end]
+    standalone_text, count = re.subn(
+        r'(applicationIdSuffix\\s+)["\\']\\.web["\\']',
+        r'\\1""',
+        standalone_text,
         count=1,
     )
     if count != 1:
-        raise SystemExit("Tidak bisa menghapus applicationIdSuffix .web pada build type standalone.")
+        raise SystemExit("Could not remove applicationIdSuffix .web from buildTypes.standalone.")
+
+    updated_build_types = (
+        build_types_text[:standalone_match.start()]
+        + standalone_text
+        + build_types_text[standalone_end:]
+    )
+    app_text = (
+        app_text[:build_types_match.start()]
+        + updated_build_types
+        + app_text[build_end:]
+    )
     standalone.write_text(app_text, encoding="utf-8")
     if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text(encoding="utf-8"):
         raise SystemExit("Validasi identitas APP_PACKAGE gagal.")
