@@ -309,13 +309,13 @@ jobs:
           """
 
           target.parent.mkdir(parents=True, exist_ok=True)
-          target.write_text(source, encoding="utf-8", newline="\\n")
+          target.write_text(source, encoding="utf-8")
           written = target.read_text(encoding="utf-8")
           if "UserConfig.getInstance" in written or "TLRPC.User" in written:
               raise SystemExit("Freemium engine must not inspect or modify Telegram account entitlement")
           if "Tier.FREE.name()" not in written or "return false;" not in written:
               raise SystemExit("Freemium engine default-deny validation failed")
-          if not written.endswith("\\n"):
+          if not written.endswith("\n"):
               raise SystemExit("Freemium engine must end with a newline")
           print(f"Installed and validated {target}")
           PY
