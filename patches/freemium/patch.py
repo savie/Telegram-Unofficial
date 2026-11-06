@@ -1,4 +1,4 @@
-"""Pembuatan fondasi entitlement Freemium lokal Tele-ß."""
+"""Fondasi entitlement Freemium lokal Tele-ß."""
 import re
 from pathlib import Path
 
