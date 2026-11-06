@@ -106,7 +106,7 @@ jobs:
 
           try:
               keystore_bytes = base64.b64decode(
-                  os.environ["TELEBETA_KEYSTORE_BASE64"],
+                  "".join(os.environ["TELEBETA_KEYSTORE_BASE64"].split()),
                   validate=True,
               )
           except Exception as error:
@@ -377,7 +377,7 @@ jobs:
           target.write_text(source, encoding="utf-8")
           written = target.read_text(encoding="utf-8")
           import re
-          code = re.sub(r"/\\*.*?\\*/|//[^\\n]*", "", written, flags=re.S)
+          code = re.sub(r"/\*.*?\*/|//[^\n]*", "", written, flags=re.S)
           if "UserConfig.getInstance" in code or "TLRPC.User" in code or ".premium" in code:
               raise SystemExit("Freemium engine must not inspect or modify Telegram account entitlement")
           if "Tier.FREE.name()" not in written or "return false;" not in written:
