@@ -35,4 +35,3 @@ def configure_signing():
         if count != 1:
             raise SystemExit(f"Could not configure {key}.")
     props.write_text(data, encoding="utf-8")
-
