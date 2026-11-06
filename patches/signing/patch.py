@@ -10,16 +10,16 @@ def configure_signing():
     names = ("TELEBETA_KEYSTORE_BASE64", "TELEBETA_KEYSTORE_PASSWORD", "TELEBETA_KEY_ALIAS", "TELEBETA_KEY_PASSWORD")
     missing = [name for name in names if not os.environ.get(name)]
     if missing:
-        raise SystemExit("Secrets repository belum tersedia: " + ", ".join(missing))
+        raise SystemExit("Missing repository secrets: " + ", ".join(missing))
     alias = os.environ["TELEBETA_KEY_ALIAS"]
     if alias != "telebeta-release":
-        raise SystemExit("TELEBETA_KEY_ALIAS harus telebeta-release.")
+        raise SystemExit("TELEBETA_KEY_ALIAS must be telebeta-release.")
     try:
         raw = base64.b64decode("".join(os.environ["TELEBETA_KEYSTORE_BASE64"].split()), validate=True)
     except Exception as exc:
-        raise SystemExit("TELEBETA_KEYSTORE_BASE64 bukan Base64 valid.") from exc
+        raise SystemExit("TELEBETA_KEYSTORE_BASE64 is not valid Base64.") from exc
     if len(raw) < 1024:
-        raise SystemExit("Ukuran keystore hasil decode tidak wajar.")
+        raise SystemExit("Decoded keystore is unexpectedly small.")
     keystore = ROOT / "TMessagesProj/config/release.keystore"
     keystore.parent.mkdir(parents=True, exist_ok=True)
     keystore.write_bytes(raw)
@@ -33,5 +33,6 @@ def configure_signing():
     for key, value in values.items():
         data, count = re.subn(rf"(?m)^{key}=.*$", lambda _: f"{key}={value}", data, count=1)
         if count != 1:
-            raise SystemExit(f"Tidak bisa mengatur {key}.")
+            raise SystemExit(f"Could not configure {key}.")
     props.write_text(data, encoding="utf-8")
+
