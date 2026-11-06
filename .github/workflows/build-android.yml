@@ -82,7 +82,7 @@ jobs:
       - name: Install Android toolchain
         shell: bash
         run: |
-          sdkmanager --licenses < <(yes) >/dev/null
+          yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - name: Set up Gradle and restore caches
@@ -129,13 +129,43 @@ jobs:
           printf ' - %s\n' "${apks[@]}"
           mkdir -p dist
           cp "${apks[@]}" dist/
-          count="$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)"
-          test "$count" -gt 0
+          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -gt 0
 
-      - name: Upload APK artifact
+      - name: Package APK archive
+        shell: bash
+        run: |
+          run_number="${GITHUB_RUN_NUMBER}"
+          if [[ ! "$run_number" =~ ^[0-9]+$ ]]; then
+            echo "::error::GITHUB_RUN_NUMBER tidak valid."
+            exit 1
+          fi
+          archive="tele-ß_${run_number}.zip"
+          python3 - "$archive" <<'PY'
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+          import sys
+
+          archive = Path(sys.argv[1])
+          apks = sorted(Path("dist").glob("*.apk"))
+          if not apks:
+              raise SystemExit("Tidak ada APK yang dapat dimasukkan ke arsip.")
+          with ZipFile(archive, "w", compression=ZIP_DEFLATED) as output:
+              for apk in apks:
+                  output.write(apk, arcname=apk.name)
+          with ZipFile(archive) as check:
+              bad = check.testzip()
+              if bad:
+                  raise SystemExit(f"Arsip ZIP rusak pada entri: {bad}")
+              names = check.namelist()
+              if not names or any(not name.endswith(".apk") for name in names):
+                  raise SystemExit("Isi arsip tidak sesuai: hanya file APK yang diperbolehkan.")
+          print(f"Archive validated: {archive} ({len(apks)} APK)")
+          PY
+
+      - name: Upload APK archive
         uses: actions/upload-artifact@v5
         with:
-          name: tele-${{ github.run_number }}
-          path: dist/*.apk
+          name: tele-ß_${{ github.run_number }}
+          path: tele-ß_${{ github.run_number }}.zip
           if-no-files-found: error
           retention-days: 14
