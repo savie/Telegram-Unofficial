@@ -77,4 +77,3 @@ public final class TeleBetaFreemium {
         raise SystemExit("Freemium default-deny validation failed.")
     if not source.endswith("\n"):
         raise SystemExit("Freemium source must end with newline.")
-
