@@ -106,7 +106,7 @@ jobs:
         run: |
           archive="tele-ß_${GITHUB_RUN_NUMBER}.zip"
           mkdir -p dist
-          find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' -exec cp {} dist/ \\\;
+          find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' -exec cp {} dist/ +
           test -n "$(find dist -maxdepth 1 -type f -name '*.apk' -print -quit)"
           python3 - "$archive" <<'PY'
           from pathlib import Path
