@@ -18,18 +18,24 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - name: Checkout Tele-beta configuration
+      - name: Checkout Tele-ß configuration
         uses: actions/checkout@v5
+        with:
+          submodules: false
 
       - name: Resolve pinned Telegram upstream revision
         id: upstream
+        shell: bash
         run: |
           sha="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
-          test -n "$sha"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Git submodule gitlink upstream/Telegram-Android tidak ditemukan."
+            exit 1
+          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Pinned Telegram Android revision: $sha"
 
-      - name: Restore Telegram submodule source cache
+      - name: Restore Telegram source cache
         uses: actions/cache@v4
         with:
           path: |
@@ -40,6 +46,7 @@ jobs:
             telegram-android-
 
       - name: Initialize pinned Telegram submodule
+        shell: bash
         run: |
           git submodule sync --recursive
           git submodule update --init --recursive
@@ -53,6 +60,7 @@ jobs:
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        shell: bash
         run: |
           test -n "$TELEGRAM_API_ID" || { echo "::error::Set TELEGRAM_API_ID in repository secrets."; exit 1; }
           test -n "$TELEGRAM_API_HASH" || { echo "::error::Set TELEGRAM_API_HASH in repository secrets."; exit 1; }
@@ -65,13 +73,14 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
+        shell: bash
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          git config --global advice.defaultBranchName false
 
       - name: Install Android toolchain
+        shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
@@ -81,7 +90,7 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Apply Tele-beta patches
+      - name: Apply Tele-ß patches
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -90,28 +99,43 @@ jobs:
           TELEBETA_KEY_ALIAS: ${{ secrets.TELEBETA_KEY_ALIAS }}
           TELEBETA_KEY_PASSWORD: ${{ secrets.TELEBETA_KEY_PASSWORD }}
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
           python3 patches/apply.py
-          keytool -list -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
-            -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
-          echo "Tele-beta signing certificate verified."
+          keytool -list \
+            -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
+            -storepass "$TELEBETA_KEYSTORE_PASSWORD" \
+            -alias "$TELEBETA_KEY_ALIAS" >/dev/null
+          echo "Tele-ß signing certificate verified."
 
       - name: Build standalone APK
         working-directory: upstream/Telegram-Android
+        shell: bash
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
-      - name: Prepare artifact name
-        id: artifact
+      - name: Collect and validate APK
+        id: apk
+        shell: bash
         run: |
-          echo "name=tele-ß_$(printf '%02d' "$GITHUB_RUN_NUMBER")" >> "$GITHUB_OUTPUT"
+          mapfile -t apks < <(find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' | sort)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "::error::Build selesai tetapi APK tidak ditemukan."
+            exit 1
+          fi
+          printf 'APK ditemukan:\n'
+          printf ' - %s\n' "${apks[@]}"
+          mkdir -p dist
+          cp "${apks[@]}" dist/
+          count="$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)"
+          test "$count" -gt 0
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ steps.artifact.outputs.name }}
-          path: upstream/Telegram-Android/**/build/outputs/apk/**/*.apk
+          name: tele-${{ github.run_number }}
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
