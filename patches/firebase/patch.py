@@ -4,18 +4,12 @@ import os
 from pathlib import Path
 
 ROOT = Path("upstream/Telegram-Android")
-GOOGLE_SERVICES_PLUGIN = "apply plugin: 'com.google.gms.google-services'"
 
 def configure_firebase():
-    module = ROOT / "TMessagesProj/build.gradle"
-    standalone = ROOT / "TMessagesProj_AppStandalone/build.gradle"
-    module_text = module.read_text(encoding="utf-8")
-    app_text = standalone.read_text(encoding="utf-8")
-    if module_text.count(GOOGLE_SERVICES_PLUGIN) != 1:
+    plugin = "apply plugin: 'com.google.gms.google-services'"
+    if module_text.count(plugin) != 1:
         raise SystemExit("Unexpected Google Services plugin declaration in TMessagesProj.")
-    module.write_text(module_text.replace(GOOGLE_SERVICES_PLUGIN, "", 1), encoding="utf-8")
-    if GOOGLE_SERVICES_PLUGIN not in app_text:
-        raise SystemExit("Google Services plugin must remain enabled in standalone app.")
+    module.write_text(module_text.replace(plugin, "", 1), encoding="utf-8")
 
     (ROOT / "TMessagesProj/google-services.json").unlink(missing_ok=True)
     firebase_text = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
@@ -28,6 +22,13 @@ def configure_firebase():
     clients = config.get("client", [])
     if not any(c.get("client_info", {}).get("android_client_info", {}).get("package_name") == "org.telebeta.messenger" for c in clients):
         raise SystemExit("Firebase config has no Android client for org.telebeta.messenger.")
-    (ROOT / "TMessagesProj_AppStandalone/google-services.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
-    if GOOGLE_SERVICES_PLUGIN in module.read_text(encoding="utf-8") or GOOGLE_SERVICES_PLUGIN not in standalone.read_text(encoding="utf-8"):
-        raise SystemExit("Google Services plugin scope validation failed.")
+    app_firebase = ROOT / "TMessagesProj_AppStandalone/google-services.json"
+    app_firebase.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+
+    if plugin not in standalone.read_text(encoding="utf-8"):
+        raise SystemExit("Google Services plugin must remain enabled in standalone app.")
+    if plugin in module.read_text(encoding="utf-8"):
+        raise SystemExit("Google Services plugin must not be enabled in library module.")
+    final_props = props.read_text(encoding="utf-8")
+    if "APP_PACKAGE=org.telebeta.messenger" not in final_props:
+        raise SystemExit("APP_PACKAGE identity validation failed.")
