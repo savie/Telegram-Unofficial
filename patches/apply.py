@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from branding.patch import configure_api, configure_branding
-from firebase.patch import configure_firebase
+from branding.patch import configure_api, configure_branding, configure_standalone_suffix
+from firebase.patch import configure_firebase, remove_library_google_services_plugin
 from freemium.patch import apply_freemium
 from signing.patch import configure_signing
 
@@ -17,6 +17,8 @@ def main() -> None:
     configure_api()
     configure_signing()
     configure_branding()
+    remove_library_google_services_plugin()
+    configure_standalone_suffix()
     configure_firebase()
     apply_freemium()
     print("All Tele-ß build patches applied.")
