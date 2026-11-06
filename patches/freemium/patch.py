@@ -7,7 +7,7 @@ ROOT = Path("upstream/Telegram-Android")
 def apply_freemium():
     target = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
     if target.exists():
-        raise SystemExit(f"Menolak menimpa file upstream yang sudah ada: {target}")
+        raise SystemExit(f"Refusing to overwrite existing upstream file: {target}")
     source = """package org.telegram.messenger;
 
 import android.content.Context;
@@ -57,7 +57,7 @@ public final class TeleBetaFreemium {
         return preferences.getStringSet(KEY_FEATURES, Collections.emptySet()).contains(feature.name());
     }
 
-    /** Future trusted Tele-beta entitlement integration only. */
+    /** Future trusted Tele-beta entitlement integration only; never call from a client-side toggle. */
     public void applyEntitlement(Tier tier, Set<Feature> enabledFeatures) {
         if (tier == null) throw new IllegalArgumentException("tier must not be null");
         Set<String> values = new HashSet<>();
@@ -72,8 +72,9 @@ public final class TeleBetaFreemium {
     target.write_text(source, encoding="utf-8")
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
-        raise SystemExit("Freemium tidak boleh membaca entitlement akun Telegram.")
+        raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
     if "Tier.FREE.name()" not in source or "return false;" not in source:
-        raise SystemExit("Validasi default-deny Freemium gagal.")
+        raise SystemExit("Freemium default-deny validation failed.")
     if not source.endswith("\n"):
-        raise SystemExit("Source Freemium wajib diakhiri newline.")
+        raise SystemExit("Freemium source must end with newline.")
+
