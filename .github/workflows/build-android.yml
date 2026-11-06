@@ -176,10 +176,14 @@ jobs:
           # Verify the final APK identity is not changed by a build-type suffix.
           # Verify the standalone build type no longer declares the .web suffix.
           # A debug build type may still retain it; this workflow assembles standalone only.
-          standalone_block = re.search(r"(?ms)^\\s*standalone\\s*\\{(.*?)^\\s*\\}", app_gradle)
-          if not standalone_block:
+          standalone_start = app_gradle.find("standalone {")
+          if standalone_start < 0:
               raise SystemExit("Could not locate standalone buildType block")
-          if re.search(r'applicationIdSuffix\\s+["\\']\\.web["\\']', standalone_block.group(1)):
+          standalone_end = app_gradle.find("\n        }", standalone_start)
+          if standalone_end < 0:
+              raise SystemExit("Could not locate end of standalone buildType block")
+          standalone_block = app_gradle[standalone_start:standalone_end]
+          if 'applicationIdSuffix ".web"' in standalone_block or "applicationIdSuffix '.web'" in standalone_block:
               raise SystemExit("Standalone applicationIdSuffix .web was not removed")
 
           # Validate identity before Gradle starts expensive native compilation.
