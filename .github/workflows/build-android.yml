@@ -6,6 +6,8 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/build-android.yml"
+      - ".gitmodules"
+      - "patches/**"
 
 permissions:
   contents: read
@@ -15,8 +17,36 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - name: Checkout project configuration
+      - name: Checkout Tele-beta configuration
         uses: actions/checkout@v5
+
+      - name: Resolve pinned Telegram upstream revision
+        id: upstream
+        run: |
+          sha="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Pinned Telegram Android revision: $sha"
+
+      - name: Restore Telegram submodule source cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            upstream/Telegram-Android
+            .git/modules/upstream/Telegram-Android
+          key: telegram-android-${{ steps.upstream.outputs.sha }}
+          restore-keys: |
+            telegram-android-
+
+      - name: Initialize pinned Telegram submodule
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          test -f upstream/Telegram-Android/gradlew
+          test -f upstream/Telegram-Android/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+          actual="$(git -C upstream/Telegram-Android rev-parse HEAD)"
+          test "$actual" = "${{ steps.upstream.outputs.sha }}"
+          echo "Telegram source ready at $actual"
 
       - name: Validate Telegram API credentials
         env:
@@ -45,353 +75,30 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
-      - name: Fetch Telegram Android upstream
-        run: |
-          git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/TelegramOrg/Telegram-Android.git upstream
-          test -f upstream/gradlew
-          test -f upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
-
       - name: Set up Gradle and restore caches
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
 
-
-      - name: Configure project API credentials
+      - name: Apply Tele-beta patches
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-        run: |
-          python3 - <<'PY'
-          import os, re
-          from pathlib import Path
-          path = Path("upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java")
-          source = path.read_text()
-          app_id = os.environ["TELEGRAM_API_ID"]
-          app_hash = os.environ["TELEGRAM_API_HASH"]
-          source, n1 = re.subn(r"public static int APP_ID = [0-9]+;", f"public static int APP_ID = {app_id};", source, count=1)
-          source, n2 = re.subn(r'public static String APP_HASH = "[^"]*";', f'public static String APP_HASH = "{app_hash}";', source, count=1)
-          if n1 != 1 or n2 != 1:
-              raise SystemExit("BuildVars.java layout changed; refusing to patch credentials.")
-          path.write_text(source)
-          PY
-
-
-      - name: Configure Tele-beta release signing
-        env:
           TELEBETA_KEYSTORE_BASE64: ${{ secrets.TELEBETA_KEYSTORE_BASE64 }}
           TELEBETA_KEYSTORE_PASSWORD: ${{ secrets.TELEBETA_KEYSTORE_PASSWORD }}
           TELEBETA_KEY_ALIAS: ${{ secrets.TELEBETA_KEY_ALIAS }}
           TELEBETA_KEY_PASSWORD: ${{ secrets.TELEBETA_KEY_PASSWORD }}
-        run: |
-          python3 - <<'PY'
-          import base64
-          import os
-          import re
-          from pathlib import Path
-
-          required = (
-              "TELEBETA_KEYSTORE_BASE64",
-              "TELEBETA_KEYSTORE_PASSWORD",
-              "TELEBETA_KEY_ALIAS",
-              "TELEBETA_KEY_PASSWORD",
-          )
-          missing = [name for name in required if not os.environ.get(name)]
-          if missing:
-              raise SystemExit("Missing repository secrets: " + ", ".join(missing))
-
-          alias = os.environ["TELEBETA_KEY_ALIAS"]
-          if alias != "telebeta-release":
-              raise SystemExit("TELEBETA_KEY_ALIAS must match the alias created for this keystore.")
-
-          try:
-              keystore_bytes = base64.b64decode(
-                  "".join(os.environ["TELEBETA_KEYSTORE_BASE64"].split()),
-                  validate=True,
-              )
-          except Exception as error:
-              raise SystemExit("TELEBETA_KEYSTORE_BASE64 is not valid Base64.") from error
-
-          if not keystore_bytes:
-              raise SystemExit("Decoded Tele-beta keystore is empty.")
-
-          keystore = Path("upstream/TMessagesProj/config/release.keystore")
-          keystore.parent.mkdir(parents=True, exist_ok=True)
-          keystore.write_bytes(keystore_bytes)
-
-          props = Path("upstream/gradle.properties")
-          data = props.read_text(encoding="utf-8")
-          values = {
-              "RELEASE_STORE_PASSWORD": os.environ["TELEBETA_KEYSTORE_PASSWORD"],
-              "RELEASE_KEY_ALIAS": alias,
-              "RELEASE_KEY_PASSWORD": os.environ["TELEBETA_KEY_PASSWORD"],
-          }
-          for key, value in values.items():
-              pattern = rf"(?m)^{key}=.*$"
-              data, count = re.subn(pattern, lambda _: f"{key}={value}", data, count=1)
-              if count != 1:
-                  raise SystemExit(f"Could not configure {key} in gradle.properties.")
-          props.write_text(data, encoding="utf-8")
-
-          if keystore.stat().st_size < 1024:
-              raise SystemExit("Decoded keystore is unexpectedly small.")
-          print("Tele-beta release keystore installed and Gradle signing properties configured.")
-          PY
-
-          keytool -list -keystore upstream/TMessagesProj/config/release.keystore \
-            -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
-          echo "Tele-beta keystore alias verified."
-
-      - name: Apply Tele-beta branding and application ID
-        env:
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path("upstream")
-          # Application ID is set via upstream Gradle property and the standalone
-          # module appends ".web" for the standalone variant.
-          props = root / "gradle.properties"
-          data = props.read_text()
-          data, count = re.subn(r"(?m)^APP_PACKAGE=.*$", "APP_PACKAGE=org.telebeta.messenger", data)
-          if count != 1:
-              raise SystemExit("Could not locate APP_PACKAGE in gradle.properties")
-          props.write_text(data)
-
-          # The standalone manifest supplies the launcher label.
-          manifest = root / "TMessagesProj/config/release/AndroidManifest_standalone.xml"
-          xml = manifest.read_text()
-          xml2, count = re.subn(r'android:label="[^"]*"', 'android:label="Tele-ß"', xml, count=1)
-          if count != 1:
-              raise SystemExit("Could not patch standalone launcher label")
-          manifest.write_text(xml2)
-
-          # Keep the library namespace aligned with upstream source imports.
-          # TMessagesProj Java files explicitly import org.telegram.messenger.R;
-          # changing this library namespace breaks generated R references.
-          module = root / "TMessagesProj/build.gradle"
-          module_gradle = module.read_text()
-          if not re.search(r"namespace ['\"]org\.telegram\.messenger['\"]", module_gradle):
-              raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger for upstream R imports")
-
-          # The Google Services plugin must run in the app module only.
-          # Its library task otherwise looks for org.telegram.messenger.
-          plugin_line = "apply plugin: 'com.google.gms.google-services'"
-          if module_gradle.count(plugin_line) != 1:
-              raise SystemExit("Unexpected TMessagesProj Google Services plugin declaration")
-          module.write_text(module_gradle.replace(plugin_line, "", 1))
-
-          # Upstream standalone build type appends .web to applicationId.
-          # Remove that suffix and align the standalone namespace with the fork.
-          standalone = root / "TMessagesProj_AppStandalone/build.gradle"
-          standalone_gradle = standalone.read_text()
-          # Preserve upstream resource namespace: standalone Java sources import
-          # org.telegram.messenger.web.R. applicationId is configured separately.
-          if "namespace 'org.telegram.messenger.web'" not in standalone_gradle and 'namespace "org.telegram.messenger.web"' not in standalone_gradle:
-              raise SystemExit("Standalone namespace must remain org.telegram.messenger.web for R imports")
-          standalone_gradle, suffix_count = re.subn(
-              r'(standalone\s*\{[\s\S]*?applicationIdSuffix\s+)["\']\.web["\']',
-              r'\1""',
-              standalone_gradle,
-              count=1
-          )
-          if suffix_count != 1:
-              raise SystemExit("Could not remove standalone .web applicationIdSuffix")
-          standalone.write_text(standalone_gradle)
-
-          # Firebase belongs to the standalone application module only.
-          # TMessagesProj is an Android library whose namespace remains
-          # org.telegram.messenger; placing the app's google-services.json there
-          # makes processStandaloneGoogleServices search for the wrong package.
-          library_firebase = root / "TMessagesProj/google-services.json"
-          app_firebase = root / "TMessagesProj_AppStandalone/google-services.json"
-          library_firebase.unlink(missing_ok=True)
-
-          import os
-          firebase_json = os.environ.get("FIREBASE_GOOGLE_SERVICES_JSON", "").strip()
-          if not firebase_json:
-              raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON is required; add the Tele-Beta Android config as a repository secret.")
-
-          import json
-          try:
-              config = json.loads(firebase_json)
-          except json.JSONDecodeError as error:
-              raise SystemExit(f"FIREBASE_GOOGLE_SERVICES_JSON is not valid JSON: {error}")
-
-          clients = config.get("client", [])
-          if not any(
-              client.get("client_info", {}).get("android_client_info", {}).get("package_name")
-              == "org.telebeta.messenger"
-              for client in clients
-          ):
-              raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no Android client for org.telebeta.messenger")
-
-          app_firebase.write_text(json.dumps(config, indent=2) + "\n")
-          print("Installed Tele-Beta Firebase config in TMessagesProj_AppStandalone only.")
-
-          # Verify Google Services is applied only to the Android application module.
-          app_gradle = standalone.read_text()
-          if app_gradle.count(plugin_line) != 1:
-              raise SystemExit("Standalone app must apply the Google Services plugin exactly once")
-          if plugin_line in module.read_text():
-              raise SystemExit("Google Services plugin must not be applied to TMessagesProj library")
-
-          # Verify the final APK identity is not changed by a build-type suffix.
-          # Verify the standalone build type no longer declares the .web suffix.
-          # A debug build type may still retain it; this workflow assembles standalone only.
-          standalone_start = app_gradle.find("standalone {")
-          if standalone_start < 0:
-              raise SystemExit("Could not locate standalone buildType block")
-          standalone_end = app_gradle.find("\n        }", standalone_start)
-          if standalone_end < 0:
-              raise SystemExit("Could not locate end of standalone buildType block")
-          standalone_block = app_gradle[standalone_start:standalone_end]
-          if 'applicationIdSuffix ".web"' in standalone_block or "applicationIdSuffix '.web'" in standalone_block:
-              raise SystemExit("Standalone applicationIdSuffix .web was not removed")
-
-          # Validate identity before Gradle starts expensive native compilation.
-          if "APP_PACKAGE=org.telebeta.messenger" not in props.read_text():
-              raise SystemExit("APP_PACKAGE must remain org.telebeta.messenger")
-          if "namespace 'org.telegram.messenger'" not in module.read_text():
-              raise SystemExit("TMessagesProj namespace must remain org.telegram.messenger")
-          if "namespace 'org.telegram.messenger.web'" not in standalone.read_text():
-              raise SystemExit("Standalone namespace must remain org.telegram.messenger.web")
-          PY
-
-      - name: Apply Tele-beta Freemium engine
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          target = Path("upstream/TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java")
-          if target.exists():
-              raise SystemExit(f"Refusing to overwrite existing upstream file: {target}")
-
-          source = """package org.telegram.messenger;
-
-          import android.content.Context;
-          import android.content.SharedPreferences;
-
-          import java.util.Collections;
-          import java.util.HashSet;
-          import java.util.Set;
-
-          /**
-           * Client-local Tele-beta feature entitlements.
-           *
-           * This engine is deliberately independent from Telegram Premium:
-           * it never mutates TLRPC.User.premium, UserConfig.isPremium(), or
-           * any MTProto request or server capability.
-           */
-          public final class TeleBetaFreemium {
-              public enum Tier {
-                  FREE,
-                  FREEMIUM
-              }
-
-              public enum Feature {
-                  CUSTOM_THEMES,
-                  CHAT_CUSTOMIZATION,
-                  CUSTOM_UI,
-                  ADVANCED_DOWNLOADS,
-                  ADVANCED_PRIVACY
-              }
-
-              private static final String PREFS = "telebeta_freemium";
-              private static final String KEY_TIER = "tier";
-              private static final String KEY_FEATURES = "features";
-              private static volatile TeleBetaFreemium instance;
-
-              private final SharedPreferences preferences;
-
-              private TeleBetaFreemium(Context context) {
-                  preferences = context.getApplicationContext()
-                          .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-              }
-
-              public static TeleBetaFreemium getInstance() {
-                  TeleBetaFreemium local = instance;
-                  if (local == null) {
-                      synchronized (TeleBetaFreemium.class) {
-                          local = instance;
-                          if (local == null) {
-                              Context context = ApplicationLoader.applicationContext;
-                              if (context == null) {
-                                  throw new IllegalStateException("Application context is not initialized");
-                              }
-                              instance = local = new TeleBetaFreemium(context);
-                          }
-                      }
-                  }
-                  return local;
-              }
-
-              public Tier getTier() {
-                  String value = preferences.getString(KEY_TIER, Tier.FREE.name());
-                  try {
-                      return Tier.valueOf(value);
-                  } catch (IllegalArgumentException | NullPointerException ignored) {
-                      return Tier.FREE;
-                  }
-              }
-
-              /**
-               * Checks an explicitly granted local Tele-beta feature.
-               * No feature is implicitly unlocked by Telegram Premium.
-               */
-              public boolean isFeatureEnabled(Feature feature) {
-                  if (feature == null || getTier() != Tier.FREEMIUM) {
-                      return false;
-                  }
-                  return preferences.getStringSet(KEY_FEATURES, Collections.emptySet())
-                          .contains(feature.name());
-              }
-
-              /**
-               * Intended for a future trusted Tele-beta entitlement flow.
-               * Do not call this based on a client-side toggle or Telegram Premium.
-               */
-              public void applyEntitlement(Tier tier, Set<Feature> enabledFeatures) {
-                  if (tier == null) {
-                      throw new IllegalArgumentException("tier must not be null");
-                  }
-                  Set<String> values = new HashSet<>();
-                  if (tier == Tier.FREEMIUM && enabledFeatures != null) {
-                      for (Feature feature : enabledFeatures) {
-                          if (feature != null) {
-                              values.add(feature.name());
-                          }
-                      }
-                  }
-                  preferences.edit()
-                          .putString(KEY_TIER, tier.name())
-                          .putStringSet(KEY_FEATURES, values)
-                          .apply();
-              }
-          }
-          """
-
-          target.parent.mkdir(parents=True, exist_ok=True)
-          target.write_text(source, encoding="utf-8")
-          written = target.read_text(encoding="utf-8")
-          import re
-          code = re.sub(r"/\*.*?\*/|//[^\n]*", "", written, flags=re.S)
-          if "UserConfig.getInstance" in code or "TLRPC.User" in code or ".premium" in code:
-              raise SystemExit("Freemium engine must not inspect or modify Telegram account entitlement")
-          if "Tier.FREE.name()" not in written or "return false;" not in written:
-              raise SystemExit("Freemium engine default-deny validation failed")
-          if not written.endswith("\n"):
-              raise SystemExit("Freemium engine must end with a newline")
-          print(f"Installed and validated {target}")
-          PY
+          python3 patches/apply.py
+          keytool -list -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
+            -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
+          echo "Tele-beta signing certificate verified."
 
       - name: Build standalone APK
-        working-directory: upstream
+        working-directory: upstream/Telegram-Android
         run: |
           chmod +x gradlew
-          # Check Firebase before expensive native compilation.
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
@@ -399,6 +106,6 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: telegram-unofficial-android-apk
-          path: upstream/**/build/outputs/apk/**/*.apk
+          path: upstream/Telegram-Android/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
