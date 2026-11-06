@@ -78,8 +78,8 @@ public final class TeleBetaFreemium {
 
     preview = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PremiumPreviewFragment.java"
     preview_source = preview.read_text(encoding="utf-8")
-    import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    anchor = "import org.telegram.messenger.UserObject;\\n"
+    import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    anchor = "import org.telegram.messenger.UserObject;\n"
     if import_line not in preview_source:
         if preview_source.count(anchor) != 1:
             raise SystemExit("Could not locate PremiumPreviewFragment import anchor.")
@@ -99,7 +99,7 @@ public final class TeleBetaFreemium {
     preview_source = preview_source.replace(purchase_signature, grant_flow, 1)
 
     button_signature = "public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {"
-    button_flow = button_signature + '\\n        return "Aktifkan Freemium";'
+    button_flow = button_signature + '\n        return "Aktifkan Freemium";'
     if preview_source.count(button_signature) != 1:
         raise SystemExit("Premium purchase button label entry point changed; refusing to patch.")
     preview_source = preview_source.replace(button_signature, button_flow, 1)
