@@ -163,7 +163,7 @@ jobs:
           ):
               raise SystemExit("FIREBASE_GOOGLE_SERVICES_JSON has no Android client for org.telebeta.messenger")
 
-          app_firebase.write_text(json.dumps(config, indent=2) + "\\n")
+          app_firebase.write_text(json.dumps(config, indent=2) + "\n")
           print("Installed Tele-Beta Firebase config in TMessagesProj_AppStandalone only.")
 
           # Verify Google Services is applied only to the Android application module.
