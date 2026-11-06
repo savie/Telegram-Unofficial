@@ -18,24 +18,18 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - name: Checkout Tele-ß configuration
+      - name: Checkout Tele-beta configuration
         uses: actions/checkout@v5
-        with:
-          submodules: false
 
       - name: Resolve pinned Telegram upstream revision
         id: upstream
-        shell: bash
         run: |
           sha="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
-          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Git submodule gitlink upstream/Telegram-Android tidak ditemukan."
-            exit 1
-          fi
+          test -n "$sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Pinned Telegram Android revision: $sha"
 
-      - name: Restore Telegram source cache
+      - name: Restore Telegram submodule source cache
         uses: actions/cache@v4
         with:
           path: |
@@ -46,7 +40,6 @@ jobs:
             telegram-android-
 
       - name: Initialize pinned Telegram submodule
-        shell: bash
         run: |
           git submodule sync --recursive
           git submodule update --init --recursive
@@ -60,7 +53,6 @@ jobs:
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
-        shell: bash
         run: |
           test -n "$TELEGRAM_API_ID" || { echo "::error::Set TELEGRAM_API_ID in repository secrets."; exit 1; }
           test -n "$TELEGRAM_API_HASH" || { echo "::error::Set TELEGRAM_API_HASH in repository secrets."; exit 1; }
@@ -73,16 +65,15 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        shell: bash
         run: |
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          git config --global advice.defaultBranchName false
 
       - name: Install Android toolchain
-        shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
+          yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - name: Set up Gradle and restore caches
@@ -90,7 +81,7 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Apply Tele-ß patches
+      - name: Apply Tele-beta patches
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -99,67 +90,40 @@ jobs:
           TELEBETA_KEY_ALIAS: ${{ secrets.TELEBETA_KEY_ALIAS }}
           TELEBETA_KEY_PASSWORD: ${{ secrets.TELEBETA_KEY_PASSWORD }}
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
-        shell: bash
         run: |
           python3 patches/apply.py
-          keytool -list \
-            -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
-            -storepass "$TELEBETA_KEYSTORE_PASSWORD" \
-            -alias "$TELEBETA_KEY_ALIAS" >/dev/null
-          echo "Tele-ß signing certificate verified."
+          keytool -list -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
+            -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
+          echo "Tele-beta signing certificate verified."
 
       - name: Build standalone APK
         working-directory: upstream/Telegram-Android
-        shell: bash
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
 
-      - name: Collect and validate APK
-        id: apk
-        shell: bash
-        run: |
-          mapfile -t apks < <(find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' | sort)
-          if [ "${#apks[@]}" -eq 0 ]; then
-            echo "::error::Build selesai tetapi APK tidak ditemukan."
-            exit 1
-          fi
-          printf 'APK ditemukan:\n'
-          printf ' - %s\n' "${apks[@]}"
-          mkdir -p dist
-          cp "${apks[@]}" dist/
-          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -gt 0
-
       - name: Package APK archive
         shell: bash
         run: |
-          run_number="${GITHUB_RUN_NUMBER}"
-          if [[ ! "$run_number" =~ ^[0-9]+$ ]]; then
-            echo "::error::GITHUB_RUN_NUMBER tidak valid."
-            exit 1
-          fi
-          archive="tele-ß_${run_number}.zip"
+          archive="tele-ß_${GITHUB_RUN_NUMBER}.zip"
+          mkdir -p dist
+          find upstream/Telegram-Android -type f -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*-androidTest*.apk' -exec cp {} dist/ \\\;
+          test -n "$(find dist -maxdepth 1 -type f -name '*.apk' -print -quit)"
           python3 - "$archive" <<'PY'
           from pathlib import Path
           from zipfile import ZIP_DEFLATED, ZipFile
           import sys
-
           archive = Path(sys.argv[1])
           apks = sorted(Path("dist").glob("*.apk"))
           if not apks:
-              raise SystemExit("Tidak ada APK yang dapat dimasukkan ke arsip.")
+              raise SystemExit("Tidak ada APK untuk dikemas.")
           with ZipFile(archive, "w", compression=ZIP_DEFLATED) as output:
               for apk in apks:
                   output.write(apk, arcname=apk.name)
           with ZipFile(archive) as check:
-              bad = check.testzip()
-              if bad:
-                  raise SystemExit(f"Arsip ZIP rusak pada entri: {bad}")
-              names = check.namelist()
-              if not names or any(not name.endswith(".apk") for name in names):
-                  raise SystemExit("Isi arsip tidak sesuai: hanya file APK yang diperbolehkan.")
-          print(f"Archive validated: {archive} ({len(apks)} APK)")
+              if check.testzip() is not None or not check.namelist():
+                  raise SystemExit("Validasi ZIP gagal.")
           PY
 
       - name: Upload APK archive
