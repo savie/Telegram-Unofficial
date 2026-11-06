@@ -74,6 +74,25 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Restore C++ compilation cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-ndk27-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ccache-ndk27-${{ runner.os }}-
+
+      - name: Set up ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache
+          ccache --set-config=cache_dir=$HOME/.cache/ccache
+          ccache --set-config=max_size=5G
+          ccache --set-config=compression=true
+          ccache --zero-stats
+          echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
+
       - name: Set up Gradle and restore caches
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -100,6 +119,12 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices
           ./gradlew --no-daemon --build-cache --parallel :TMessagesProj_AppStandalone:assembleAfatStandalone
+
+      - name: Show ccache statistics
+        if: always()
+        run: |
+          ccache --show-stats
+          ccache --show-config
 
       - name: Upload APK
         uses: actions/upload-artifact@v5
