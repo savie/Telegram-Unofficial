@@ -106,7 +106,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v5
         with:
-          name: telegram-unofficial-android-apk
+          name: tele-ß_${{ format('{0:02d}', github.run_number) }}
           path: upstream/Telegram-Android/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
