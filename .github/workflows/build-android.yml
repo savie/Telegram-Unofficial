@@ -32,12 +32,10 @@ jobs:
       - name: Restore Telegram submodule source cache
         uses: actions/cache@v4
         with:
-          path: |
-            upstream/Telegram-Android
-            .git/modules/upstream/Telegram-Android
-          key: telegram-android-${{ steps.upstream.outputs.sha }}
+          path: .git/modules/upstream/Telegram-Android
+          key: telegram-android-git-${{ steps.upstream.outputs.sha }}
           restore-keys: |
-            telegram-android-
+            telegram-android-git-
 
       - name: Initialize pinned Telegram submodule
         run: |
