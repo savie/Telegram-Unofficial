@@ -85,24 +85,29 @@ public final class TeleBetaFreemium {
             raise SystemExit("Could not locate PremiumPreviewFragment import anchor.")
         preview_source = preview_source.replace(anchor, anchor + import_line, 1)
 
-    purchase_signature = "public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {"
-    grant_flow = """public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
+    purchase_pattern = r"public static void buyPremium\\(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams\\.SubscriptionUpdateParams updateParams\\) \\{.*?(?=\\n    public static String getPremiumButtonText)"
+    grant_method = """public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
         // Tele-ß grants its own local entitlement; Telegram billing is not used here.
         TeleBetaFreemium.getInstance().grantFreemium();
         if (fragment != null && fragment.getParentActivity() != null) {
             android.widget.Toast.makeText(fragment.getParentActivity(), "Freemium Tele-ß berhasil diaktifkan", android.widget.Toast.LENGTH_LONG).show();
         }
-        return;
-"""
-    if preview_source.count(purchase_signature) != 1:
-        raise SystemExit("Premium purchase entry point changed; refusing to patch.")
-    preview_source = preview_source.replace(purchase_signature, grant_flow, 1)
+    }
 
-    button_signature = "public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {"
-    button_flow = button_signature + '\n        return "Aktifkan Freemium";'
-    if preview_source.count(button_signature) != 1:
+"""
+    preview_source, purchase_count = re.subn(purchase_pattern, grant_method, preview_source, count=1, flags=re.S)
+    if purchase_count != 1:
+        raise SystemExit("Premium purchase entry point changed; refusing to patch.")
+
+    button_pattern = r"public static String getPremiumButtonText\\(int currentAccount, SubscriptionTier tier\\) \\{.*?(?=\\n    private void measureGradient)"
+    button_method = """public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {
+        return "Aktifkan Freemium";
+    }
+
+"""
+    preview_source, button_count = re.subn(button_pattern, button_method, preview_source, count=1, flags=re.S)
+    if button_count != 1:
         raise SystemExit("Premium purchase button label entry point changed; refusing to patch.")
-    preview_source = preview_source.replace(button_signature, button_flow, 1)
     preview.write_text(preview_source, encoding="utf-8")
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
