@@ -127,7 +127,7 @@ jobs:
           ccache --show-config
 
       - name: Upload APK
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tele-ß_${{ github.run_number }}
           path: upstream/Telegram-Android/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
