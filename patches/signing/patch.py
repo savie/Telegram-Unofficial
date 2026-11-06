@@ -1,4 +1,4 @@
-"""Penyiapan keystore dan properti signing untuk build Tele-ß."""
+"""Penyiapan keystore dan properti signing Tele-ß."""
 import base64
 import os
 from pathlib import Path
