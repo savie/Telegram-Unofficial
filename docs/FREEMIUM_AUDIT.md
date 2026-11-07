@@ -669,6 +669,32 @@ Pemeriksaan lanjutan pada source memperjelas bahwa pemetaan entity bukan hanya u
 
 **Implikasi desain:** Formatting Tools Native sebaiknya membatasi diri pada subset entity standar yang sudah terverifikasi round-trip. Kandidat awal yang paling aman untuk diuji adalah bold, italic, underline, strikethrough, spoiler, code/pre, dan URL. Blockquote, mention, custom emoji, formatted date, TON address, dan language highlighting tetap memerlukan pengujian lintas klien dan jalur penggunaan sebelum masuk scope rilis.
 
+### 16.10 Jalur edit pesan standar dan pemulihan format
+
+Audit lanjutan mengonfirmasi dua jalur penting:
+
+- `SendMessagesHelper` membentuk `TL_messages_editMessage` untuk edit pesan biasa. Ketika daftar `entities` tersedia, request mengisi `req.entities` dan flag entity. Jalur edit Rich Article berbeda: memakai `rich_message` dan flag protokol tersendiri. Keduanya tidak boleh dicampur.
+- `MediaDataController.addTextStyleRuns(...)` merekonstruksi entity pesan menjadi span pada teks, dan menyediakan overload untuk `TLRPC.DraftMessage`. Ini menunjukkan ada mekanisme pemulihan style dari entity untuk pesan maupun draft.
+- `ChatActivityEnterView.applyConvertedSimpleDraft(...)` mengekstrak entity dari hasil konversi Rich → Simple dengan `getEntities(..., parseMarkdown=false)`, menyimpan draft teks beserta entity, lalu memasang teks ke composer.
+- Rich draft tetap disimpan melalui `saveDraft(..., rich)` dan dibersihkan secara terpisah melalui `clearRichDraft()`. Saat pengiriman rich draft oleh akun non-Premium, composer masih mengarahkan pengguna ke conversion sheet dan jalur Premium; ini bukan bukti entitlement bisa diganti lokal.
+
+**Batas verifikasi:** source yang diperiksa membuktikan konstruksi request edit standar, pemetaan entity kembali menjadi span, dan beberapa operasi rich draft. Belum membuktikan seluruh siklus draft biasa (save → load dari storage/server → restart → restore) maupun perilaku entity pada semua jenis edit/caption. Perlu telusuri pemanggil edit standar dan penyimpanan/pemuatan draft sampai storage/network.
+
+### 16.11 Status temuan dan pekerjaan audit tersisa
+
+- [x] Verifikasi bahwa request pesan standar membawa `entities` pada `TL_messages_sendMessage`.
+- [x] Verifikasi bahwa request edit pesan standar memiliki field `entities`, terpisah dari edit Rich Article.
+- [x] Verifikasi helper pemulihan entity menjadi style span untuk pesan dan `DraftMessage`.
+- [x] Verifikasi jalur konversi Rich draft menjadi simple draft menyimpan entity.
+- [ ] Temukan definisi dan lifecycle `MessagesController.richEditorAllowed()` / `richEditorAvailable()`; identifikasi sumber app config, entitlement akun, dan hak block.
+- [ ] Telusuri lifecycle lengkap simple draft dan rich draft melalui storage, network, restart, serta pemulihan lintas perangkat.
+- [ ] Telusuri jalur edit standar dari UI sampai ekstraksi entity, termasuk edit caption dan scheduled message.
+- [ ] Audit penerimaan/update pesan Rich Article, rendering, retry file-reference, dan sinkronisasi Android ↔ TDLib.
+- [ ] Verifikasi reply quote, forward, scheduled send, media upload, serta error/rejection server untuk tiap entity yang masuk kandidat Native.
+- [ ] Jalankan matriks kompatibilitas Tele-ß ↔ Telegram resmi setelah CI gate terbuka; saat ini belum ada hasil runtime test.
+
+**Status Tahap 3: BELUM SIAP IMPLEMENTASI.** Jalur send dan edit pesan standar serta sebagian pemulihan draft kini lebih jelas. Blocker audit terbesar yang tersisa adalah asal-usul entitlement Rich Editor dan pembuktian lifecycle draft/receive serta kompatibilitas lintas klien. Tidak ada perubahan source code.
+
 ### 16.9 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
 
 
