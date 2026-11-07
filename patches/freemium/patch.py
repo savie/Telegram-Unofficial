@@ -646,56 +646,76 @@ public final class TeleBetaLocalProfileStyle {
     safe_color_patches = [
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Paint/Views/LinkPreview.java",
-            "            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());",
-            "            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());",
+            """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());""",
+            """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ReplyMessageLine.java",
-            "        if (colorId < 7) {\\n            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
-            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            """        if (colorId < 7) {
+            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+            """        if (colorId < 0) {
+            colorId = 0;
+        }
+        if (colorId < 7) {
+            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
-            "                int colorId = UserObject.getColorId(user);\\n                if (colorId < 7) {\\n                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
-            "                int colorId = UserObject.getColorId(user);\\n                if (colorId < 0) {\\n                    colorId = 0;\\n                }\\n                if (colorId < 7) {\\n                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            """                int colorId = UserObject.getColorId(user);
+                if (colorId < 7) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+            """                int colorId = UserObject.getColorId(user);
+                if (colorId < 0) {
+                    colorId = 0;
+                }
+                if (colorId < 7) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayResultsMessageCell.java",
-            "        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
-            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            """        if (colorId < 7) {
+            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+            """        if (colorId < 0) {
+            colorId = 0;
+        }
+        if (colorId < 7) {
+            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Forum/MessageTopicButton.java",
-            "            if (colorId < 7) {\\n                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);",
-            "            if (colorId < 0) {\\n                colorId = 0;\\n            }\\n            if (colorId < 7) {\\n                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);",
+            """            if (colorId < 7) {
+                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+            """            if (colorId < 0) {
+                colorId = 0;
+            }
+            if (colorId < 7) {
+                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayMessageCell.java",
-            "        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
-            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            """        if (colorId < 7) {
+            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+            """        if (colorId < 0) {
+            colorId = 0;
+        }
+        if (colorId < 7) {
+            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
     ]
     for file_path, old_snippet, new_snippet in safe_color_patches:
         source_text = file_path.read_text(encoding="utf-8")
-        old_snippet = old_snippet.replace("\\\\n", "\\n")
-        new_snippet = new_snippet.replace("\\\\n", "\\n")
         old_count = source_text.count(old_snippet)
         new_count = source_text.count(new_snippet)
         if old_count == 1 and new_count == 0:
             source_text = source_text.replace(old_snippet, new_snippet, 1)
             file_path.write_text(source_text, encoding="utf-8")
         elif old_count == 0 and new_count == 1:
-            # The vendored source already contains this guard; keep patching idempotent.
             pass
         else:
             raise SystemExit(
                 f"Expected one unguarded or already-guarded color lookup in {file_path.name}; "
                 f"found old={old_count}, new={new_count}."
             )
-
-
-
-
 
 
     # Local emoji discovery: enable suggestions and preview/install controls for
