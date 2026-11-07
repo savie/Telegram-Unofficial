@@ -350,15 +350,17 @@ public final class TeleBetaLocalProfileStyle {
         raise SystemExit("Could not uniquely locate profile-style apply guard.")
     peer_source = peer_source.replace(apply_guard, apply_guard_local, 1)
 
-    apply_user_anchor = "            final TLRPC.User me = getUserConfig().getCurrentUser();"
+    apply_user_anchor = """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (me.color == null) {"""
     apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
             if (isTeleBetaLocalProfileStyleEnabled()) {
                 TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor);
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
                 return;
-            }"""
+            }
+            if (me.color == null) {"""
     if peer_source.count(apply_user_anchor) != 1:
-        raise SystemExit("Could not uniquely locate profile-style apply user anchor.")
+        raise SystemExit("Could not uniquely locate profile-style apply block.")
     peer_source = peer_source.replace(apply_user_anchor, apply_user_local, 1)
 
     helper_anchor = "    private boolean applyingName, applyingProfile;"
