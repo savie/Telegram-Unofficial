@@ -8,6 +8,9 @@ on:
       - ".github/workflows/build-android.yml"
       - "UPSTREAM_TELEGRAM_COMMIT"
       - "gradlew"
+      - "gradle/**"
+      - "build.gradle"
+      - "settings.gradle"
       - "gradle.properties"
       - "TMessagesProj/**"
       - "TMessagesProj_AppStandalone/**"
@@ -50,6 +53,18 @@ jobs:
             exit 1
           fi
           echo "Building vendored Telegram source at $revision."
+
+      - name: Prepare isolated build workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_dir="$RUNNER_TEMP/telebeta-build"
+          mkdir -p "$build_dir"
+          git archive HEAD | tar -x -C "$build_dir"
+          test -f "$build_dir/TMessagesProj/build.gradle"
+          test -f "$build_dir/patches/apply.py"
+          echo "TELEBETA_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
+          echo "Prepared isolated build workspace: $build_dir"
 
       - name: Validate Telegram API credentials
         env:
@@ -131,9 +146,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p upstream
-          ln -s .. upstream/Telegram-Android
-          trap 'rm -f upstream/Telegram-Android; rmdir upstream 2>/dev/null || true' EXIT
+          cd "$TELEBETA_BUILD_DIR"
           python3 patches/apply.py
           keytool -list -keystore TMessagesProj/config/release.keystore \
             -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
@@ -143,6 +156,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cd "$TELEBETA_BUILD_DIR"
           chmod +x gradlew
           ./gradlew --no-daemon --build-cache --parallel \
             :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
@@ -156,12 +170,16 @@ jobs:
           ccache --show-stats || true
           ccache --show-config || true
           echo "===== GRADLE TASK CACHE SUMMARY ====="
-          find . -path '*/build/*' -prune -o -name 'build-scan-data' -print | head -20 || true
+          if [ -d "$TELEBETA_BUILD_DIR" ]; then
+            find "$TELEBETA_BUILD_DIR" -path '*/build/*' -prune -o -name 'build-scan-data' -print | head -20 || true
+          fi
+          echo "===== CHECKOUT SOURCE STATUS ====="
+          git status --short
 
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
           name: tele-ß_${{ github.run_number }}
-          path: TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
+          path: ${{ runner.temp }}/telebeta-build/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
           retention-days: 14
