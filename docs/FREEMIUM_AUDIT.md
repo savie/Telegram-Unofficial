@@ -656,14 +656,28 @@ Pemeriksaan lengkap terhadap `MediaDataController.getEntities(CharSequence[] mes
 
 **Implikasi:** fitur Native Tahap 3 dapat memanfaatkan infrastruktur entity standar yang sudah ada. Namun, daftar tombol yang boleh dibuka untuk semua akun harus dibatasi pada entity yang memang bisa dibentuk, diserialisasi, dikirim, diterima, dan dirender tanpa ketergantungan entitlement Premium. Perlu juga memeriksa interaksi Markdown parsing dengan span yang sudah ada agar offset tidak bergeser atau entity saling menimpa.
 
-### 16.7 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
+### 16.8 Jalur entity pada composer standar hingga request pengiriman
+
+Pemeriksaan lanjutan pada source memperjelas bahwa pemetaan entity bukan hanya untuk preview:
+
+- `ChatActivityEnterView` membangun preview pesan teks dengan `MediaDataController.getEntities(text, true)`; entity yang dihasilkan dipasang ke `TL_message` preview.
+- Pada pipeline pengiriman, `SendMessagesHelper.sendMessage(SendMessageParams)` menerima daftar `entities`. Untuk pesan teks biasa, request `TL_messages_sendMessage` mengisi `reqSend.entities` dan mengaktifkan flag entity ketika daftar tidak kosong. Ini membuktikan jalur serialisasi entity ke request pesan standar.
+- Pemetaan `getEntities(...)` yang diperiksa mencakup style bold/italic/monospace/strike/underline; Markdown bold/italic/spoiler/strike; inline code dan fenced pre/code dengan language; mention; text URL; URL otomatis; custom emoji; code-highlighting; blockquote; formatted date; serta TON address entities.
+- `addTextStyleRuns(...)` mengembalikan spoiler, strike, underline, bold, italic, code/pre, mention, dan URL ke style runs untuk tampilan pesan. Custom emoji ditangani terpisah, bukan sebagai style run biasa.
+
+**Batas kesimpulan:** bukti di atas memverifikasi ekstraksi entity, preview, dan pengisian field entity pada request teks standar. Belum membuktikan semua entity tersedia melalui toolbar, diterima identik oleh semua versi Telegram, atau aman dipakai pada setiap operasi edit/forward/caption. `TL_inputMessageEntityMentionName` juga perlu diverifikasi terhadap skema request pada jalur final dan tidak boleh disamakan begitu saja dengan `TL_messageEntityMentionName`.
+
+**Implikasi desain:** Formatting Tools Native sebaiknya membatasi diri pada subset entity standar yang sudah terverifikasi round-trip. Kandidat awal yang paling aman untuk diuji adalah bold, italic, underline, strikethrough, spoiler, code/pre, dan URL. Blockquote, mention, custom emoji, formatted date, TON address, dan language highlighting tetap memerlukan pengujian lintas klien dan jalur penggunaan sebelum masuk scope rilis.
+
+### 16.9 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
+
 
 - [x] Baca `SendMessagesHelper.prepareSendingArticle(...)`, `prepareEditingArticle(...)`, dan pembentukan `TL_inputRichMessage`.
 - [x] Telusuri `ChatActivityEnterView.sendConvertedRichAsSimple(...)` dan fallback ke pipeline pesan biasa.
 - [x] Audit dasar konversi Rich Text ↔ Spannable serta klasifikasi lossy.
 - [x] Verifikasi bahwa composer normal memiliki jalur TextStyleSpan ↔ Telegram MessageEntity.
 - [x] Periksa jalur native TDLib untuk Rich Message, media references, draft representation, dan RestrictedRights.
-- [ ] Petakan seluruh entity yang benar-benar diekstrak oleh `MediaDataController.getEntities(...)` dan bagaimana hasilnya dipakai dalam `sendMessageInternal` / request TL.
+- [x] Petakan seluruh entity yang diekstrak oleh `MediaDataController.getEntities(...)` dan verifikasi pemakaian entity pada preview serta field `entities` di request `TL_messages_sendMessage`.
 - [ ] Temukan sumber dan lifecycle `MessagesController.richEditorAllowed()` serta `richEditorAvailable()`; bedakan server app config, availability, entitlement akun, dan hak block.
 - [ ] Audit request edit Rich Article, response/update, receive/render, retry file-reference, dan sinkronisasi Android ↔ TDLib.
 - [ ] Telusuri rich draft save/load/clear, simple draft, restart, dan konversi/undo.
