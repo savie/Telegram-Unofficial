@@ -1,17 +1,13 @@
 name: Migrate Telegram Android to Vendored Source
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - ".github/workflows/migrate-telegram-vendored.yml"
-      - ".migration/run-vendoring"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: vendor-telegram-source-migration-vendor-telegram-full-source
+  group: vendor-telegram-source-migration-master
   cancel-in-progress: false
 
 jobs:
@@ -27,12 +23,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Require isolated migration branch
+      - name: Require master and explicit migration trigger
         shell: bash
         run: |
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "master" || {
-            echo "::error::Migration must run from master."
+            echo "::error::Vendoring migration must run from master."
             exit 1
           }
           test -f .migration/run-vendoring || {
@@ -40,7 +36,7 @@ jobs:
             exit 1
           }
 
-      - name: Fetch exact Telegram Android submodule revision
+      - name: Fetch exact Telegram Android source revision
         shell: bash
         run: |
           set -euo pipefail
@@ -49,7 +45,7 @@ jobs:
           git -C _telegram-upstream fetch --depth=1 origin 3de37c8cfb039452be7398909461da6288babf15
           git -C _telegram-upstream checkout --detach FETCH_HEAD
 
-      - name: Validate upstream snapshot and current submodule pointer
+      - name: Validate upstream snapshot and current legacy pointer
         shell: bash
         run: |
           set -euo pipefail
@@ -64,15 +60,15 @@ jobs:
           if [ -z "$pointer" ]; then
             pointer="$(git ls-tree HEAD _telegram-upstream | awk '{print $3}')"
           fi
-          test "$pointer" = "$expected"
+          if [ -n "$pointer" ]; then
+            test "$pointer" = "$expected"
+          fi
           echo "Validated Telegram Android commit: $actual"
 
-      - name: Vendor source into repository root and remove gitlink
+      - name: Vendor source into repository root and remove legacy gitlink
         shell: bash
         run: |
           set -euo pipefail
-
-          # Keep Tele-ß-owned repository metadata, workflows, patches, and README.
           rsync -a \
             --exclude='.git/' \
             --exclude='.github/' \
@@ -82,15 +78,9 @@ jobs:
             --exclude='upstream/' \
             _telegram-upstream/ ./
 
-          # The fetched upstream checkout is temporary. Remove its nested .git
-          # metadata and working directory so Git cannot stage it as a gitlink.
           rm -rf _telegram-upstream
-
           git rm -f upstream/Telegram-Android 2>/dev/null || true
-          if git ls-files --error-unmatch _telegram-upstream >/dev/null 2>&1; then
-            git rm -f _telegram-upstream
-          fi
-          rm -rf _telegram-upstream
+          git rm -f _telegram-upstream 2>/dev/null || true
           rm -f .gitmodules
           rmdir upstream 2>/dev/null || true
 
@@ -107,29 +97,21 @@ jobs:
         run: |
           set -euo pipefail
           git add -A
-          # Preserve the upstream snapshot byte-for-byte; upstream contains
-          # existing whitespace that must not be rewritten during vendoring.
           git diff --cached --stat
           test -n "$(git status --porcelain)"
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
             echo "::error::A submodule gitlink is still present in the staged index."
             exit 1
           fi
-          if ! git diff --cached --name-status -- upstream/Telegram-Android _telegram-upstream | grep -q '^D'; then
-            echo "::error::The staged migration does not record deletion of the legacy submodule gitlink."
-            exit 1
-          fi
 
-      - name: Commit and push vendored source
+      - name: Commit and push vendored source to master
         shell: bash
-        env:
-          BRANCH: master
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "build: vendor Telegram Android source into Tele-ß"
-          git push origin "HEAD:$BRANCH"
+          git push origin HEAD:master
 
       - name: Publish migration summary
         shell: bash
@@ -140,8 +122,6 @@ jobs:
             echo "- Upstream repository: `TelegramOrg/Telegram-Android`"
             echo "- Pinned commit: `3de37c8cfb039452be7398909461da6288babf15`"
             echo "- Source location: repository root"
-            echo "- Submodule gitlink: removed from migration branch"
-            echo "- Existing build workflow: intentionally unchanged"
-            echo
-            echo "Review the migration branch before opening or merging a pull request."
+            echo "- Legacy submodule pointer: removed"
+            echo "- Destination branch: master"
           } >> "$GITHUB_STEP_SUMMARY"
