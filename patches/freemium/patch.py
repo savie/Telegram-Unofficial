@@ -679,9 +679,19 @@ public final class TeleBetaLocalProfileStyle {
         source_text = file_path.read_text(encoding="utf-8")
         old_snippet = old_snippet.replace("\\\\n", "\\n")
         new_snippet = new_snippet.replace("\\\\n", "\\n")
-        if source_text.count(old_snippet) != 1:
-            raise SystemExit(f"Could not uniquely locate negative color guard in {file_path.name}.")
-        file_path.write_text(source_text.replace(old_snippet, new_snippet, 1), encoding="utf-8")
+        old_count = source_text.count(old_snippet)
+        new_count = source_text.count(new_snippet)
+        if old_count == 1 and new_count == 0:
+            source_text = source_text.replace(old_snippet, new_snippet, 1)
+            file_path.write_text(source_text, encoding="utf-8")
+        elif old_count == 0 and new_count == 1:
+            # The vendored source already contains this guard; keep patching idempotent.
+            pass
+        else:
+            raise SystemExit(
+                f"Expected one unguarded or already-guarded color lookup in {file_path.name}; "
+                f"found old={old_count}, new={new_count}."
+            )
 
 
 
