@@ -340,3 +340,31 @@ CI #99 (`42370725567`) gagal pada step **Apply Tele-ß patches**; tahap build AP
 ### 11.5 Mengapa belum ada patch gate pada commit audit ini
 
 Melepas gate UI sebelum menelusuri operasi akhir akan mengulang masalah build #96: UI terbuka, tetapi operasi bisa ditolak, tidak tersimpan, atau tidak tersinkron. Karena targetnya fitur yang benar-benar bekerja, tiap capability harus memiliki bukti entry point → gate → controller → persistence → RPC (jika ada) → respons sukses → reload/restart. Audit ini menyimpulkan bahwa tidak mungkin menjamin seluruh fitur pada screenshot berfungsi sebagai Telegram Premium hanya dengan patch client Tele-ß. Sebagian dapat dibuat sebagai fitur lokal Tele-ß; sebagian memerlukan entitlement Telegram resmi; sebagian lain dapat diganti dengan provider/fitur mandiri yang berbeda dari layanan Telegram.
+
+## 12. Implementasi Theme/UI Freemium — chat theme lokal
+
+**Commit implementasi:** `4183b25efc9b868f90191d42ddc4c7a380a0b87b`
+
+Pemeriksaan source menunjukkan `ChatThemeController.setDialogTheme(...)` sudah menyimpan pilihan tema per dialog ke `emoji` SharedPreferences dengan key `chatTheme_<account>_<dialogId>`. Saat parameter `sendRequest` bernilai `true`, controller juga mengirim request Telegram `messages.setChatTheme`.
+
+Patch `patches/freemium/patch.py` kini menghubungkan pemilihan Chat Theme dengan entitlement lokal Tele-ß:
+- Saat `CHAT_CUSTOMIZATION` aktif, tema dipasang dan disimpan lokal dengan `sendRequest=false`.
+- Saat entitlement lokal tidak aktif, perilaku upstream tetap dipertahankan (`sendRequest=true`).
+- Penerapan tema tetap memakai `themeDelegate.setCurrentTheme(...)` seperti jalur upstream.
+- Pemeriksaan boost untuk group/channel dan pemeriksaan kepemilikan gift theme tidak diubah.
+- Tidak ada perubahan pada `UserConfig.isPremium()`, `TLRPC.User.premium`, atau identitas Premium akun Telegram.
+
+**Batas fungsi:** pemilihan tema lokal hanya mengubah tampilan di perangkat Tele-ß. Tema tidak disinkronkan ke akun Telegram atau perangkat lawan bicara. Katalog tema/gift yang datanya tidak tersedia di perangkat tetap tidak otomatis terbuka.
+
+### Status Theme/UI lainnya
+
+- Theme Editor dan pengaturan accent/theme sudah memiliki jalur penyimpanan upstream melalui `Theme.saveCurrentTheme(...)` dan `Theme.saveThemeAccents(...)`; audit source saat ini belum menemukan gate Premium yang perlu dibypass pada jalur tersebut.
+- Wallpaper pribadi/lokal menggunakan `applyWallpaperBackground(false)`; jalur ini berbeda dari penerapan wallpaper untuk kedua pihak.
+- Wallpaper untuk kedua pihak tetap memerlukan Telegram Premium.
+- Wallpaper group/channel tetap tunduk pada boost level server.
+- Belum ada perubahan yang mengklaim seluruh Theme/UI Premium telah terbuka. Implementasi tahap ini secara spesifik membuat pemilihan Chat Theme menjadi local-only saat Tele-ß Freemium aktif.
+
+### Verifikasi
+
+Patch menggunakan anchor unik dan menghentikan proses bila import atau call site tidak cocok. Build/CI dan uji perangkat untuk pemilihan tema setelah restart masih perlu dijalankan; commit ini belum boleh disebut lulus CI sebelum hasil workflow tersedia.
+
