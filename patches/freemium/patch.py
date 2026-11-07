@@ -87,10 +87,10 @@ public final class TeleBetaFreemium {
 
     purchase_pattern = re.escape("public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {") + r".*?(?=\n    public static String getPremiumButtonText)"
     grant_method = """public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
-        // Tele-ß grants its own local entitlement; Telegram billing is not used here.
+        // Grant the app-local tier, then show Telegram's existing subscription-success layout.
         TeleBetaFreemium.getInstance().grantFreemium();
-        if (fragment != null && fragment.getParentActivity() != null) {
-            android.widget.Toast.makeText(fragment.getParentActivity(), "Freemium Tele-ß berhasil diaktifkan", android.widget.Toast.LENGTH_LONG).show();
+        if (fragment != null) {
+            fragment.presentFragment(new PremiumPreviewFragment("freemium").setForcePremium());
         }
     }
 
@@ -108,6 +108,11 @@ public final class TeleBetaFreemium {
     preview_source, button_count = re.subn(button_pattern, button_method, preview_source, count=1, flags=re.S)
     if button_count != 1:
         raise SystemExit("Premium purchase button label entry point changed; refusing to patch.")
+    success_state = "AndroidUtilities.updateViewVisibilityAnimated(buttonContainer, !getUserConfig().isPremium() || currentSubscriptionTier != null && currentSubscriptionTier.getMonths() < subscriptionTiers.get(selectedTierIndex).getMonths() && !forcePremium, 1f, false);"
+    success_state_replacement = "AndroidUtilities.updateViewVisibilityAnimated(buttonContainer, (!getUserConfig().isPremium() && !forcePremium) || currentSubscriptionTier != null && currentSubscriptionTier.getMonths() < subscriptionTiers.get(selectedTierIndex).getMonths() && !forcePremium, 1f, false);"
+    if preview_source.count(success_state) != 1:
+        raise SystemExit("Could not uniquely locate Premium success-state button visibility.")
+    preview_source = preview_source.replace(success_state, success_state_replacement, 1)
     preview.write_text(preview_source, encoding="utf-8")
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
