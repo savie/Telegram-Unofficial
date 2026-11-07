@@ -19,7 +19,7 @@ import java.util.Set;
 /** Client-local Tele-beta entitlements, independent from Telegram Premium. */
 public final class TeleBetaFreemium {
     public enum Tier { FREE, FREEMIUM }
-    public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY }
+    public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }
 
     private static final String PREFS = "telebeta_freemium";
     private static final String KEY_TIER = "tier";
@@ -144,6 +144,30 @@ public final class TeleBetaFreemium {
         raise SystemExit("Could not uniquely locate Premium success-state button visibility.")
     preview_source = preview_source.replace(success_state, success_state_replacement, 1)
     preview.write_text(preview_source, encoding="utf-8")
+
+    # App icons are entirely local Android launcher components. Keep Telegram's
+    # account entitlement untouched and allow this capability through Tele-beta.
+    icon_selector = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/AppIconsSelectorCell.java"
+    icon_source = icon_selector.read_text(encoding="utf-8")
+    icon_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    icon_anchor = "import org.telegram.messenger.UserConfig;\\n"
+    if icon_import not in icon_source:
+        if icon_source.count(icon_anchor) != 1:
+            raise SystemExit("Could not locate AppIconsSelectorCell import anchor.")
+        icon_source = icon_source.replace(icon_anchor, icon_anchor + icon_import, 1)
+
+    premium_icon_guard = "if (icon.premium && !UserConfig.hasPremiumOnAccounts()) {"
+    premium_icon_guard_replacement = "if (icon.premium && !UserConfig.hasPremiumOnAccounts() && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.APP_ICONS)) {"
+    if icon_source.count(premium_icon_guard) != 2:
+        raise SystemExit("Expected exactly two premium icon guards; refusing to patch.")
+    icon_source = icon_source.replace(premium_icon_guard, premium_icon_guard_replacement)
+
+    visibility_guard = "if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked()) {"
+    visibility_guard_replacement = "if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.APP_ICONS)) {"
+    if icon_source.count(visibility_guard) != 1:
+        raise SystemExit("Could not uniquely locate premium icon visibility guard.")
+    icon_source = icon_source.replace(visibility_guard, visibility_guard_replacement, 1)
+    icon_selector.write_text(icon_source, encoding="utf-8")
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
