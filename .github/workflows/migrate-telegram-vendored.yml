@@ -2,7 +2,7 @@ name: Migrate Telegram Android to Vendored Source
 
 on:
   workflow_dispatch:
-    push:
+  push:
     branches:
       - master
     paths:
