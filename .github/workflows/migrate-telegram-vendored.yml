@@ -62,6 +62,9 @@ jobs:
           test -d _telegram-upstream/TMessagesProj_AppStandalone
 
           pointer="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
+          if [ -z "$pointer" ]; then
+            pointer="$(git ls-tree HEAD _telegram-upstream | awk '{print $3}')"
+          fi
           test "$pointer" = "$expected"
           echo "Validated Telegram Android commit: $actual"
 
@@ -84,7 +87,11 @@ jobs:
           # metadata and working directory so Git cannot stage it as a gitlink.
           rm -rf _telegram-upstream
 
-          git rm -f upstream/Telegram-Android
+          git rm -f upstream/Telegram-Android 2>/dev/null || true
+          if git ls-files --error-unmatch _telegram-upstream >/dev/null 2>&1; then
+            git rm -f _telegram-upstream
+          fi
+          rm -rf _telegram-upstream
           rm -f .gitmodules
           rmdir upstream 2>/dev/null || true
 
