@@ -579,6 +579,14 @@ public final class TeleBetaLocalProfileStyle {
         raise SystemExit("Could not uniquely locate profile-style apply guard.")
     peer_source = peer_source.replace(apply_guard, apply_guard_local, 1)
 
+    button_state_anchor = """        public void updateButton(boolean animated) {
+            if (selectedResaleGift != null) {"""
+    button_state_local = """        public void updateButton(boolean animated) {
+            if (selectedResaleGift != null && !isTeleBetaLocalProfileStyleEnabled()) {"""
+    if peer_source.count(button_state_anchor) != 1:
+        raise SystemExit("Could not uniquely locate local collectible apply button label.")
+    peer_source = peer_source.replace(button_state_anchor, button_state_local, 1)
+
     apply_user_anchor = """            final TLRPC.User me = getUserConfig().getCurrentUser();
             if (me.color == null) {"""
     apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
