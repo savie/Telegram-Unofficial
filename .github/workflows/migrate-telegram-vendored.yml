@@ -1,24 +1,18 @@
 name: Migrate Telegram Android to Vendored Source
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm_migration:
-        description: "Konfirmasi: salin snapshot Telegram Android ke root repository dan hapus gitlink submodule pada branch ini"
-        required: true
-        type: boolean
-        default: false
-      target_branch:
-        description: "Branch tujuan migrasi"
-        required: true
-        type: string
-        default: "migration/vendor-telegram-full-source"
+  push:
+    branches:
+      - migration/vendor-telegram-full-source
+    paths:
+      - ".github/workflows/migrate-telegram-vendored.yml"
+      - ".migration/run-vendoring"
 
 permissions:
   contents: write
 
 concurrency:
-  group: vendor-telegram-source-${{ inputs.target_branch }}
+  group: vendor-telegram-source-migration-vendor-telegram-full-source
   cancel-in-progress: false
 
 jobs:
@@ -26,29 +20,24 @@ jobs:
     name: Vendor pinned Telegram Android source
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    if: github.event_name == 'workflow_dispatch'
-
     steps:
-      - name: Require explicit confirmation and migration branch
+      - name: Require isolated migration branch
         shell: bash
-        env:
-          CONFIRM_MIGRATION: ${{ inputs.confirm_migration }}
-          TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           set -euo pipefail
-          if [[ "$CONFIRM_MIGRATION" != "true" ]]; then
-            echo "::error::Set confirm_migration=true to run this migration."
+          test "${GITHUB_REF_NAME}" = "migration/vendor-telegram-full-source" || {
+            echo "::error::Migration is restricted to the dedicated branch."
             exit 1
-          fi
-          if [[ "$TARGET_BRANCH" != "migration/vendor-telegram-full-source" ]]; then
-            echo "::error::Only migration/vendor-telegram-full-source is an approved migration target."
+          }
+          test -f .migration/run-vendoring || {
+            echo "::error::Explicit migration trigger file is missing."
             exit 1
-          fi
+          }
 
       - name: Checkout Tele-ß repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.target_branch }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -119,7 +108,7 @@ jobs:
       - name: Commit and push vendored source
         shell: bash
         env:
-          BRANCH: ${{ inputs.target_branch }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
