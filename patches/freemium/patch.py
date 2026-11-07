@@ -286,18 +286,20 @@ public final class TeleBetaFreemium {
 import android.content.Context;
 import android.content.SharedPreferences;
 import org.telegram.tgnet.TLRPC;
+import java.util.ArrayList;
 
 public final class TeleBetaLocalProfileStyle {
     private static final String PREFS = "telebeta_local_profile_style";
     private static final String NAME_COLOR = "name_color_";
     private static final String PROFILE_COLOR = "profile_color_";
     private static final String PROFILE_EMOJI = "profile_emoji_";
+    private static final String NAME_COLLECTIBLE = "name_collectible_";
+    private static final String PROFILE_COLLECTIBLE = "profile_collectible_";
 
     private TeleBetaLocalProfileStyle() {}
 
     private static SharedPreferences prefs(int account) {
-        Context context = ApplicationLoader.applicationContext;
-        return context.getSharedPreferences(PREFS + "_" + account, Context.MODE_PRIVATE);
+        return ApplicationLoader.applicationContext.getSharedPreferences(PREFS + "_" + account, Context.MODE_PRIVATE);
     }
 
     private static boolean isCurrentUser(TLRPC.User user) {
@@ -307,31 +309,133 @@ public final class TeleBetaLocalProfileStyle {
             && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
     }
 
+    private static String listToString(ArrayList<Integer> values) {
+        if (values == null || values.isEmpty()) return "";
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) out.append(',');
+            out.append(values.get(i));
+        }
+        return out.toString();
+    }
+
+    private static ArrayList<Integer> stringToList(String value) {
+        ArrayList<Integer> out = new ArrayList<>();
+        if (value == null || value.isEmpty()) return out;
+        for (String part : value.split(",")) {
+            try { out.add(Integer.parseInt(part)); } catch (Exception ignored) {}
+        }
+        return out;
+    }
+
+    public static TLRPC.TL_peerColorCollectible getNameCollectible(TLRPC.User user) {
+        if (!isCurrentUser(user)) return null;
+        SharedPreferences p = prefs(UserConfig.selectedAccount);
+        String prefix = NAME_COLLECTIBLE + user.id + "_";
+        if (!p.getBoolean(prefix + "present", false)) return null;
+        TLRPC.TL_peerColorCollectible value = new TLRPC.TL_peerColorCollectible();
+        value.collectible_id = p.getLong(prefix + "id", 0);
+        value.gift_emoji_id = p.getLong(prefix + "gift_emoji", 0);
+        value.background_emoji_id = p.getLong(prefix + "background_emoji", 0);
+        value.accent_color = p.getInt(prefix + "accent", 0);
+        value.colors = stringToList(p.getString(prefix + "colors", ""));
+        if (p.contains(prefix + "dark_accent")) {
+            value.flags |= 1;
+            value.dark_accent_color = p.getInt(prefix + "dark_accent", 0);
+        }
+        if (p.contains(prefix + "dark_colors")) {
+            value.flags |= 2;
+            value.dark_colors = stringToList(p.getString(prefix + "dark_colors", ""));
+        }
+        return value;
+    }
+
+    public static TLRPC.TL_emojiStatusCollectible getProfileCollectible(TLRPC.User user) {
+        if (!isCurrentUser(user)) return null;
+        SharedPreferences p = prefs(UserConfig.selectedAccount);
+        String prefix = PROFILE_COLLECTIBLE + user.id + "_";
+        if (!p.getBoolean(prefix + "present", false)) return null;
+        TLRPC.TL_emojiStatusCollectible value = new TLRPC.TL_emojiStatusCollectible();
+        value.collectible_id = p.getLong(prefix + "id", 0);
+        value.document_id = p.getLong(prefix + "document", 0);
+        value.title = p.getString(prefix + "title", "");
+        value.slug = p.getString(prefix + "slug", "");
+        value.pattern_document_id = p.getLong(prefix + "pattern", 0);
+        value.center_color = p.getInt(prefix + "center", 0);
+        value.edge_color = p.getInt(prefix + "edge", 0);
+        value.pattern_color = p.getInt(prefix + "pattern_color", 0);
+        value.text_color = p.getInt(prefix + "text", 0);
+        return value;
+    }
+
     public static int getNameColor(TLRPC.User user, int fallback) {
         if (!isCurrentUser(user)) return fallback;
-        SharedPreferences p = prefs(UserConfig.selectedAccount);
-        return p.getInt(NAME_COLOR + user.id, fallback);
+        if (getNameCollectible(user) != null) return -1;
+        return prefs(UserConfig.selectedAccount).getInt(NAME_COLOR + user.id, fallback);
     }
 
     public static int getProfileColor(TLRPC.User user, int fallback) {
         if (!isCurrentUser(user)) return fallback;
-        SharedPreferences p = prefs(UserConfig.selectedAccount);
-        return p.getInt(PROFILE_COLOR + user.id, fallback);
+        if (getProfileCollectible(user) != null) return -1;
+        return prefs(UserConfig.selectedAccount).getInt(PROFILE_COLOR + user.id, fallback);
     }
 
     public static long getProfileEmoji(TLRPC.User user, long fallback) {
         if (!isCurrentUser(user)) return fallback;
+        TLRPC.TL_emojiStatusCollectible collectible = getProfileCollectible(user);
+        if (collectible != null) return collectible.pattern_document_id;
         SharedPreferences p = prefs(UserConfig.selectedAccount);
-        String key = PROFILE_EMOJI + user.id;
-        return p.contains(key) ? p.getLong(key, 0L) : fallback;
+        return p.getLong(PROFILE_EMOJI + user.id, fallback);
     }
 
-    public static void save(int account, long userId, int nameColor, int profileColor, long profileEmoji) {
-        prefs(account).edit()
+    public static long getProfileCollectibleId(TLRPC.User user, long fallback) {
+        TLRPC.TL_emojiStatusCollectible collectible = getProfileCollectible(user);
+        return collectible == null ? fallback : collectible.collectible_id;
+    }
+
+    public static void save(int account, long userId, int nameColor, int profileColor, long profileEmoji,
+                            TLRPC.TL_peerColorCollectible nameCollectible,
+                            TLRPC.TL_emojiStatusCollectible profileCollectible) {
+        SharedPreferences.Editor edit = prefs(account).edit()
             .putInt(NAME_COLOR + userId, nameColor)
             .putInt(PROFILE_COLOR + userId, profileColor)
-            .putLong(PROFILE_EMOJI + userId, profileEmoji)
-            .commit();
+            .putLong(PROFILE_EMOJI + userId, profileEmoji);
+        String namePrefix = NAME_COLLECTIBLE + userId + "_";
+        if (nameCollectible != null) {
+            edit.putBoolean(namePrefix + "present", true)
+                .putLong(namePrefix + "id", nameCollectible.collectible_id)
+                .putLong(namePrefix + "gift_emoji", nameCollectible.gift_emoji_id)
+                .putLong(namePrefix + "background_emoji", nameCollectible.background_emoji_id)
+                .putInt(namePrefix + "accent", nameCollectible.accent_color)
+                .putString(namePrefix + "colors", listToString(nameCollectible.colors));
+            if ((nameCollectible.flags & 1) != 0) edit.putInt(namePrefix + "dark_accent", nameCollectible.dark_accent_color);
+            else edit.remove(namePrefix + "dark_accent");
+            if ((nameCollectible.flags & 2) != 0) edit.putString(namePrefix + "dark_colors", listToString(nameCollectible.dark_colors));
+            else edit.remove(namePrefix + "dark_colors");
+        } else {
+            edit.remove(namePrefix + "present").remove(namePrefix + "id").remove(namePrefix + "gift_emoji")
+                .remove(namePrefix + "background_emoji").remove(namePrefix + "accent").remove(namePrefix + "colors")
+                .remove(namePrefix + "dark_accent").remove(namePrefix + "dark_colors");
+        }
+        String profilePrefix = PROFILE_COLLECTIBLE + userId + "_";
+        if (profileCollectible != null) {
+            edit.putBoolean(profilePrefix + "present", true)
+                .putLong(profilePrefix + "id", profileCollectible.collectible_id)
+                .putLong(profilePrefix + "document", profileCollectible.document_id)
+                .putString(profilePrefix + "title", profileCollectible.title)
+                .putString(profilePrefix + "slug", profileCollectible.slug)
+                .putLong(profilePrefix + "pattern", profileCollectible.pattern_document_id)
+                .putInt(profilePrefix + "center", profileCollectible.center_color)
+                .putInt(profilePrefix + "edge", profileCollectible.edge_color)
+                .putInt(profilePrefix + "pattern_color", profileCollectible.pattern_color)
+                .putInt(profilePrefix + "text", profileCollectible.text_color);
+        } else {
+            edit.remove(profilePrefix + "present").remove(profilePrefix + "id").remove(profilePrefix + "document")
+                .remove(profilePrefix + "title").remove(profilePrefix + "slug").remove(profilePrefix + "pattern")
+                .remove(profilePrefix + "center").remove(profilePrefix + "edge").remove(profilePrefix + "pattern_color")
+                .remove(profilePrefix + "text");
+        }
+        edit.commit();
     }
 }
 """
