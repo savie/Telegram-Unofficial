@@ -131,6 +131,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p upstream
+          ln -s .. upstream/Telegram-Android
+          trap 'rm -f upstream/Telegram-Android; rmdir upstream 2>/dev/null || true' EXIT
           python3 patches/apply.py
           keytool -list -keystore TMessagesProj/config/release.keystore \
             -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
