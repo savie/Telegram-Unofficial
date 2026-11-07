@@ -8,6 +8,7 @@ on:
       - ".github/workflows/build-android.yml"
       - "UPSTREAM_TELEGRAM_COMMIT"
       - "gradlew"
+      - "gradle.properties"
       - "TMessagesProj/**"
       - "TMessagesProj_AppStandalone/**"
       - "patches/**"
@@ -20,8 +21,12 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - name: Checkout Tele-beta configuration
+      - name: Checkout Tele-ß source
         uses: actions/checkout@v5
+        with:
+          ref: master
+          fetch-depth: 1
+          submodules: false
 
       - name: Validate root-level vendored Telegram source
         shell: bash
@@ -41,16 +46,18 @@ jobs:
           test ! -e upstream/Telegram-Android
           test ! -e _telegram-upstream
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
-            echo "::error::Build source must not contain a Git submodule."
+            echo "::error::Vendored source must not contain Git submodules."
             exit 1
           fi
-          echo "Building root-level vendored Telegram source at $revision."
+          echo "Building vendored Telegram source at $revision."
 
       - name: Validate Telegram API credentials
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        shell: bash
         run: |
+          set -euo pipefail
           test -n "$TELEGRAM_API_ID" || { echo "::error::Set TELEGRAM_API_ID in repository secrets."; exit 1; }
           test -n "$TELEGRAM_API_HASH" || { echo "::error::Set TELEGRAM_API_HASH in repository secrets."; exit 1; }
           case "$TELEGRAM_API_ID" in *[!0-9]*|'') echo "::error::TELEGRAM_API_ID must be numeric."; exit 1;; esac
@@ -62,14 +69,17 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
+        shell: bash
         run: |
+          set -euo pipefail
           echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          git config --global advice.defaultBranchName false
 
       - name: Install Android toolchain
+        shell: bash
         run: |
+          set -euo pipefail
           yes | sdkmanager --licenses >/dev/null
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
@@ -82,7 +92,9 @@ jobs:
             ccache-ndk27-${{ runner.os }}-
 
       - name: Set up ccache
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y ccache
           ccache --set-config=cache_dir=$HOME/.cache/ccache
@@ -100,16 +112,7 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Add legacy patch-path compatibility link
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p upstream
-          test ! -e upstream/Telegram-Android
-          ln -s .. upstream/Telegram-Android
-          test -f upstream/Telegram-Android/gradlew
-
-      - name: Apply Tele-beta patches
+      - name: Apply Tele-ß patches
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
@@ -118,14 +121,18 @@ jobs:
           TELEBETA_KEY_ALIAS: ${{ secrets.TELEBETA_KEY_ALIAS }}
           TELEBETA_KEY_PASSWORD: ${{ secrets.TELEBETA_KEY_PASSWORD }}
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
+          set -euo pipefail
           python3 patches/apply.py
           keytool -list -keystore TMessagesProj/config/release.keystore \
             -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
-          echo "Tele-beta signing certificate verified."
+          echo "Tele-ß signing certificate verified."
 
       - name: Build standalone APK
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x gradlew
           ./gradlew --no-daemon --build-cache --parallel \
             :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
@@ -133,10 +140,11 @@ jobs:
 
       - name: Show build cache statistics
         if: always()
+        shell: bash
         run: |
           echo "===== CCACHE ====="
-          ccache --show-stats
-          ccache --show-config
+          ccache --show-stats || true
+          ccache --show-config || true
           echo "===== GRADLE TASK CACHE SUMMARY ====="
           find . -path '*/build/*' -prune -o -name 'build-scan-data' -print | head -20 || true
 
