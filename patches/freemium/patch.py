@@ -450,14 +450,22 @@ public final class TeleBetaLocalProfileStyle {
         if (user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0) return user.color.color;
         return (int) (user.id % 7);"""
     name_local = """        if (user == null) return 0;
-        if (TeleBetaLocalProfileStyle.getNameCollectible(user) != null) return -1;
+        TLRPC.TL_peerColorCollectible localCollectible = TeleBetaLocalProfileStyle.getNameCollectible(user);
+        if (localCollectible != null) {
+            user.color = localCollectible;
+            return -1;
+        }
         int fallback = user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0 ? user.color.color : (int) (user.id % 7);
         return TeleBetaLocalProfileStyle.getNameColor(user, fallback);"""
     profile_fallback = """        if (user == null) return 0;
         if (user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0) return user.profile_color.color;
         return -1;"""
     profile_local = """        if (user == null) return 0;
-        if (TeleBetaLocalProfileStyle.getProfileCollectible(user) != null) return -1;
+        TLRPC.TL_emojiStatusCollectible localCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(user);
+        if (localCollectible != null) {
+            user.emoji_status = localCollectible;
+            return -1;
+        }
         int fallback = user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0 ? user.profile_color.color : -1;
         return TeleBetaLocalProfileStyle.getProfileColor(user, fallback);"""
     if user_source.count(name_getter) != 1 or user_source.count(name_fallback) != 1:
@@ -476,7 +484,10 @@ public final class TeleBetaLocalProfileStyle {
     }"""
     profile_emoji_local = """    public static long getProfileEmojiId(TLRPC.User user) {
         TLRPC.TL_emojiStatusCollectible localCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(user);
-        if (localCollectible != null) return localCollectible.pattern_document_id;
+        if (localCollectible != null) {
+            user.emoji_status = localCollectible;
+            return localCollectible.pattern_document_id;
+        }
         if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
             return ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).pattern_document_id;
         }
