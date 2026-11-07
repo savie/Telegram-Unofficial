@@ -21,6 +21,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
+      - name: Checkout Tele-ß repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
       - name: Require isolated migration branch
         shell: bash
         run: |
@@ -33,13 +40,6 @@ jobs:
             echo "::error::Explicit migration trigger file is missing."
             exit 1
           }
-
-      - name: Checkout Tele-ß repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-          persist-credentials: true
 
       - name: Checkout exact Telegram Android submodule revision
         uses: actions/checkout@v5
