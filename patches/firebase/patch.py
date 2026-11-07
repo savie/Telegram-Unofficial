@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-ROOT = Path("upstream/Telegram-Android")
+ROOT = Path(".")
 PLUGIN = "apply plugin: 'com.google.gms.google-services'"
 
 def remove_library_google_services_plugin():
