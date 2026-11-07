@@ -190,6 +190,57 @@ public final class TeleBetaFreemium {
     chat_theme.write_text(chat_theme_source, encoding="utf-8")
 
 
+
+    # Theme editor and accent customization already have local serializers in
+    # Theme.java. Keep those writes, but prevent the final-save hook from
+    # uploading a Tele-beta-only theme to Telegram.
+    theme_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java"
+    theme_source = theme_file.read_text(encoding="utf-8")
+    theme_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    theme_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    if theme_import not in theme_source:
+        if theme_source.count(theme_anchor) != 1:
+            raise SystemExit("Could not locate Theme.java import anchor.")
+        theme_source = theme_source.replace(theme_anchor, theme_anchor + theme_import, 1)
+
+    remote_theme_save = "if (finalSave) {\\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\\n        }"
+    local_theme_save = "if (finalSave && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES)) {\\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\\n        }"
+    if theme_source.count(remote_theme_save) != 1:
+        raise SystemExit("Could not uniquely locate Theme.saveCurrentTheme remote-save hook.")
+    theme_source = theme_source.replace(remote_theme_save, local_theme_save, 1)
+    theme_file.write_text(theme_source, encoding="utf-8")
+
+    # Personal wallpaper (dialogId == 0) is stored in the active local theme.
+    # Do not upload it as the account wallpaper for Tele-beta Freemium.
+    wallpaper_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemePreviewActivity.java"
+    wallpaper_source = wallpaper_file.read_text(encoding="utf-8")
+    wallpaper_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    wallpaper_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    if wallpaper_import not in wallpaper_source:
+        if wallpaper_source.count(wallpaper_anchor) != 1:
+            raise SystemExit("Could not locate ThemePreviewActivity import anchor.")
+        wallpaper_source = wallpaper_source.replace(wallpaper_anchor, wallpaper_anchor + wallpaper_import, 1)
+
+    remote_wallpaper_save = "MessagesController.getInstance(currentAccount).saveWallpaperToServer(path, wallpaperInfo, slug != null && dialogId == 0, 0);"
+    local_wallpaper_save = """boolean teleBetaLocalPersonalWallpaper = dialogId == 0 && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES);
+        if (!teleBetaLocalPersonalWallpaper) {
+            MessagesController.getInstance(currentAccount).saveWallpaperToServer(path, wallpaperInfo, slug != null && dialogId == 0, 0);
+        }"""
+    if wallpaper_source.count(remote_wallpaper_save) != 1:
+        raise SystemExit("Could not uniquely locate wallpaper server-save call.")
+    wallpaper_source = wallpaper_source.replace(remote_wallpaper_save, local_wallpaper_save, 1)
+
+    local_wallpaper_apply = "Theme.getActiveTheme().setOverrideWallpaper(wallpaperInfo);\\n                Theme.reloadWallpaper(true);"
+    persistent_wallpaper_apply = """Theme.getActiveTheme().setOverrideWallpaper(wallpaperInfo);
+                Theme.reloadWallpaper(true);
+                if (teleBetaLocalPersonalWallpaper) {
+                    Theme.saveCurrentTheme(Theme.getActiveTheme(), false, false, false);
+                }"""
+    if wallpaper_source.count(local_wallpaper_apply) != 1:
+        raise SystemExit("Could not uniquely locate local personal wallpaper apply block.")
+    wallpaper_source = wallpaper_source.replace(local_wallpaper_apply, persistent_wallpaper_apply, 1)
+    wallpaper_file.write_text(wallpaper_source, encoding="utf-8")
+
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
