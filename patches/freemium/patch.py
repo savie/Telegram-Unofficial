@@ -247,8 +247,8 @@ public final class TeleBetaFreemium {
     # server color/wallpaper-for-both gates are deliberately kept unchanged.
     accent_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemePreviewActivity.java"
     accent_source = accent_file.read_text(encoding="utf-8")
-    accent_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    accent_import_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    accent_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    accent_import_anchor = "import org.telegram.messenger.MessagesController;\n"
     if accent_import not in accent_source:
         if accent_source.count(accent_import_anchor) != 1:
             raise SystemExit("Could not uniquely locate ThemePreviewActivity accent import anchor.")
