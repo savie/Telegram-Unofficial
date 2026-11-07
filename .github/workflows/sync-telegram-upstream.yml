@@ -2,8 +2,7 @@ name: Sync Telegram Android Upstream
 
 on:
   push:
-    branches:
-      - migration/vendor-telegram-full-source
+    branches: [master]
     paths:
       - ".github/workflows/sync-telegram-upstream.yml"
       
