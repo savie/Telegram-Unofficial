@@ -1,0 +1,142 @@
+name: Migrate Telegram Android to Vendored Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_migration:
+        description: "Konfirmasi: salin snapshot Telegram Android ke root repository dan hapus gitlink submodule pada branch ini"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-telegram-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  vendor-source:
+    name: Vendor pinned Telegram Android source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Require explicit confirmation and migration branch
+        shell: bash
+        env:
+          CONFIRM_MIGRATION: ${{ inputs.confirm_migration }}
+          TARGET_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRM_MIGRATION" != "true" ]]; then
+            echo "::error::Set confirm_migration=true to run this migration."
+            exit 1
+          fi
+          if [[ "$TARGET_BRANCH" == "master" ]]; then
+            echo "::error::This workflow must run on migration/vendor-telegram-full-source, never directly on master."
+            exit 1
+          fi
+          if [[ "$TARGET_BRANCH" != "migration/vendor-telegram-full-source" ]]; then
+            echo "::error::Unexpected branch: $TARGET_BRANCH"
+            exit 1
+          fi
+
+      - name: Checkout Tele-ß repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Checkout exact Telegram Android submodule revision
+        uses: actions/checkout@v5
+        with:
+          repository: TelegramOrg/Telegram-Android
+          ref: 3de37c8cfb039452be7398909461da6288babf15
+          path: _telegram-upstream
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate upstream snapshot and current submodule pointer
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="3de37c8cfb039452be7398909461da6288babf15"
+          actual="$(git -C _telegram-upstream rev-parse HEAD)"
+          test "$actual" = "$expected"
+          test -f _telegram-upstream/gradlew
+          test -d _telegram-upstream/TMessagesProj
+          test -d _telegram-upstream/TMessagesProj_AppStandalone
+
+          pointer="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
+          test "$pointer" = "$expected"
+          echo "Validated Telegram Android commit: $actual"
+
+      - name: Vendor source into repository root and remove gitlink
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep Tele-ß-owned repository metadata, workflows, patches, and README.
+          rsync -a --delete-excluded \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.gitmodules' \
+            --exclude='README.md' \
+            --exclude='patches/' \
+            --exclude='upstream/' \
+            _telegram-upstream/ ./
+
+          git rm -f upstream/Telegram-Android
+          rm -f .gitmodules
+          rmdir upstream 2>/dev/null || true
+
+          printf '%s\n' '3de37c8cfb039452be7398909461da6288babf15' > UPSTREAM_TELEGRAM_COMMIT
+
+          test -f gradlew
+          test -f TMessagesProj/build.gradle
+          test -d TMessagesProj_AppStandalone
+          test ! -e .gitmodules
+          test ! -e upstream/Telegram-Android
+
+      - name: Verify vendored source and stage migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          git diff --cached --stat
+          test -n "$(git status --porcelain)"
+          if git ls-tree HEAD upstream/Telegram-Android | grep -q .; then
+            echo "::error::The submodule gitlink still exists in HEAD."
+            exit 1
+          fi
+
+      - name: Commit and push vendored source
+        shell: bash
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: vendor Telegram Android source into Tele-ß"
+          git push origin "HEAD:$BRANCH"
+
+      - name: Publish migration summary
+        shell: bash
+        run: |
+          {
+            echo "## Telegram Android vendoring completed"
+            echo
+            echo "- Upstream repository: `TelegramOrg/Telegram-Android`"
+            echo "- Pinned commit: `3de37c8cfb039452be7398909461da6288babf15`"
+            echo "- Source location: repository root"
+            echo "- Submodule gitlink: removed from migration branch"
+            echo "- Existing build workflow: intentionally unchanged"
+            echo
+            echo "Review the migration branch before opening or merging a pull request."
+          } >> "$GITHUB_STEP_SUMMARY"
