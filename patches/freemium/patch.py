@@ -448,6 +448,84 @@ public final class TeleBetaLocalProfileStyle {
     peer_file.write_text(peer_source, encoding="utf-8")
 
 
+
+    # Local emoji discovery: enable suggestions and preview/install controls for
+    # emoji packs in Tele-beta. Sending premium emoji/status remains server-gated.
+    suggest_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/SuggestEmojiView.java"
+    suggest_source = suggest_file.read_text(encoding="utf-8")
+    suggest_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    suggest_anchor = "import org.telegram.messenger.UserConfig;\n"
+    if suggest_import not in suggest_source:
+        if suggest_source.count(suggest_anchor) != 1:
+            raise SystemExit("Could not locate SuggestEmojiView Freemium import anchor.")
+        suggest_source = suggest_source.replace(suggest_anchor, suggest_anchor + suggest_import, 1)
+    suggest_gate = "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()"
+    suggest_local_gate = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
+    if suggest_source.count(suggest_gate) != 1:
+        raise SystemExit("Could not uniquely locate SuggestEmojiView animated emoji suggestion gate.")
+    suggest_source = suggest_source.replace(suggest_gate, suggest_local_gate, 1)
+    suggest_file.write_text(suggest_source, encoding="utf-8")
+
+    adapter_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java"
+    adapter_source = adapter_file.read_text(encoding="utf-8")
+    adapter_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    adapter_anchor = "import org.telegram.messenger.UserConfig;\n"
+    if adapter_import not in adapter_source:
+        if adapter_source.count(adapter_anchor) != 1:
+            raise SystemExit("Could not locate StickersAdapter Freemium import anchor.")
+        adapter_source = adapter_source.replace(adapter_anchor, adapter_anchor + adapter_import, 1)
+    adapter_gate = "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()"
+    adapter_local_gate = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
+    if adapter_source.count(adapter_gate) != 1:
+        raise SystemExit("Could not uniquely locate StickersAdapter animated emoji suggestion gate.")
+    adapter_source = adapter_source.replace(adapter_gate, adapter_local_gate, 1)
+    adapter_file.write_text(adapter_source, encoding="utf-8")
+
+    sticker_alert = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/StickersAlert.java"
+    sticker_source = sticker_alert.read_text(encoding="utf-8")
+    sticker_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    sticker_anchor = "import org.telegram.messenger.UserConfig;\n"
+    if sticker_import not in sticker_source:
+        if sticker_source.count(sticker_anchor) != 1:
+            raise SystemExit("Could not locate StickersAlert Freemium import anchor.")
+        sticker_source = sticker_source.replace(sticker_anchor, sticker_anchor + sticker_import, 1)
+    filter_anchor = """    private void checkPremiumStickers() {
+        if (stickerSet != null) {
+            stickerSet = MessagesController.getInstance(currentAccount).filterPremiumStickers(stickerSet);"""
+    filter_local = """    private void checkPremiumStickers() {
+        if (stickerSet != null && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI)) {
+            stickerSet = MessagesController.getInstance(currentAccount).filterPremiumStickers(stickerSet);"""
+    if sticker_source.count(filter_anchor) != 1:
+        raise SystemExit("Could not uniquely locate StickersAlert premium pack filtering.")
+    sticker_source = sticker_source.replace(filter_anchor, filter_local, 1)
+    pack_gate = "stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium() && customButtonDelegate == null"
+    pack_local_gate = "stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI) && customButtonDelegate == null"
+    if sticker_source.count(pack_gate) != 1:
+        raise SystemExit("Could not uniquely locate StickersAlert premium emoji unlock gate.")
+    sticker_source = sticker_source.replace(pack_gate, pack_local_gate, 1)
+    sticker_alert.write_text(sticker_source, encoding="utf-8")
+
+    emoji_packs_alert = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/EmojiPacksAlert.java"
+    packs_source = emoji_packs_alert.read_text(encoding="utf-8")
+    packs_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    packs_anchor = "import org.telegram.messenger.UserConfig;\n"
+    if packs_import not in packs_source:
+        if packs_source.count(packs_anchor) != 1:
+            raise SystemExit("Could not locate EmojiPacksAlert Freemium import anchor.")
+        packs_source = packs_source.replace(packs_anchor, packs_anchor + packs_import, 1)
+    header_gate = "if (!UserConfig.getInstance(currentAccount).isPremium()) {"
+    header_local_gate = "if (!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI)) {"
+    if packs_source.count(header_gate) != 1:
+        raise SystemExit("Could not uniquely locate EmojiPacksAlert premium header unlock gate.")
+    packs_source = packs_source.replace(header_gate, header_local_gate, 1)
+    row_gate = "premium && unlockButtonView != null && !UserConfig.getInstance(currentAccount).isPremium()"
+    row_local_gate = "premium && unlockButtonView != null && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI)"
+    if packs_source.count(row_gate) != 1:
+        raise SystemExit("Could not uniquely locate EmojiPacksAlert premium pack row gate.")
+    packs_source = packs_source.replace(row_gate, row_local_gate, 1)
+    emoji_packs_alert.write_text(packs_source, encoding="utf-8")
+
+
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
