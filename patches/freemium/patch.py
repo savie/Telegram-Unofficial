@@ -69,7 +69,7 @@ public final class TeleBetaFreemium {
         if (tier == Tier.FREEMIUM && enabledFeatures != null) {
             for (Feature feature : enabledFeatures) if (feature != null) values.add(feature.name());
         }
-        preferences.edit().putString(KEY_TIER, tier.name()).putStringSet(KEY_FEATURES, values).apply();
+        preferences.edit().putString(KEY_TIER, tier.name()).putStringSet(KEY_FEATURES, values).commit();
     }
 }
 """
