@@ -653,7 +653,7 @@ public final class TeleBetaLocalProfileStyle {
         if suggest_source.count(suggest_anchor) != 1:
             raise SystemExit("Could not locate SuggestEmojiView Freemium import anchor.")
         suggest_source = suggest_source.replace(suggest_anchor, suggest_anchor + suggest_import, 1)
-    suggest_gate = re.compile(r"SharedConfig\\.suggestAnimatedEmoji\\s*&&\\s*UserConfig\\.getInstance\\(currentAccount\\)\\.isPremium\\(\\)")
+    suggest_gate = re.compile(r"SharedConfig\.suggestAnimatedEmoji\s*&&\s*UserConfig\.getInstance\(currentAccount\)\.isPremium\(\)")
     suggest_local_gate = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
     suggest_source, suggest_matches = suggest_gate.subn(suggest_local_gate, suggest_source, count=1)
     if suggest_matches != 1:
