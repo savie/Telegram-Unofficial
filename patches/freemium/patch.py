@@ -641,6 +641,51 @@ public final class TeleBetaLocalProfileStyle {
     profile_activity.write_text(profile_activity_source, encoding="utf-8")
 
 
+    
+    # Guard negative local collectible color IDs before upstream array lookups.
+    safe_color_patches = [
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Paint/Views/LinkPreview.java",
+            "            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());",
+            "            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ReplyMessageLine.java",
+            "        if (colorId < 7) {\\n            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
+            "                int colorId = UserObject.getColorId(user);\\n                if (colorId < 7) {\\n                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            "                int colorId = UserObject.getColorId(user);\\n                if (colorId < 0) {\\n                    colorId = 0;\\n                }\\n                if (colorId < 7) {\\n                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayResultsMessageCell.java",
+            "        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Forum/MessageTopicButton.java",
+            "            if (colorId < 7) {\\n                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);",
+            "            if (colorId < 0) {\\n                colorId = 0;\\n            }\\n            if (colorId < 7) {\\n                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayMessageCell.java",
+            "        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+            "        if (colorId < 0) {\\n            colorId = 0;\\n        }\\n        if (colorId < 7) {\\n            color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);",
+        ),
+    ]
+    for file_path, old_snippet, new_snippet in safe_color_patches:
+        source_text = file_path.read_text(encoding="utf-8")
+        old_snippet = old_snippet.replace("\\\\n", "\\n")
+        new_snippet = new_snippet.replace("\\\\n", "\\n")
+        if source_text.count(old_snippet) != 1:
+            raise SystemExit(f"Could not uniquely locate negative color guard in {file_path.name}.")
+        file_path.write_text(source_text.replace(old_snippet, new_snippet, 1), encoding="utf-8")
+
+
+
+
 
 
     # Local emoji discovery: enable suggestions and preview/install controls for
