@@ -462,13 +462,10 @@ public final class TeleBetaLocalProfileStyle {
     suggest_gate = "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()"
     suggest_gate_selected = "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(UserConfig.selectedAccount).isPremium()"
     suggest_local_gate = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
-    if suggest_source.count(suggest_gate) == 1:
-        suggest_source = suggest_source.replace(suggest_gate, suggest_local_gate, 1)
-    elif suggest_source.count(suggest_gate_selected) == 1:
-        suggest_local_gate_selected = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(UserConfig.selectedAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
-        suggest_source = suggest_source.replace(suggest_gate_selected, suggest_local_gate_selected, 1)
+    if suggest_source.count(suggest_gate) == 2:
+        suggest_source = suggest_source.replace(suggest_gate, suggest_local_gate)
     else:
-        raise SystemExit("Could not uniquely locate SuggestEmojiView animated emoji suggestion gate.")
+        raise SystemExit("Expected two SuggestEmojiView animated emoji suggestion gates; refusing to patch.")
     suggest_file.write_text(suggest_source, encoding="utf-8")
 
     adapter_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java"
