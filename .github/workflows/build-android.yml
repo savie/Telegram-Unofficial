@@ -63,19 +63,32 @@ jobs:
           set -euo pipefail
           build_dir="$RUNNER_TEMP/telebeta-build"
           revision="$(tr -d '[:space:]' < UPSTREAM_TELEGRAM_COMMIT)"
-          git init "$build_dir"
-          git -C "$build_dir" remote add origin https://github.com/TelegramOrg/Telegram-Android.git
-          git -C "$build_dir" fetch --depth=1 origin "$revision"
-          git -C "$build_dir" checkout --detach FETCH_HEAD
-          actual="$(git -C "$build_dir" rev-parse HEAD)"
-          test "$actual" = "$revision"
-          git -C "$build_dir" submodule update --init --recursive
-          cp -a "$GITHUB_WORKSPACE/patches" "$build_dir/patches"
-          test -f "$build_dir/TMessagesProj/build.gradle"
-          test -f "$build_dir/TMessagesProj_Modules/media/core_settings.gradle"
+          source_dir="$GITHUB_WORKSPACE"
+
+          rm -rf "$build_dir"
+          mkdir -p "$build_dir"
+
+          # Copy the complete vendored repository source into the temporary workspace.
+          # Exclude only Git metadata; keep every tracked/untracked build input,
+          # including flattened upstream submodule contents and repository config.
+          tar -C "$source_dir" \
+            --exclude='.git' \
+            --exclude='./.git' \
+            -cf - . | tar -C "$build_dir" -xf -
+
+          # Patch modules are copied explicitly from the Tele-ß checkout and remain
+          # separate from the clean vendored Telegram source in the repository.
+          test -d "$build_dir/patches"
           test -f "$build_dir/patches/apply.py"
+          test -f "$build_dir/gradlew"
+          test -f "$build_dir/TMessagesProj/build.gradle"
+          test -f "$build_dir/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java"
+          test -f "$build_dir/TMessagesProj_Modules/media/core_settings.gradle"
+          test -d "$build_dir/TMessagesProj_AppStandalone"
+
+          chmod +x "$build_dir/gradlew"
           echo "TELEBETA_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
-          echo "Prepared isolated upstream workspace at $actual with recursive submodules."
+          echo "Prepared isolated workspace from Tele-ß vendored source at $revision."
 
       - name: Validate Telegram API credentials
         env:
