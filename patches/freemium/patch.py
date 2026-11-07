@@ -706,11 +706,13 @@ public final class TeleBetaLocalProfileStyle {
         source_text = file_path.read_text(encoding="utf-8")
         old_count = source_text.count(old_snippet)
         new_count = source_text.count(new_snippet)
-        if old_count == 1 and new_count == 0:
+        if new_count == 1:
+            # Guarded form is present. The unguarded anchor can also match
+            # inside the guarded block, so check this first.
+            pass
+        elif old_count == 1:
             source_text = source_text.replace(old_snippet, new_snippet, 1)
             file_path.write_text(source_text, encoding="utf-8")
-        elif old_count == 0 and new_count == 1:
-            pass
         else:
             raise SystemExit(
                 f"Expected one unguarded or already-guarded color lookup in {file_path.name}; "
