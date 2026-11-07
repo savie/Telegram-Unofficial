@@ -318,6 +318,17 @@ Kesimpulan Business: semua delapan entri memerlukan operasi server untuk fungsi 
 | P2 | Voice-to-Text/Translation | Sediakan provider alternatif atau BYO provider, bukan bypass kuota Telegram. |
 | P3 | Stories, limits, Business, Last Seen, Reactions, Premium Stickers, Paid Messages, Disable Sharing, No Ads, profile status | Server-dependent/hybrid; tidak dapat dijanjikan fully unlocked oleh local Freemium tanpa otorisasi server. |
 
+### 11.6 Implementasi awal Theme/UI Tele-ß
+
+Pada commit `015d4675468dca155a383caff132f5bdb6e252dc`, patch Freemium menambahkan satu gate granular pada `ThemePreviewActivity.applyWallpaperBackground(boolean forBoth)`:
+
+- Mengizinkan penerapan wallpaper untuk akun sendiri melalui entitlement lokal `CHAT_CUSTOMIZATION`.
+- Tetap mempertahankan gate Telegram Premium untuk menerapkan wallpaper yang sama ke kedua pihak (`forBoth`).
+- Tidak mengubah `UserConfig.isPremium()`, `TLRPC.User.premium`, minimum boost channel/grup, maupun request Telegram.
+- Tidak membuka batas wallpaper yang ditentukan level boost channel/grup.
+
+Ini implementasi terbatas, bukan pembukaan semua Theme/UI. Tema global, accent color, theme editor, dan per-theme chat settings masih perlu dipetakan terpisah. Uji wajib: akun non-Premium dengan Freemium aktif, ubah wallpaper untuk diri sendiri, keluar/masuk chat, restart aplikasi, dan pastikan pilihan tetap terpasang. Uji `forBoth` dan kanal/grup ber-boost tetap mengikuti batas Telegram.
+
 ### 11.5 Mengapa belum ada patch gate pada commit audit ini
 
 Melepas gate UI sebelum menelusuri operasi akhir akan mengulang masalah build #96: UI terbuka, tetapi operasi bisa ditolak, tidak tersimpan, atau tidak tersinkron. Karena targetnya fitur yang benar-benar bekerja, tiap capability harus memiliki bukti entry point → gate → controller → persistence → RPC (jika ada) → respons sukses → reload/restart. Audit ini menyimpulkan bahwa tidak mungkin menjamin seluruh fitur pada screenshot berfungsi sebagai Telegram Premium hanya dengan patch client Tele-ß. Sebagian dapat dibuat sebagai fitur lokal Tele-ß; sebagian memerlukan entitlement Telegram resmi; sebagian lain dapat diganti dengan provider/fitur mandiri yang berbeda dari layanan Telegram.
