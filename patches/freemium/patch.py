@@ -168,6 +168,25 @@ public final class TeleBetaFreemium {
         raise SystemExit("Could not uniquely locate premium icon visibility guard.")
     icon_source = icon_source.replace(visibility_guard, visibility_guard_replacement, 1)
     icon_selector.write_text(icon_source, encoding="utf-8")
+
+    # Theme and appearance are local capabilities. Keep wallpaper-for-both,
+    # channel boost requirements, and all Telegram account entitlements intact.
+    theme_preview = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemePreviewActivity.java"
+    theme_source = theme_preview.read_text(encoding="utf-8")
+    theme_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    theme_anchor = "import org.telegram.messenger.UserConfig;\\n"
+    if theme_import not in theme_source:
+        if theme_source.count(theme_anchor) != 1:
+            raise SystemExit("Could not locate ThemePreviewActivity import anchor.")
+        theme_source = theme_source.replace(theme_anchor, theme_anchor + theme_import, 1)
+
+    wallpaper_both_guard = "if (!getUserConfig().isPremium() && forBoth) {"
+    wallpaper_both_replacement = "if (!getUserConfig().isPremium() && forBoth && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CHAT_CUSTOMIZATION)) {"
+    if theme_source.count(wallpaper_both_guard) != 1:
+        raise SystemExit("Could not uniquely locate wallpaper-for-both premium guard.")
+    theme_source = theme_source.replace(wallpaper_both_guard, wallpaper_both_replacement, 1)
+    theme_preview.write_text(theme_source, encoding="utf-8")
+
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
