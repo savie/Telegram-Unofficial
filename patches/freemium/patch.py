@@ -174,8 +174,8 @@ public final class TeleBetaFreemium {
     # messages.setChatTheme to Telegram. Group/channel boost checks remain upstream.
     chat_theme = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatThemeBottomSheet.java"
     chat_theme_source = chat_theme.read_text(encoding="utf-8")
-    chat_theme_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    chat_theme_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    chat_theme_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    chat_theme_anchor = "import org.telegram.messenger.ChatThemeController;\n"
     if chat_theme_import not in chat_theme_source:
         if chat_theme_source.count(chat_theme_anchor) != 1:
             raise SystemExit("Could not locate ChatThemeBottomSheet import anchor.")
