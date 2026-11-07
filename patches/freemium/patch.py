@@ -319,8 +319,8 @@ public final class TeleBetaLocalProfileStyle {
 
     peer_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
     peer_source = peer_file.read_text(encoding="utf-8")
-    peer_import_anchor = "import org.telegram.messenger.UserConfig;\\n"
-    peer_import = "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n"
+    peer_import_anchor = "import org.telegram.messenger.UserConfig;\n"
+    peer_import = "import org.telegram.messenger.TeleBetaFreemium;\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\n"
     if peer_import not in peer_source:
         if peer_source.count(peer_import_anchor) != 1:
             raise SystemExit("Could not locate PeerColorActivity import anchor.")
