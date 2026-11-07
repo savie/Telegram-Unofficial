@@ -1,13 +1,9 @@
 name: Migrate Telegram Android to Vendored Source
 
 on:
+  # One-time bootstrap only. Ongoing upstream updates belong to
+  # sync-telegram-upstream.yml.
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - ".github/workflows/migrate-telegram-vendored.yml"
-      - ".migration/run-vendoring"
 
 permissions:
   contents: write
@@ -73,9 +69,6 @@ jobs:
           actual="$(git -C _telegram-upstream rev-parse HEAD)"
           test "$actual" = "$UPSTREAM_REVISION"
 
-          # Materialize every gitlink at the exact commit recorded by upstream,
-          # including nested submodules. These will be flattened into ordinary
-          # files when copied into the Tele-ß repository.
           git -C _telegram-upstream submodule sync --recursive
           git -C _telegram-upstream submodule update --init --recursive --jobs 8
 
@@ -96,10 +89,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Copy the checked-out worktree, not a Git archive: initialized
-          # submodule worktrees contain the actual dependency files. Exclude
-          # Git metadata so submodule contents become normal tracked files
-          # rather than gitlinks in the Tele-ß repository.
           rsync -a \
             --exclude='/.git/' \
             --exclude='.git' \
@@ -111,8 +100,8 @@ jobs:
             --exclude='/upstream/' \
             _telegram-upstream/ ./
 
-          # Keep upstream .gitmodules as provenance metadata. The directories
-          # it describes are flattened regular files in this repository.
+          # Retain .gitmodules as upstream provenance metadata. Its submodule
+          # directories are copied as regular files, not Git gitlinks.
           if git ls-tree HEAD upstream/Telegram-Android | grep -q '^160000 '; then
             git rm -f upstream/Telegram-Android
           fi
@@ -133,12 +122,10 @@ jobs:
           git add -A
 
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
-            echo "::error::A Git submodule gitlink remains. All Telegram submodule contents must be vendored as regular files."
+            echo "::error::A Git submodule gitlink remains. All Telegram submodule contents must be regular files."
             exit 1
           fi
 
-          # Confirm the media dependency that previously blocked Gradle is
-          # present in the staged repository snapshot.
           git cat-file -e ":TMessagesProj_Modules/media/core_settings.gradle"
 
           git diff --cached --stat
