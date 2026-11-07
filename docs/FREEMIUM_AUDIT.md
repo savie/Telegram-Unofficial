@@ -464,3 +464,104 @@ Fitur Premium lain di katalog tetap mengikuti klasifikasi client-only/hybrid/ser
 - **Accent Colors pada Theme Editor:** masih ada satu alur paywall menurut pengujian sebelumnya; status open.
 - **App Icons:** patch gate lokal ada; runtime belum terverifikasi di bagian ini.
 - **Seluruh Premium dan Business:** belum selesai. Sejumlah kemampuan inti tetap server-dependent, dan alternatif lokal Tele-ß belum semuanya dibangun.
+
+
+## 14. Theme & UI — audit penutupan implementasi dan sisa verifikasi
+
+**Tanggal pembaruan:** 7 November 2026  
+**Baseline source patch:** `master` pada commit sebelum pembaruan bagian ini.  
+**Status:** mayoritas capability Theme/UI lokal telah memiliki implementasi source; status fitur collectible dan emoji masih menunggu APK standalone serta pengujian perangkat. Audit ini memisahkan implementasi, kelulusan CI, dan hasil runtime.
+
+### 14.1 Daftar Theme/UI yang telah dikerjakan
+
+| Capability | Lokasi/jalur source | Perilaku yang dimaksud | Batas dan verifikasi |
+|---|---|---|---|
+| Theme Editor / tema lokal | `Theme.saveCurrentTheme(...)` | Simpan tema di perangkat; saat Freemium aktif, hindari upload theme lokal | Pengguna melaporkan Theme Editor dan persistensi tema berhasil. |
+| Accent / Custom Colors | `Theme.saveThemeAccents(...)`, `ThemePreviewActivity` | Simpan warna tema secara lokal | Belum boleh dinyatakan tuntas: laporan sebelumnya masih menemukan satu jalur Custom Colors yang memunculkan paywall; perlu uji ulang APK terbaru pada setiap menu terkait. |
+| Personal Wallpaper | `ThemePreviewActivity.applyWallpaperBackground(false)` | Terapkan wallpaper hanya pada perangkat sendiri dan jangan kirim perubahan ke Telegram | Pengguna melaporkan berhasil dan bertahan setelah restart. Wallpaper-for-both tetap bukan hak lokal. |
+| Chat Themes | `ChatThemeController.setDialogTheme(..., sendRequest=false)` | Terapkan tema per dialog pada perangkat Tele-ß saja | Pengguna melaporkan berhasil dan persisten. Tidak menyinkronkan tema ke lawan bicara. |
+| App Icons | patch manifest/selector lokal dan entitlement `APP_ICONS` | Pilih ikon launcher yang sudah disediakan aplikasi | Source sudah dipatch; perlu uji pada APK terbaru termasuk force-stop/restart launcher. |
+| Name/Profile Colors | `PeerColorActivity`, `TeleBetaLocalProfileStyle`, `UserObject` | Simpan nilai warna lokal; local Apply tidak memanggil `TL_account.updateColor` | Pengguna mengonfirmasi Apply Style tanpa paywall. Restart dan semua permukaan render belum diverifikasi penuh. |
+| Collectible Name/Profile Style dan Gift | `TeleBetaLocalProfileStyle`, `PeerColorActivity`, `ProfileActivity`, `UserObject` | Simpan collectible peer-color dan emoji-status collectible di SharedPreferences per akun; overlay untuk tampilan lokal; jalur Apply lokal berhenti sebelum update RPC/purchase | Implementasi source telah ditambahkan. Menunggu Build #123 standalone APK dan uji runtime: load ulang, rendering, reset, dan tidak ada perubahan kepemilikan di server. Jangan klaim selesai sebelum diuji. |
+| Emoji discovery / pack preview | `SuggestEmojiView`, `StickersAdapter`, `StickersAlert`, `EmojiPacksAlert` | Buka saran animated emoji, preview, dan kontrol install pack lokal tanpa mengubah status Premium akun | Patch source baru diterapkan dan Build #123 sedang membangun standalone APK. Pengiriman animated emoji/status yang server-gated tetap tidak dibuka. Harus diuji di APK. |
+
+### 14.2 Batas yang tidak boleh dilanggar
+
+1. Jangan mengubah `UserConfig.isPremium()`, `TLRPC.User.premium`, native premium flag, atau status entitlement akun Telegram.
+2. Collectible overlay hanya mengatur tampilan lokal Tele-ß. Jangan memanggil `TL_account.updateColor`, `TL_account.updateEmojiStatus`, atau RPC pembelian/resale gift dari local Apply.
+3. Data katalog/gift boleh dibaca untuk menampilkan opsi. Membaca katalog bukan bukti bahwa item telah dimiliki, dan penyimpanan lokal tidak boleh menyiratkan kepemilikan Telegram.
+4. Premium stickers/emoji yang server memerlukan hak untuk dikirim tetap tidak dapat dijamin hanya dengan membuka preview atau tombol install.
+5. Wallpaper-for-both, wallpaper group/channel yang memerlukan boost, dan sinkronisasi tema ke server tetap mengikuti aturan Telegram.
+6. Status lokal tidak boleh dipresentasikan sebagai perubahan pada akun resmi atau perangkat Telegram lain.
+
+### 14.3 Checklist verifikasi setelah APK tersedia
+
+- [ ] Build workflow menyelesaikan **Apply Tele-ß patches**, **Build standalone APK**, dan **Upload APK**.
+- [ ] Theme Editor: ubah tema, force-stop, buka ulang, pastikan tema tetap aktif.
+- [ ] Accent/Custom Colors: uji semua pintu masuk yang sebelumnya menampilkan paywall; catat label menu yang gagal.
+- [ ] Personal Wallpaper: ubah wallpaper, restart aplikasi, pastikan tetap lokal.
+- [ ] Chat Theme: ubah per dialog, restart, pastikan tersimpan dan tidak mengubah tampilan di akun/perangkat lain.
+- [ ] App Icons: ganti ikon, keluar aplikasi/restart launcher, pastikan alias dan ikon tetap benar.
+- [ ] Name/Profile Colors: apply, force-stop, buka ulang, cek profil sendiri, chat list, header, dan message cells.
+- [ ] Collectible/Gift: pilih collectible Name dan Profile, Apply, force-stop, buka ulang; pastikan pilihan lokal pulih dan tidak meminta Stars/Gems.
+- [ ] Konfirmasi dari akun/perangkat Telegram lain bahwa tidak ada perubahan kepemilikan, warna, atau emoji status.
+- [ ] Emoji: uji suggestion saat mengetik, preview pack, install pack, daftar pack setelah restart, dan pengiriman. Catat secara terpisah mana yang hanya preview/local install dan mana yang ditolak server.
+- [ ] Uji akun non-Premium; jangan mengandalkan akun Premium untuk memvalidasi bypass.
+- [ ] Periksa log dan state network untuk memastikan local Apply tidak menjalankan purchase/update RPC.
+
+**Definisi selesai Theme/UI:** implementasi source + standalone APK hijau + uji runtime untuk persistence dan semua entry point di atas. Status source/CI saja tidak cukup untuk menutup capability.
+
+## 15. Roadmap capability Freemium berikutnya
+
+Roadmap ini mengarahkan pekerjaan setelah Theme/UI. Prioritas didasarkan pada dua kriteria: bisa diwujudkan di perangkat tanpa mengubah entitlement Telegram, dan memberi fungsi nyata yang teruji. Capability server-dependent tidak diberi label “unlocked”; alternatif Tele-ß harus menjadi fitur produk terpisah dengan UI dan penyimpanan sendiri.
+
+### P0 — Stabilkan fondasi entitlement, registry, dan QA
+
+1. **Granular capability registry.** Ganti pemakaian flag umum `CUSTOM_UI` untuk fitur berlainan dengan registry capability yang spesifik, misalnya `APP_ICONS`, `THEMES`, `CHAT_THEMES_LOCAL`, `PROFILE_STYLE_LOCAL`, `EMOJI_DISCOVERY`, `LOCAL_QUICK_REPLIES`, dan capability baru sesuai implementasi. Default-deny, migrasi SharedPreferences, multi-account, dan reset harus terdokumentasi serta diuji.
+2. **Persistence/recovery contract.** Tetapkan kepemilikan state berdasarkan account ID lokal, perilaku ketika logout/login, pindah akun, reinstall, clear data, dan restore backup. Jangan pernah menggabungkan state lokal dengan Telegram account premium fields.
+3. **Capability test matrix.** Untuk setiap capability: entitlement on/off, non-Premium account, fresh install, restart, account switch, offline, cache empty, server rejects, serta no-RPC assertion untuk aksi yang diklaim local-only.
+4. **Freemium entry point audit.** Inventaris semua CTA, link, bot, invoice, purchase, gift, restore, dan PremiumPreview routes. Pastikan grant lokal satu pintu, konsisten, dan tidak menyamar sebagai pembayaran atau pembelian Telegram.
+
+### P1 — Premium media discovery dan pemakaian lokal (tanpa mengklaim server entitlement)
+
+5. **Emoji & Sticker Packs.** Tuntaskan penelusuran gate dari suggestion, panel, pack preview, install, local storage, sampai send. Implementasikan discovery/preview dan cache lokal hanya untuk dokumen yang memang dapat diakses; pengiriman tetap mengikuti server. Buat fallback yang jelas ketika API menolak.
+6. **Animated Emoji / Animated Stickers.** Pisahkan rendering/preview lokal, penyimpanan pack, dan kemampuan mengirim. Hanya buka fungsi lokal yang punya data/asset tersedia dan tidak memerlukan server authorization.
+7. **Profile collectibles / emoji status UI.** Selesaikan persistence dan rendering overlay per akun/perangkat. Tambahkan reset, fallback saat collectible metadata tidak tersedia, dan label “local-only”. Jangan memanggil update/purchase RPC; jangan mengklaim ownership.
+8. **Premium profile icons / animated avatar.** Audit format media, batas upload, sumber dokumen, serta call site yang menulis status profil. Jika data lokal tersedia, izinkan preview/render lokal; upload/status Telegram tetap server-dependent.
+
+### P2 — Tele-ß native substitutes
+
+9. **Local Quick Replies.** Bangun template/shortcut lokal di Tele-ß, autocomplete dan insertion ke composer. Simpan di database lokal dan sediakan import/export. Jangan memakai atau mengklaim Telegram Business Quick Replies sync.
+10. **Local Message Formatting / Rich Composer.** Implementasikan formatting yang kompatibel dengan message entities standar (bold, italic, underline, strikethrough, code, link) pada composer lokal. Audit payload sebelum enable; fallback untuk entity/format yang tidak didukung. Jangan membuka Rich Editor server-only controls berdasarkan flag lokal.
+11. **Local Chat Organization.** Evaluasi folder/tag warna, filter, dan archive controls yang bisa disimpan lokal. Pisahkan limit UI lokal dari limit folder/sinkronisasi Telegram.
+12. **Local Privacy Tools.** Buat alat privasi lokal seperti app lock, screenshot privacy yang hanya berlaku pada perangkat sendiri, local hide/archive, dan per-chat notification controls. Jangan klaim dapat mengubah last-seen/read receipt atau mencegah server/klien lain melakukan forward/screenshot.
+13. **Download Manager.** Tambahkan queue, pause/resume, scheduler, Wi-Fi only, per-file priority, lokasi penyimpanan dan batas paralel lokal. Jangan menyebutnya “unlimited speed”; throughput tetap dipengaruhi jaringan, server, dan limit akun.
+
+### P3 — Provider-backed alternatives
+
+14. **Voice-to-Text Tele-ß.** Provider lokal/on-device atau BYO API key, model selection, cache, privacy settings, dan UX quota milik Tele-ß. Jangan memakai atau mengubah trial/cooldown transkripsi Telegram.
+15. **Translation Tele-ß.** Engine on-device atau provider pilihan pengguna; glossary, language detection, cache, dan auto-translate lokal. Jangan menghapus server entitlement Telegram atau mengklaim layanan Translate Telegram Premium gratis.
+16. **AI Writing Tools.** Provider pilihan pengguna atau local model; BYO key, budget, model controls, opt-in, dan pemrosesan lokal bila tersedia. Tidak menyamarkan remote API sebagai entitlement Telegram.
+17. **Cloud Storage / Backup (opsional).** Backup terenkripsi end-to-end ke lokasi pilihan pengguna; default tetap lokal. Bukan syarat untuk local Freemium.
+
+### Tidak menjadi target local unlock
+
+Fitur berikut tetap server/account/payment-dependent. Jangan membuat patch yang memalsukan keberhasilan:
+- Telegram Business settings/sync: Location, Opening Hours, Greeting, Away, Start Page, Chat Links, Chatbots, dan Business Quick Replies sync.
+- Voice-to-text/translation Telegram native jika server menerapkan quota/entitlement.
+- Stories premium options, story views/stealth, limits, upload limits, dan download speed quota yang diberlakukan server.
+- Paid Messages, gift purchase, Stars/Gems, Premium gift success callbacks, dan transaksi.
+- Last Seen/Read Time, Disable Sharing, server privacy rules, dan proteksi forward.
+- Reaction/send rights, premium sticker/emoji send rights, serta fitur yang membutuhkan ownership/document access server.
+- No Ads untuk sponsored content yang dikontrol server.
+- Boost features untuk grup/channel.
+
+### Urutan eksekusi yang direkomendasikan
+
+1. **Tutup Theme/UI melalui APK dan checklist Bagian 14.** Jangan mulai capability baru sebelum Build standalone berhasil; setelah APK tersedia, hasil runtime user menjadi bukti penutupan.
+2. **P0 — granular registry + test matrix.** Bereskan fondasi supaya semua fitur berikutnya tidak memakai satu flag payung dan tidak bocor lintas akun.
+3. **P1 — Emoji/Sticker discovery, profile collectibles, animated media.** Ini kesinambungan terdekat dari Theme/UI dan pekerjaan yang sudah masuk source.
+4. **P2 — Local Quick Replies → Rich Composer → Chat Organization → Local Privacy → Download Manager.**
+5. **P3 — Voice-to-Text/Translation/AI dengan provider lokal atau pilihan pengguna.**
+6. **Business native tetap dicatat sebagai server-dependent; alternatif Local Business dibuat sebagai produk Tele-ß tersendiri hanya bila diprioritaskan kemudian.**
+
