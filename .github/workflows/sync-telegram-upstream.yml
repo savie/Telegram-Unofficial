@@ -27,7 +27,7 @@ jobs:
       - name: Checkout migration branch
         uses: actions/checkout@v5
         with:
-          ref: migration/vendor-telegram-full-source
+          ref: master
           fetch-depth: 0
 
       - name: Resolve current upstream revision
@@ -121,7 +121,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
-          base: migration/vendor-telegram-full-source
+          base: master
           branch: automation/telegram-upstream-sync
           delete-branch: true
           commit-message: "build: sync Telegram Android upstream"
