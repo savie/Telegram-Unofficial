@@ -21,6 +21,9 @@ permissions:
 
 jobs:
   build:
+    concurrency:
+      group: telebeta-android-build-master
+      cancel-in-progress: true
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
@@ -59,12 +62,20 @@ jobs:
         run: |
           set -euo pipefail
           build_dir="$RUNNER_TEMP/telebeta-build"
-          mkdir -p "$build_dir"
-          git archive HEAD | tar -x -C "$build_dir"
+          revision="$(tr -d '[:space:]' < UPSTREAM_TELEGRAM_COMMIT)"
+          git init "$build_dir"
+          git -C "$build_dir" remote add origin https://github.com/TelegramOrg/Telegram-Android.git
+          git -C "$build_dir" fetch --depth=1 origin "$revision"
+          git -C "$build_dir" checkout --detach FETCH_HEAD
+          actual="$(git -C "$build_dir" rev-parse HEAD)"
+          test "$actual" = "$revision"
+          git -C "$build_dir" submodule update --init --recursive
+          cp -a "$GITHUB_WORKSPACE/patches" "$build_dir/patches"
           test -f "$build_dir/TMessagesProj/build.gradle"
+          test -f "$build_dir/TMessagesProj_Modules/media/core_settings.gradle"
           test -f "$build_dir/patches/apply.py"
           echo "TELEBETA_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
-          echo "Prepared isolated build workspace: $build_dir"
+          echo "Prepared isolated upstream workspace at $actual with recursive submodules."
 
       - name: Validate Telegram API credentials
         env:
