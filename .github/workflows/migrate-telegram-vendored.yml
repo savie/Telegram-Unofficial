@@ -41,14 +41,14 @@ jobs:
             exit 1
           }
 
-      - name: Checkout exact Telegram Android submodule revision
-        uses: actions/checkout@v5
-        with:
-          repository: TelegramOrg/Telegram-Android
-          ref: 3de37c8cfb039452be7398909461da6288babf15
-          path: _telegram-upstream
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Fetch exact Telegram Android submodule revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init _telegram-upstream
+          git -C _telegram-upstream remote add origin https://github.com/TelegramOrg/Telegram-Android.git
+          git -C _telegram-upstream fetch --depth=1 origin 3de37c8cfb039452be7398909461da6288babf15
+          git -C _telegram-upstream checkout --detach FETCH_HEAD
 
       - name: Validate upstream snapshot and current submodule pointer
         shell: bash
@@ -101,8 +101,12 @@ jobs:
           # existing whitespace that must not be rewritten during vendoring.
           git diff --cached --stat
           test -n "$(git status --porcelain)"
-          if git ls-tree HEAD upstream/Telegram-Android | grep -q .; then
-            echo "::error::The submodule gitlink still exists in HEAD."
+          if git ls-files --error-unmatch upstream/Telegram-Android >/dev/null 2>&1; then
+            echo "::error::The submodule gitlink is still present in the staged index."
+            exit 1
+          fi
+          if ! git diff --cached --name-status -- upstream/Telegram-Android | grep -q '^D'; then
+            echo "::error::The staged migration does not record deletion of the submodule gitlink."
             exit 1
           fi
 
