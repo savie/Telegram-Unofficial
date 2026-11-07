@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-ROOT = Path("upstream/Telegram-Android")
+ROOT = Path(".")
 TARGET = ROOT / "TMessagesProj/build.gradle"
 MARKER = "'-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'"
 ARGUMENTS = """                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23',
