@@ -129,7 +129,7 @@ public class LinkPreview extends View {
             final int colorId = UserObject.getColorId(user);
             MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
             MessagesController.PeerColor color = peerColors == null || colorId < 7 ? null : peerColors.getColor(colorId);
-            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());
+            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());
 
             h += 7.33f * density;
             messageAbove = webpage.captionAbove;
