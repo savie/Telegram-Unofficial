@@ -23,7 +23,7 @@ jobs:
       - name: Checkout Tele-ß repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.ref }}
+          ref: master
           fetch-depth: 0
           persist-credentials: true
 
@@ -31,8 +31,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${GITHUB_REF_NAME}" = "migration/vendor-telegram-full-source" || {
-            echo "::error::Migration is restricted to the dedicated branch."
+          test "${GITHUB_REF_NAME}" = "master" || {
+            echo "::error::Migration must run from master."
             exit 1
           }
           test -f .migration/run-vendoring || {
@@ -123,7 +123,7 @@ jobs:
       - name: Commit and push vendored source
         shell: bash
         env:
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: master
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
