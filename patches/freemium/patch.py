@@ -57,6 +57,11 @@ public final class TeleBetaFreemium {
         return preferences.getStringSet(KEY_FEATURES, Collections.emptySet()).contains(feature.name());
     }
 
+    /** Whether the app-local Freemium tier has been durably granted. */
+    public boolean isFreemiumActive() {
+        return getTier() == Tier.FREEMIUM;
+    }
+
     /** Grant the app-local Freemium tier without changing Telegram account premium. */
     public void grantFreemium() {
         Set<Feature> enabled = java.util.EnumSet.allOf(Feature.class);
@@ -118,6 +123,21 @@ public final class TeleBetaFreemium {
     if button_end_index < 0:
         raise SystemExit("Premium button method boundary changed; refusing to patch.")
     preview_source = preview_source[:button_start_index] + button_method + preview_source[button_end_index:]
+    constructor_signature = "public PremiumPreviewFragment(int type, String source) {"
+    constructor_guard = """        this.type = type;
+        whiteBackground = !Theme.isCurrentThemeDark() && type == FEATURES_BUSINESS;
+        this.source = source;"""
+    constructor_guard_replacement = """        this.type = type;
+        whiteBackground = !Theme.isCurrentThemeDark() && type == FEATURES_BUSINESS;
+        this.source = source;
+        // Rehydrate the success presentation from the durable Tele-beta grant.
+        if ("freemium".equals(source) && TeleBetaFreemium.getInstance().isFreemiumActive()) {
+            forcePremium = true;
+        }"""
+    if preview_source.count(constructor_signature) != 1 or preview_source.count(constructor_guard) != 1:
+        raise SystemExit("PremiumPreviewFragment constructor anchor missing or ambiguous; refusing to patch.")
+    preview_source = preview_source.replace(constructor_guard, constructor_guard_replacement, 1)
+
     success_state = "AndroidUtilities.updateViewVisibilityAnimated(buttonContainer, !getUserConfig().isPremium() || currentSubscriptionTier != null && currentSubscriptionTier.getMonths() < subscriptionTiers.get(selectedTierIndex).getMonths() && !forcePremium, 1f, false);"
     success_state_replacement = "AndroidUtilities.updateViewVisibilityAnimated(buttonContainer, (!getUserConfig().isPremium() && !forcePremium) || currentSubscriptionTier != null && currentSubscriptionTier.getMonths() < subscriptionTiers.get(selectedTierIndex).getMonths() && !forcePremium, 1f, false);"
     if preview_source.count(success_state) != 1:
