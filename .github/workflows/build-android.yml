@@ -48,13 +48,15 @@ jobs:
           test -f TMessagesProj/build.gradle
           test -f TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
           test -d TMessagesProj_AppStandalone
-          test ! -e .gitmodules
-          test ! -e upstream/Telegram-Android
-          test ! -e _telegram-upstream
+          test -f TMessagesProj_Modules/media/core_settings.gradle
+
+          # .gitmodules is retained as upstream provenance metadata. Its
+          # submodule contents are flattened into regular files in Tele-ß.
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
-            echo "::error::Vendored source must not contain Git submodules."
+            echo "::error::Vendored source must not contain Git submodule entries."
             exit 1
           fi
+
           echo "Building vendored Telegram source at $revision."
 
       - name: Prepare isolated build workspace
@@ -191,10 +193,14 @@ jobs:
         shell: bash
         run: |
           echo "===== CCACHE ====="
-          ccache --show-stats || true
-          ccache --show-config || true
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats || true
+            ccache --show-config || true
+          else
+            echo "ccache was not installed; an earlier workflow step may have failed."
+          fi
           echo "===== GRADLE TASK CACHE SUMMARY ====="
-          if [ -d "$TELEBETA_BUILD_DIR" ]; then
+          if [ -n "${TELEBETA_BUILD_DIR:-}" ] && [ -d "$TELEBETA_BUILD_DIR" ]; then
             find "$TELEBETA_BUILD_DIR" -path '*/build/*' -prune -o -name 'build-scan-data' -print | head -20 || true
           fi
           echo "===== CHECKOUT SOURCE STATUS ====="
