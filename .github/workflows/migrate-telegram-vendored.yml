@@ -80,6 +80,10 @@ jobs:
             --exclude='upstream/' \
             _telegram-upstream/ ./
 
+          # The fetched upstream checkout is temporary. Remove its nested .git
+          # metadata and working directory so Git cannot stage it as a gitlink.
+          rm -rf _telegram-upstream
+
           git rm -f upstream/Telegram-Android
           rm -f .gitmodules
           rmdir upstream 2>/dev/null || true
