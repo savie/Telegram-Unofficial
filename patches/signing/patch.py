@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import re
 
-ROOT = Path("upstream/Telegram-Android")
+ROOT = Path(".")
 
 def configure_signing():
     names = ("TELEBETA_KEYSTORE_BASE64", "TELEBETA_KEYSTORE_PASSWORD", "TELEBETA_KEY_ALIAS", "TELEBETA_KEY_PASSWORD")
