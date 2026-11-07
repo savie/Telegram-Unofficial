@@ -241,6 +241,138 @@ public final class TeleBetaFreemium {
     wallpaper_source = wallpaper_source.replace(local_wallpaper_apply, persistent_wallpaper_apply, 1)
     wallpaper_file.write_text(wallpaper_source, encoding="utf-8")
 
+
+    # Local-only profile/name colors for the current Tele-beta account.
+    # These preferences intentionally never issue TL_account.updateColor.
+    local_style = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaLocalProfileStyle.java"
+    local_style_source = """package org.telegram.messenger;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import org.telegram.tgnet.TLRPC;
+
+public final class TeleBetaLocalProfileStyle {
+    private static final String PREFS = "telebeta_local_profile_style";
+    private static final String NAME_COLOR = "name_color_";
+    private static final String PROFILE_COLOR = "profile_color_";
+
+    private TeleBetaLocalProfileStyle() {}
+
+    private static SharedPreferences prefs(int account) {
+        Context context = ApplicationLoader.applicationContext;
+        return context.getSharedPreferences(PREFS + "_" + account, Context.MODE_PRIVATE);
+    }
+
+    private static boolean isCurrentUser(TLRPC.User user) {
+        if (user == null) return false;
+        int account = UserConfig.selectedAccount;
+        return UserConfig.getInstance(account).getClientUserId() == user.id
+            && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
+    }
+
+    public static int getNameColor(TLRPC.User user, int fallback) {
+        if (!isCurrentUser(user)) return fallback;
+        SharedPreferences p = prefs(UserConfig.selectedAccount);
+        return p.getInt(NAME_COLOR + user.id, fallback);
+    }
+
+    public static int getProfileColor(TLRPC.User user, int fallback) {
+        if (!isCurrentUser(user)) return fallback;
+        SharedPreferences p = prefs(UserConfig.selectedAccount);
+        return p.getInt(PROFILE_COLOR + user.id, fallback);
+    }
+
+    public static void save(int account, long userId, int nameColor, int profileColor) {
+        prefs(account).edit()
+            .putInt(NAME_COLOR + userId, nameColor)
+            .putInt(PROFILE_COLOR + userId, profileColor)
+            .commit();
+    }
+}
+"""
+    local_style.parent.mkdir(parents=True, exist_ok=True)
+    local_style.write_text(local_style_source, encoding="utf-8")
+
+    user_object = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/UserObject.java"
+    user_source = user_object.read_text(encoding="utf-8")
+    name_getter = "public static int getColorId(TLRPC.User user) {"
+    profile_getter = "public static int getProfileColorId(TLRPC.User user) {"
+    name_fallback = """        if (user == null) return 0;
+        if (user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0) return user.color.color;
+        return (int) (user.id % 7);"""
+    name_local = """        if (user == null) return 0;
+        int fallback = user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0 ? user.color.color : (int) (user.id % 7);
+        return TeleBetaLocalProfileStyle.getNameColor(user, fallback);"""
+    profile_fallback = """        if (user == null) return 0;
+        if (user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0) return user.profile_color.color;
+        return -1;"""
+    profile_local = """        if (user == null) return 0;
+        int fallback = user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0 ? user.profile_color.color : -1;
+        return TeleBetaLocalProfileStyle.getProfileColor(user, fallback);"""
+    if user_source.count(name_getter) != 1 or user_source.count(name_fallback) != 1:
+        raise SystemExit("Could not uniquely locate UserObject name-color getter.")
+    if user_source.count(profile_getter) != 1 or user_source.count(profile_fallback) != 1:
+        raise SystemExit("Could not uniquely locate UserObject profile-color getter.")
+    user_source = user_source.replace(name_fallback, name_local, 1)
+    user_source = user_source.replace(profile_fallback, profile_local, 1)
+    user_object.write_text(user_source, encoding="utf-8")
+
+    peer_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
+    peer_source = peer_file.read_text(encoding="utf-8")
+    peer_import_anchor = "import org.telegram.messenger.UserConfig;\\n"
+    peer_import = "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n"
+    if peer_import not in peer_source:
+        if peer_source.count(peer_import_anchor) != 1:
+            raise SystemExit("Could not locate PeerColorActivity import anchor.")
+        peer_source = peer_source.replace(peer_import_anchor, peer_import_anchor + peer_import, 1)
+
+    locked_button = "!getUserConfig().isPremium() && !isChannel ? buttonLocked"
+    unlocked_button = "!getUserConfig().isPremium() && !isChannel && !isTeleBetaLocalProfileStyleEnabled() ? buttonLocked"
+    if peer_source.count(locked_button) != 1:
+        raise SystemExit("Could not uniquely locate profile-style locked button state.")
+    peer_source = peer_source.replace(locked_button, unlocked_button, 1)
+
+    setup_guard = "        public void setupValues() {"
+    setup_method = """        public void setupValues() {"""
+    if peer_source.count(setup_guard) != 1:
+        raise SystemExit("Could not uniquely locate PeerColorActivity Page.setupValues.")
+    # UserObject getters transparently overlay persisted local colors for the current account.
+
+    click_guard = "if (!getUserConfig().isPremium()) {"
+    click_guard_local = "if (!getUserConfig().isPremium() && !isTeleBetaLocalProfileStyleEnabled()) {"
+    if peer_source.count(click_guard) != 1:
+        raise SystemExit("Could not uniquely locate profile-style Premium click guard.")
+    peer_source = peer_source.replace(click_guard, click_guard_local, 1)
+
+    apply_guard = "if (applying || !isChannel && !getUserConfig().isPremium()) {"
+    apply_guard_local = "if (applying || !isChannel && !getUserConfig().isPremium() && !isTeleBetaLocalProfileStyleEnabled()) {"
+    if peer_source.count(apply_guard) != 1:
+        raise SystemExit("Could not uniquely locate profile-style apply guard.")
+    peer_source = peer_source.replace(apply_guard, apply_guard_local, 1)
+
+    apply_user_anchor = "            final TLRPC.User me = getUserConfig().getCurrentUser();"
+    apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (isTeleBetaLocalProfileStyleEnabled()) {
+                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor);
+                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
+                return;
+            }"""
+    if peer_source.count(apply_user_anchor) != 1:
+        raise SystemExit("Could not uniquely locate profile-style apply user anchor.")
+    peer_source = peer_source.replace(apply_user_anchor, apply_user_local, 1)
+
+    helper_anchor = "    private boolean applyingName, applyingProfile;"
+    helper_methods = """    private boolean isTeleBetaLocalProfileStyleEnabled() {
+        return !isChannel && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
+    }
+
+    private boolean applyingName, applyingProfile;"""
+    if peer_source.count(helper_anchor) != 1:
+        raise SystemExit("Could not uniquely locate profile-style helper insertion point.")
+    peer_source = peer_source.replace(helper_anchor, helper_methods, 1)
+    peer_file.write_text(peer_source, encoding="utf-8")
+
+
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
