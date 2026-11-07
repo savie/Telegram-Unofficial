@@ -318,16 +318,24 @@ Kesimpulan Business: semua delapan entri memerlukan operasi server untuk fungsi 
 | P2 | Voice-to-Text/Translation | Sediakan provider alternatif atau BYO provider, bukan bypass kuota Telegram. |
 | P3 | Stories, limits, Business, Last Seen, Reactions, Premium Stickers, Paid Messages, Disable Sharing, No Ads, profile status | Server-dependent/hybrid; tidak dapat dijanjikan fully unlocked oleh local Freemium tanpa otorisasi server. |
 
-### 11.6 Implementasi awal Theme/UI Tele-ß
+### 11.6 Status Theme/UI dan koreksi patch
 
-Pada commit `015d4675468dca155a383caff132f5bdb6e252dc`, patch Freemium menambahkan satu gate granular pada `ThemePreviewActivity.applyWallpaperBackground(boolean forBoth)`:
+Pemeriksaan ulang terhadap source dan kegagalan CI #99 menemukan bahwa perubahan sebelumnya pada `ThemePreviewActivity.applyWallpaperBackground(boolean forBoth)` tidak layak dianggap sebagai implementasi Theme/UI Freemium:
 
-- Mengizinkan penerapan wallpaper untuk akun sendiri melalui entitlement lokal `CHAT_CUSTOMIZATION`.
-- Tetap mempertahankan gate Telegram Premium untuk menerapkan wallpaper yang sama ke kedua pihak (`forBoth`).
-- Tidak mengubah `UserConfig.isPremium()`, `TLRPC.User.premium`, minimum boost channel/grup, maupun request Telegram.
-- Tidak membuka batas wallpaper yang ditentukan level boost channel/grup.
+- Gate `forBoth` mengatur penerapan wallpaper untuk kedua pihak dan tetap merupakan jalur yang bergantung pada hak Telegram/server.
+- Menambahkan `CHAT_CUSTOMIZATION` ke kondisi tersebut hanya melewati pemeriksaan client; itu tidak memberikan otorisasi server.
+- Implementasi sebelumnya juga tidak membuka paket Theme/UI secara menyeluruh.
 
-Ini implementasi terbatas, bukan pembukaan semua Theme/UI. Tema global, accent color, theme editor, dan per-theme chat settings masih perlu dipetakan terpisah. Uji wajib: akun non-Premium dengan Freemium aktif, ubah wallpaper untuk diri sendiri, keluar/masuk chat, restart aplikasi, dan pastikan pilihan tetap terpasang. Uji `forBoth` dan kanal/grup ber-boost tetap mengikuti batas Telegram.
+Karena itu, commit `72daf0f9c9d31a1cf1b8935cc4be731aac4038f5` menghapus patch ThemePreviewActivity yang belum tervalidasi dan mempertahankan gate wallpaper-for-both serta batas boost. Ini koreksi batas keamanan/fungsionalitas, bukan klaim bahwa Theme/UI Freemium sudah selesai.
+
+Status implementasi Theme/UI:
+- Global theme, theme editor, accent colors, import/export, dan pengaturan tampilan yang sepenuhnya lokal: perlu dipetakan ke jalur penyimpanan dan reload; jangan diberi gate Freemium baru bila memang tidak dikunci Premium.
+- Wallpaper untuk perangkat sendiri: verifikasi perilaku aktual dan persistensinya; jangan menyamakan dengan wallpaper-for-both.
+- Wallpaper-for-both, peer/profile colors, collectible colors, dan fitur yang menulis state profil/chat ke Telegram: tetap mengikuti hak server.
+- Chat themes: telusuri controller, sumber theme, operasi apply, dan batas boost sebelum membuka gate.
+- App Icons tetap menjadi implementasi lokal yang sudah diuji langsung oleh pengguna.
+
+CI #99 (`42370725567`) gagal pada step **Apply Tele-ß patches**; tahap build APK tidak dijalankan. Perbaikan berikutnya menghapus blok ThemePreviewActivity yang tidak tervalidasi agar patch tidak mencoba mengubah jalur server-gated. Status build setelah commit koreksi harus diverifikasi dari run baru sebelum dinyatakan hijau.
 
 ### 11.5 Mengapa belum ada patch gate pada commit audit ini
 
