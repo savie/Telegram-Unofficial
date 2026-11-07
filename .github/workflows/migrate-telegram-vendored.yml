@@ -97,7 +97,8 @@ jobs:
         run: |
           set -euo pipefail
           git add -A
-          git diff --cached --check
+          # Preserve the upstream snapshot byte-for-byte; upstream contains
+          # existing whitespace that must not be rewritten during vendoring.
           git diff --cached --stat
           test -n "$(git status --porcelain)"
           if git ls-tree HEAD upstream/Telegram-Android | grep -q .; then
