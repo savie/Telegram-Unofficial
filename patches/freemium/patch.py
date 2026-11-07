@@ -450,12 +450,14 @@ public final class TeleBetaLocalProfileStyle {
         if (user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0) return user.color.color;
         return (int) (user.id % 7);"""
     name_local = """        if (user == null) return 0;
+        if (TeleBetaLocalProfileStyle.getNameCollectible(user) != null) return -1;
         int fallback = user.color instanceof TLRPC.TL_peerColor && (user.color.flags & 1) != 0 ? user.color.color : (int) (user.id % 7);
         return TeleBetaLocalProfileStyle.getNameColor(user, fallback);"""
     profile_fallback = """        if (user == null) return 0;
         if (user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0) return user.profile_color.color;
         return -1;"""
     profile_local = """        if (user == null) return 0;
+        if (TeleBetaLocalProfileStyle.getProfileCollectible(user) != null) return -1;
         int fallback = user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 1) != 0 ? user.profile_color.color : -1;
         return TeleBetaLocalProfileStyle.getProfileColor(user, fallback);"""
     if user_source.count(name_getter) != 1 or user_source.count(name_fallback) != 1:
@@ -473,6 +475,8 @@ public final class TeleBetaLocalProfileStyle {
         return 0;
     }"""
     profile_emoji_local = """    public static long getProfileEmojiId(TLRPC.User user) {
+        TLRPC.TL_emojiStatusCollectible localCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(user);
+        if (localCollectible != null) return localCollectible.pattern_document_id;
         if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
             return ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).pattern_document_id;
         }
@@ -484,13 +488,25 @@ public final class TeleBetaLocalProfileStyle {
         return 0;
     }"""
     only_profile_emoji_local = """    public static long getOnlyProfileEmojiId(TLRPC.User user) {
+        if (TeleBetaLocalProfileStyle.getProfileCollectible(user) != null) return 0;
         long fallback = user != null && user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 2) != 0 ? user.profile_color.background_emoji_id : 0;
         return TeleBetaLocalProfileStyle.getProfileEmoji(user, fallback);
     }"""
-    if user_source.count(profile_emoji_getter) != 1 or user_source.count(only_profile_emoji_getter) != 1:
-        raise SystemExit("Could not uniquely locate UserObject profile emoji getters.")
+    profile_collectible_getter = """    public static long getProfileCollectibleId(TLRPC.User user) {
+        if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+            return ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).collectible_id;
+        }
+        return 0;
+    }"""
+    profile_collectible_local = """    public static long getProfileCollectibleId(TLRPC.User user) {
+        long fallback = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).collectible_id : 0;
+        return TeleBetaLocalProfileStyle.getProfileCollectibleId(user, fallback);
+    }"""
+    if user_source.count(profile_emoji_getter) != 1 or user_source.count(only_profile_emoji_getter) != 1 or user_source.count(profile_collectible_getter) != 1:
+        raise SystemExit("Could not uniquely locate UserObject profile emoji/collectible getters.")
     user_source = user_source.replace(profile_emoji_getter, profile_emoji_local, 1)
     user_source = user_source.replace(only_profile_emoji_getter, only_profile_emoji_local, 1)
+    user_source = user_source.replace(profile_collectible_getter, profile_collectible_local, 1)
 
     user_object.write_text(user_source, encoding="utf-8")
 
