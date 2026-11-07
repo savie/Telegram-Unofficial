@@ -8,12 +8,17 @@ on:
         required: true
         type: boolean
         default: false
+      target_branch:
+        description: "Branch tujuan migrasi"
+        required: true
+        type: string
+        default: "migration/vendor-telegram-full-source"
 
 permissions:
   contents: write
 
 concurrency:
-  group: vendor-telegram-source-${{ github.ref }}
+  group: vendor-telegram-source-${{ inputs.target_branch }}
   cancel-in-progress: false
 
 jobs:
@@ -28,26 +33,22 @@ jobs:
         shell: bash
         env:
           CONFIRM_MIGRATION: ${{ inputs.confirm_migration }}
-          TARGET_BRANCH: ${{ github.ref_name }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
         run: |
           set -euo pipefail
           if [[ "$CONFIRM_MIGRATION" != "true" ]]; then
             echo "::error::Set confirm_migration=true to run this migration."
             exit 1
           fi
-          if [[ "$TARGET_BRANCH" == "master" ]]; then
-            echo "::error::This workflow must run on migration/vendor-telegram-full-source, never directly on master."
-            exit 1
-          fi
           if [[ "$TARGET_BRANCH" != "migration/vendor-telegram-full-source" ]]; then
-            echo "::error::Unexpected branch: $TARGET_BRANCH"
+            echo "::error::Only migration/vendor-telegram-full-source is an approved migration target."
             exit 1
           fi
 
       - name: Checkout Tele-ß repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.target_branch }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -118,7 +119,7 @@ jobs:
       - name: Commit and push vendored source
         shell: bash
         env:
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ inputs.target_branch }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
