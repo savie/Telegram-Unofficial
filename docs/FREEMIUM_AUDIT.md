@@ -565,3 +565,90 @@ Fitur berikut tetap server/account/payment-dependent. Jangan membuat patch yang 
 5. **P3 — Voice-to-Text/Translation/AI dengan provider lokal atau pilihan pengguna.**
 6. **Business native tetap dicatat sebagai server-dependent; alternatif Local Business dibuat sebagai produk Tele-ß tersendiri hanya bila diprioritaskan kemudian.**
 
+
+
+## 16. Tahap 3 — Audit Formatting Tools (Rich Editor)
+
+**Tanggal:** 7 November 2026  
+**Baseline:** source `master` pada commit audit ini.  
+**Status:** audit statis selesai untuk jalur utama Rich Editor; belum ada implementasi. Tahap berikutnya adalah merancang implementasi Native/Hybrid Tele-ß setelah Theme/UI lolos APK.
+
+### 16.1 Source utama yang diperiksa
+
+- `TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java`
+- `TMessagesProj/src/main/java/org/telegram/ui/iv/ChatAttachAlertRichLayout.java`
+- `TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditorToolbar.java`
+- `TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditorListView.java`
+- `TMessagesProj/src/main/java/org/telegram/messenger/SendMessagesHelper.java` (jalur pengiriman artikel perlu ditelusuri lebih lanjut sebelum implementasi).
+
+### 16.2 Temuan gate dan perilaku
+
+1. Rich Editor menggunakan model `TL_iv.RichMessage` dan block `TL_iv.PageBlock`, bukan sekadar format teks standar seperti bold/italic pada composer biasa.
+2. `ChatAttachAlertRichLayout.sendSelectedItems(...)` memeriksa `MessagesController.richEditorAllowed()`. Jika tidak diizinkan, jalur non-lossy dapat dikonversi menjadi pesan sederhana melalui `ChatActivityEnterView.sendConvertedRichAsSimple(...)`; selain kondisi itu, Rich Article tidak dikirim.
+3. Jalur Rich Article yang lolos gate mengumpulkan blocks, foto, dokumen, dan input users, lalu memanggil `SendMessagesHelper.prepareSendingArticle(...)`. Ini merupakan payload rich-message khusus, bukan sekadar entity formatting standar.
+4. `showSendPreview(...)` memiliki pemeriksaan terpisah `UserConfig.isPremium()` dan menampilkan `PremiumFeatureBottomSheet`. Jadi membuka gate pengiriman saja tidak cukup; preview masih dapat menampilkan paywall.
+5. Tombol send/toolbar memakai gabungan `richEditorAllowed()` dan `UserConfig.isPremium()`; `isSendLocked()` mengunci konten lossy untuk akun non-Premium. `showConversionSheet()` juga masih dapat mengarahkan pengguna ke Premium Preview.
+6. Menu block tertentu menampilkan Premium lock berdasarkan `premiumLock = !richEditorAllowed() && !isPremium()`. Contoh yang tampak terkunci meliputi Heading, Pullquote, Footer, Math, serta tombol format/block lain yang ditandai premium di `RichEditor` dan `RichEditorToolbar`.
+7. Checklist, ordered/bulleted lists, details, paragraph, preformatted/code, quote, table, media, dan math direpresentasikan sebagai struktur `TL_iv.PageBlock`. Sebagian block dapat disusun lokal, tetapi kemampuan kirim tetap bergantung pada rich-message protocol dan `richEditorAllowed()`.
+8. Batas konten juga diperiksa melalui `listView.isWithinLimits()`; membuka tombol tanpa memahami limit dan validasi server berisiko menghasilkan draft yang tidak dapat dikirim.
+
+### 16.3 Klasifikasi per capability
+
+| Subfitur | Klasifikasi | Keputusan |
+|---|---|---|
+| Bold/italic/underline/strike/code/link sebagai message entities standar | Native candidate | Dapat menjadi Formatting Tools Tele-ß pada composer biasa jika memakai entity standar dan tidak membutuhkan Rich Article. Audit jalur entity serialization/send masih diperlukan. |
+| Rich Article editor dan block protocol `TL_iv` | Hybrid/server-dependent | Jangan bypass `richEditorAllowed()` atau memaksa `prepareSendingArticle()` untuk akun non-Premium sebelum schema, server acceptance, dan penerima diverifikasi. |
+| Heading, Pullquote, Footer, Math, Tables, Details, Checklist | Hybrid | Editor dapat membentuk block lokal, tetapi pengiriman dan rendering memakai payload khusus. Uji round-trip diperlukan. |
+| Checklist/TODO | Hybrid/server-dependent | Model `pageBlockList` / `pageBlockOrderedList` memakai item checkbox/checked; bukan checklist lokal sederhana. Perlu audit request, response, edit/update, dan penerima. |
+| Preview dan draft lokal | Native candidate | Preview/draft dapat tetap lokal selama tidak mengirim payload atau mengklaim sinkronisasi. |
+| Rich media (photo/video/audio/document/map) dalam artikel | Hybrid | Media upload dan article send melibatkan controller serta server. Jangan menganggapnya local-only. |
+| AI compose/editor di Rich Editor | Provider-backed/hybrid | Audit provider, request, entitlement, dan biaya secara terpisah; bukan bagian dari formatting dasar. |
+
+### 16.4 Arah implementasi yang direkomendasikan
+
+**Tahap 3 tidak boleh dimulai dengan menghapus Premium gate Rich Editor secara massal.** Implementasi yang aman dibagi menjadi dua jalur:
+
+A. **Formatting Native Tele-ß**
+- Gunakan composer pesan biasa dan entity standar Telegram yang memang didukung.
+- Sediakan kontrol formatting lokal untuk bold, italic, underline, strikethrough, monospace/code, dan link bila serializer yang ada mendukungnya.
+- Persistensi draft dan formatting selection lokal.
+- Kirim hanya payload standar yang kompatibel; tidak mengubah entitlement atau request identity.
+- Fitur harus dites dengan akun non-Premium dan penerima Telegram resmi.
+
+B. **Rich Article / Advanced Blocks (Hybrid)**
+- Audit lengkap schema `TL_iv`, serializer/deserializer, `prepareSendingArticle`, request TL yang dihasilkan, edit/resend, draft, media upload, serta render di klien penerima.
+- Kelompokkan block yang server terima tanpa Premium, yang benar-benar memerlukan Premium, dan yang dapat dikonversi secara lossless/lossy.
+- Pertahankan fallback `sendConvertedRichAsSimple` ketika server tidak menerima rich payload.
+- Jangan membuka Heading/Pullquote/Footer/Math/Checklist/Table hanya berdasarkan local entitlement sampai ada bukti acceptance end-to-end.
+
+### 16.5 Pekerjaan audit lanjutan sebelum implementasi Tahap 3
+
+- [ ] Baca penuh `SendMessagesHelper.prepareSendingArticle(...)` dan request TL yang dikirim.
+- [ ] Telusuri implementasi `ChatActivityEnterView.sendConvertedRichAsSimple(...)` serta pemetaan rich text ke message entities.
+- [ ] Audit serializer/deserializer `TL_iv.RichMessage` dan seluruh block penting, termasuk flags dan media references.
+- [ ] Identifikasi sumber `richEditorAllowed()` dan konfigurasi/response yang mengisinya; jangan menyamakannya dengan entitlement lokal.
+- [ ] Periksa apakah ordinary formatting entities (bold/italic/code/link) sudah tersedia pada composer normal tanpa Rich Article.
+- [ ] Buat matriks penerima: Tele-ß → Tele-ß, Tele-ß → Telegram resmi, Telegram resmi → Tele-ß.
+- [ ] Rancang test non-Premium: draft, restart, send, edit, reply, forward, media, checklist, fallback, dan server rejection.
+- [ ] Setelah bukti payload lengkap, tulis spesifikasi implementasi dan baru mulai patch.
+
+**Kesimpulan Tahap 3:** ada jalur yang layak dibangun sebagai Formatting Tools Native Tele-ß menggunakan message entities standar. Rich Editor Telegram berbasis `TL_iv` adalah jalur hybrid dan tidak boleh di-unlock secara menyeluruh hanya dengan local flag.
+
+## 17. Koreksi urutan roadmap dan status P0
+
+Urutan tahap yang menjadi acuan proyek (setelah tahap pertama/Freemium foundation selesai dan Theme/UI dinyatakan lolos APK) adalah:
+
+| Tahap | Capability | Jalur |
+|---:|---|---|
+| 1 | Premium App Icons | Native Tele-ß |
+| 2 | Theme dan UI customization | Native Tele-ß |
+| 3 | Formatting Tools | Native/Hybrid |
+| 4 | Quick Replies alternatif | Native Tele-ß |
+| 5 | Faster Download Speed | Client-side |
+| 6 | Translation alternatif | Provider Tele-ß |
+| 7 | Voice-to-Text alternatif | Provider Tele-ß |
+| 8 | Fitur Business lainnya | Audit dan implementasi per operasi |
+
+**Koreksi terhadap roadmap bagian 15:** P0 Granular Capability Registry yang ditambahkan pada pembaruan sebelumnya bukan tahap fitur baru yang harus dikerjakan sebelum Tahap 3. Fondasi tersebut memang belum lengkap—registry masih memakai feature key yang terlalu umum di beberapa jalur dan belum ada test matrix menyeluruh—tetapi kekurangannya tidak otomatis menghalangi audit atau perancangan Formatting Tools. Pekerjaan registry perlu dilakukan bertahap saat capability terkait disentuh, dan sebelum menambah gate/entitlement baru yang bergantung padanya. Jangan menggeser urutan tahap yang sudah disepakati hanya untuk menyelesaikan refactor fondasi yang tidak terbukti menjadi blocker.
+
+**Aturan transisi:** setelah standalone APK Theme/UI lolos dan pengguna dapat menguji hasilnya, lanjut ke Tahap 3 berdasarkan audit Bagian 16. Tahap 4–8 mengikuti urutan di atas. Tidak ada implementasi source pada pembaruan audit ini.
