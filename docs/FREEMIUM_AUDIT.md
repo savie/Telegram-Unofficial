@@ -741,3 +741,31 @@ Urutan tahap yang menjadi acuan proyek (setelah tahap pertama/Freemium foundatio
 **Koreksi terhadap roadmap bagian 15:** P0 Granular Capability Registry yang ditambahkan pada pembaruan sebelumnya bukan tahap fitur baru yang harus dikerjakan sebelum Tahap 3. Fondasi tersebut memang belum lengkap—registry masih memakai feature key yang terlalu umum di beberapa jalur dan belum ada test matrix menyeluruh—tetapi kekurangannya tidak otomatis menghalangi audit atau perancangan Formatting Tools. Pekerjaan registry perlu dilakukan bertahap saat capability terkait disentuh, dan sebelum menambah gate/entitlement baru yang bergantung padanya. Jangan menggeser urutan tahap yang sudah disepakati hanya untuk menyelesaikan refactor fondasi yang tidak terbukti menjadi blocker.
 
 **Aturan transisi:** setelah standalone APK Theme/UI lolos dan pengguna dapat menguji hasilnya, lanjut ke Tahap 3 berdasarkan audit Bagian 16. Tahap 4–8 mengikuti urutan di atas. Tidak ada implementasi source pada pembaruan audit ini.
+
+
+### 16.14 Penelusuran lanjutan: lifecycle draft dan scheduled entity
+
+Audit source penuh pada default branch kini menutup beberapa pertanyaan yang sebelumnya masih terbuka:
+
+1. **Persistensi draft lokal terverifikasi sampai operasi tulis.** MediaDataController.saveDraft(...) membangun TL_draftMessage, memasukkan entities beserta flag entity, serta menyimpan rich_message secara terpisah. Method tersebut memanggil overload saveDraft(..., TLRPC.DraftMessage, ..., fromServer=false) untuk memperbarui cache lokal. Overload penyimpanan ini menulis serialisasi draft ke SharedPreferences draftPreferences dengan key dialog/thread (dialogId, t_dialogId_threadId) dan menyimpan reply message secara terpisah. Penghapusan draft menghapus key yang sesuai. Ini melengkapi bukti constructor yang sebelumnya membaca dan mendeserialisasi cache.
+2. **Draft juga dikirim ke server.** Untuk dialog yang memenuhi kondisi (bukan encrypted dialog, dan thread sesuai aturan), MediaDataController membangun TL_messages_saveDraft, mengisi peer, message, reply, entities, dan mengubah rich_message menjadi InputRichMessage bila tersedia. Schema TL messages.saveDraft memang memiliki field entities dan rich_message. Dengan demikian, jalur save local + request server terbukti. Detail penerimaan respons, konflik, dan pemulihan lintas perangkat masih perlu verifikasi.
+3. **Rich Article Android dirender melalui layout pada MessageObject.** MessageObject.getDisplayRichMessage() memilih translatedRichMessage bila pesan sedang diterjemahkan dan tersedia, selain itu memakai messageOwner.rich_message. Pada generateLayout(...), pesan bertipe TYPE_ARTICLE membuat atau memperbarui RichMessageLayout(this, maxWidth, old) berdasarkan needsUpdate(...), lalu melepas layout lama bila perlu. Ini menutup celah sebelumnya terkait pembentukan richLayout; belum menutup semua jalur update notification/storage dan invalidasi setelah edit.
+4. **Scheduled text message membawa entities.** Pada request builder SendMessagesHelper, jalur TL_messages_sendMessage mengisi reqSend.entities dan flag entity bila ada, serta mengisi schedule_date dan flag schedule bila scheduleDate != 0. Jadi scheduled chat text bukan hanya inferensi dari scheduled story.
+5. **Scheduled media/caption memiliki bukti pada beberapa builder.** Jalur TL_messages_sendMedia yang diperiksa mengisi caption message, entities, dan schedule_date pada builder tertentu (termasuk jalur poll media). Source SendMessagesHelper juga memiliki banyak cabang media dan scheduled handling. Namun, pemeriksaan ini belum cukup untuk menyatakan setiap jenis photo/video/document/album memiliki perilaku identik; perlu matriks per media type dan edit caption.
+6. **Edit pesan standar dapat membawa entities sekaligus schedule date.** SendMessagesHelper.editMessage(...) mengisi req.entities + flag entity, dan bila scheduleDate != 0 mengisi req.schedule_date + flag schedule. Ini membuktikan dukungan protokol pada operasi edit terjadwal; belum membuktikan semua UI edit caption menggunakan helper dan input entity yang sama.
+
+### 16.15 Status audit setelah penelusuran lifecycle
+
+- [x] Temukan penulisan draft serialized ke SharedPreferences dan penghapusan key untuk dialog/thread.
+- [x] Konfirmasi draft standar dan Rich Draft dapat dikirim melalui messages.saveDraft, dengan entities dan rich payload pada field terpisah.
+- [x] Temukan pemilihan translated/original Rich Message dan pembuatan/pembaruan RichMessageLayout pada MessageObject.generateLayout().
+- [x] Konfirmasi scheduled text request dapat membawa entities dan schedule_date.
+- [x] Konfirmasi beberapa scheduled media/caption request dapat membawa entities dan schedule_date.
+- [x] Konfirmasi helper edit standar mendukung entities dan schedule_date pada request yang sama.
+- [ ] Telusuri respons messages.getAllDrafts sampai pemanggilan MediaDataController.saveDraft(..., fromServer=true) dan aturan konflik server/local secara menyeluruh.
+- [ ] Temukan definisi/lifecycle MessagesController.richEditorAllowed(); pencarian kode default branch dan fetch MessagesController.java belum menghasilkan isi yang bisa diaudit.
+- [ ] Petakan seluruh builder photo/video/document/album dan edit caption ke request TL, bukan hanya beberapa cabang.
+- [ ] Telusuri seluruh jalur update Rich Article setelah edit, server update, dan perubahan translated content sampai invalidasi layout Android.
+- [ ] Verifikasi kompatibilitas lintas klien serta akun Premium/non-Premium melalui runtime test setelah CI gate dibuka.
+
+**Status Tahap 3: AUDIT LANJUT, BELUM SIAP IMPLEMENTASI.** Draft local write + server save, render layout Rich Article, scheduled text, beberapa scheduled media, dan scheduled edit kini memiliki bukti source langsung. Blocker utama tetap definisi gate entitlement richEditorAllowed(), pemetaan lengkap operasi media/edit caption, sinkronisasi draft server/local, dan pengujian runtime. Tidak ada perubahan source aplikasi.
