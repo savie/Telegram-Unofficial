@@ -149,8 +149,8 @@ public final class TeleBetaFreemium {
     # account entitlement untouched and allow this capability through Tele-beta.
     icon_selector = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/AppIconsSelectorCell.java"
     icon_source = icon_selector.read_text(encoding="utf-8")
-    icon_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    icon_anchor = "import org.telegram.messenger.UserConfig;\\n"
+    icon_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    icon_anchor = "import org.telegram.messenger.UserConfig;\n"
     if icon_import not in icon_source:
         if icon_source.count(icon_anchor) != 1:
             raise SystemExit("Could not locate AppIconsSelectorCell import anchor.")
