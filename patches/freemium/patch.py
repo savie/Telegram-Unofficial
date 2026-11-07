@@ -169,8 +169,26 @@ public final class TeleBetaFreemium {
     icon_source = icon_source.replace(visibility_guard, visibility_guard_replacement, 1)
     icon_selector.write_text(icon_source, encoding="utf-8")
 
-    # Theme/UI has no verified local Premium gate in this patch scope yet.
-    # Do not bypass wallpaper-for-both or server/boost restrictions here.
+    # Chat themes are persisted per-dialog by ChatThemeController. In Tele-beta
+    # Freemium, apply the selected theme locally and do not send
+    # messages.setChatTheme to Telegram. Group/channel boost checks remain upstream.
+    chat_theme = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ChatThemeBottomSheet.java"
+    chat_theme_source = chat_theme.read_text(encoding="utf-8")
+    chat_theme_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    chat_theme_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    if chat_theme_import not in chat_theme_source:
+        if chat_theme_source.count(chat_theme_anchor) != 1:
+            raise SystemExit("Could not locate ChatThemeBottomSheet import anchor.")
+        chat_theme_source = chat_theme_source.replace(chat_theme_anchor, chat_theme_anchor + chat_theme_import, 1)
+
+    apply_theme_call = "ChatThemeController.getInstance(currentAccount).setDialogTheme(chatActivity.getDialogId(), tlChatTheme, true);"
+    local_apply_call = """boolean teleBetaLocalTheme = TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CHAT_CUSTOMIZATION);
+            ChatThemeController.getInstance(currentAccount).setDialogTheme(chatActivity.getDialogId(), tlChatTheme, !teleBetaLocalTheme);"""
+    if chat_theme_source.count(apply_theme_call) != 1:
+        raise SystemExit("Could not uniquely locate ChatThemeBottomSheet theme-apply call.")
+    chat_theme_source = chat_theme_source.replace(apply_theme_call, local_apply_call, 1)
+    chat_theme.write_text(chat_theme_source, encoding="utf-8")
+
 
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
