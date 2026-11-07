@@ -368,3 +368,99 @@ Patch `patches/freemium/patch.py` kini menghubungkan pemilihan Chat Theme dengan
 
 Patch menggunakan anchor unik dan menghentikan proses bila import atau call site tidak cocok. Build/CI dan uji perangkat untuk pemilihan tema setelah restart masih perlu dijalankan; commit ini belum boleh disebut lulus CI sebelum hasil workflow tersedia.
 
+
+
+## 13. Status implementasi terverifikasi sampai 7 November 2026
+
+**Rentang perubahan yang diminta:** `86ede09cc495b331ea8796778222442a3b9061bd` sampai `78338cf72bbf332714f6fce9e87ee751f395cc21`. Rentang tersebut berisi 18 commit dan telah dibandingkan terhadap branch `master`.
+
+### 13.1 Hasil verifikasi pengguna
+
+Pengguna menguji APK Tele-ß hasil Build Android #104 dan melaporkan:
+- Theme Editor: berhasil.
+- Custom Colors / Accent Colors di Theme Editor: belum berhasil pada pengujian saat itu karena masih memunculkan paywall. Ini berbeda dari Name/Profile Colors.
+- Local theme persistence setelah restart: berhasil.
+- Personal wallpaper lokal setelah restart: berhasil.
+- Local Chat Theme per dialog setelah restart: berhasil.
+
+Setelah implementasi Local Profile Colors, pengguna mengonfirmasi bahwa tombol **Apply Style** dapat digunakan tanpa permintaan pembayaran. Hasil ini mengonfirmasi jalur UI/apply lokal, tetapi belum merupakan uji warna sesudah restart atau uji bahwa seluruh permukaan UI lain menampilkan warna overlay tersebut.
+
+### 13.2 Implementasi dan status CI sampai commit terakhir
+
+| Capability | Implementasi source | Verifikasi build | Uji perangkat |
+|---|---|---|---|
+| Freemium tier local | `TeleBetaFreemium`, SharedPreferences, grant lokal | Build #104 dan #107 hijau | Aktivasi dan tampilan success telah dilaporkan berhasil |
+| Theme Editor / local theme persistence | `Theme.saveCurrentTheme(...)`; cegah final save mengunggah theme lokal saat `CUSTOM_THEMES` aktif | Build #104 dan #107 hijau | Pengguna melaporkan bisa dan bertahan setelah restart |
+| Accent colors | Jalur serializer accent/theme lokal upstream dipertahankan | Build lolos, tidak ada error kompilasi | Pengujian sebelumnya masih menunjukkan paywall untuk jalur Custom Colors tertentu; belum dianggap selesai |
+| Personal wallpaper | Untuk wallpaper pribadi `dialogId == 0`, cegah upload dan simpan active theme lokal | Build #104 dan #107 hijau | Pengguna melaporkan berhasil dan persisten |
+| Chat Theme lokal per dialog | `ChatThemeController.setDialogTheme(..., sendRequest=false)` saat `CHAT_CUSTOMIZATION` aktif | Build #104 dan #107 hijau | Pengguna melaporkan berhasil dan persisten |
+| Premium App Icons | Guard ikon lokal memeriksa entitlement `APP_ICONS` | Perubahan masuk pada rentang ini; Build #107 hijau | Belum ada laporan uji perangkat pada rentang pengujian ini |
+| Name and Profile Colors lokal | `PeerColorActivity` membuka Apply untuk `CUSTOM_UI`; `TeleBetaLocalProfileStyle` menyimpan pilihan di SharedPreferences; `UserObject` getter menjadi overlay warna untuk current user; jalur local apply kembali sebelum RPC `TL_account.updateColor` | Build #107 hijau | Pengguna mengonfirmasi Apply Style tidak lagi meminta pembayaran; persistensi/reload dan cakupan rendering masih perlu diuji |
+
+**Run CI penting:**
+- Build Android #104, commit `a2ef1fdf209b1ebede8a26a2bf92c235b57e4a1e`: sukses.
+- Build #105, commit `a1ebac0015da11c7c66c7adab9ffb41b7d5a2b2b`: dibatalkan.
+- Build #106, commit `fc99e96c90dcdf8027a80feca168685daf98c339`: gagal di Apply Tele-ß patches karena anchor apply profile-color tidak cocok.
+- Build #107, commit `78338cf72bbf332714f6fce9e87ee751f395cc21`: **sukses**. Step Apply Tele-ß patches, Build standalone APK, dan Upload APK semuanya sukses. Run: https://github.com/savie/Telegram-Unofficial/actions/runs/42383041635
+
+CI #107 membuktikan patch diterapkan dan standalone APK berhasil dikompilasi serta diunggah. CI tidak membuktikan seluruh perilaku runtime atau rendering telah benar.
+
+### 13.3 Batas Local Profile Colors
+
+Implementasi Local Profile Colors yang sekarang:
+- menyimpan pilihan warna name dan profile untuk akun Tele-ß lokal;
+- overlay nilai melalui `UserObject.getColorId(...)` dan `UserObject.getProfileColorId(...)` hanya untuk current user dan saat capability `CUSTOM_UI` aktif;
+- tidak mengubah objek user Telegram sebagai Premium;
+- tidak menjalankan `TL_account.updateColor` untuk penerapan warna lokal;
+- tidak mengubah warna yang dilihat pengguna Telegram lain atau perangkat lain.
+
+Yang belum dibuktikan:
+1. Warna yang dipilih tetap terbaca setelah aplikasi dihentikan paksa dan dijalankan kembali.
+2. Semua UI yang menampilkan nama/avatar/profile color menggunakan getter overlay tersebut; beberapa komponen dapat membaca langsung field `user.color` atau `user.profile_color`.
+3. Perilaku tab Name/Profile dan nilai reset/default ketika belum ada warna lokal.
+4. Pemilihan collectible, emoji status, gift dan profile icons. Implementasi ini hanya untuk integer name/profile color; collectible/gift/status tidak ikut dibuka.
+5. Update antarmuka pada seluruh layar setelah save; notifikasi `updateInterfaces` baru memicu refresh pada observer yang mendengarkannya.
+
+Karena itu statusnya **implemented + CI green + Apply confirmed**, belum **fully verified end-to-end**.
+
+### 13.4 Perbaikan dokumentasi status Accent Colors
+
+Istilah perlu dibedakan secara konsisten:
+- **Accent Colors dalam Theme Editor**: bagian dari warna tema lokal dan serialisasi theme/accent. Uji pengguna sebelumnya melaporkan salah satu jalur Custom Colors masih menampilkan paywall; perlu nama menu dan anchor premium yang tepat sebelum menyatakan seluruh jalur terbuka.
+- **Name and Profile Colors**: fitur Telegram profile appearance pada `PeerColorActivity`. Kini ada implementasi overlay lokal Tele-ß yang berbeda dari Telegram account/server profile colors.
+
+Jangan mencampurkan kedua fitur tersebut dalam status matriks.
+
+### 13.5 Status cakupan tujuan produk
+
+Tujuan “Premium dan Business jadi Freemium” belum selesai secara menyeluruh. Sampai commit ini, yang memiliki bukti implementasi lokal paling jelas adalah:
+- aktivasi tier Freemium lokal;
+- Theme Editor/local theme persistence;
+- personal wallpaper;
+- chat theme lokal per dialog;
+- Name/Profile Colors lokal dalam cakupan terbatas;
+- App Icons sudah diberi entitlement lokal pada patch, tetapi uji perangkat belum dicatat di bagian ini.
+
+Fitur Business pada screenshot tetap memakai API Telegram untuk operasi intinya (Location, Opening Hours, Greeting, Away, Start Page, Chat Links, Chatbots; Quick Replies juga hybrid). Itu belum menjadi Tele-ß local Business. Buka layar atau menampilkan success state saja tidak memenuhi tujuan fitur bekerja. Untuk alternatif lokal, fitur harus dibangun sebagai implementasi Tele-ß tersendiri dengan penyimpanan lokal dan label yang tidak mengklaim sinkronisasi Telegram.
+
+Fitur Premium lain di katalog tetap mengikuti klasifikasi client-only/hybrid/server-dependent pada bagian 11. Belum ada dasar untuk mengklaim seluruh katalog sudah menjadi Freemium.
+
+### 13.6 Checklist verifikasi perangkat berikutnya
+
+1. Pada Name and Profile Colors, pilih satu warna Name dan satu warna Profile, Apply, force-stop Tele-ß, lalu buka lagi. Periksa apakah pilihan tetap tersimpan dan terpilih.
+2. Periksa nama/avatar/profile preview pada profil sendiri, chat list, header chat, serta pesan yang dikirim dari akun itu. Catat permukaan mana yang memantulkan overlay lokal.
+3. Pastikan Telegram resmi atau akun/perangkat lain tidak menampilkan perubahan lokal tersebut.
+4. Pada Theme Editor, uji setiap menu Accent/Custom Colors yang sebelumnya masih memunculkan paywall, dan catat label menu persisnya.
+5. Uji Premium App Icons dari Android launcher dan pastikan ikon tetap benar setelah restart perangkat.
+6. Untuk Business, jangan tandai selesai hanya karena Activity terbuka. Butuh keputusan terpisah: integrasi dengan Telegram API (tetap server-gated) atau fitur Tele-ß local Business yang independen.
+
+### 13.7 Kesimpulan audit per 78338cf
+
+- **Source patch dapat diterapkan:** ya.
+- **Standalone APK CI:** hijau di Build #107.
+- **Freemium activation durable:** implementasi tersedia dan pengguna telah melaporkan aktivasi/halaman sukses.
+- **Theme Editor, local theme, personal wallpaper, chat theme:** pengguna melaporkan berhasil pada pengujian.
+- **Name/Profile Colors:** Apply terkonfirmasi tanpa paywall; restart dan seluruh cakupan rendering belum terverifikasi.
+- **Accent Colors pada Theme Editor:** masih ada satu alur paywall menurut pengujian sebelumnya; status open.
+- **App Icons:** patch gate lokal ada; runtime belum terverifikasi di bagian ini.
+- **Seluruh Premium dan Business:** belum selesai. Sejumlah kemampuan inti tetap server-dependent, dan alternatif lokal Tele-ß belum semuanya dibangun.
