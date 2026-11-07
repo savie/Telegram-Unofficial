@@ -621,16 +621,45 @@ B. **Rich Article / Advanced Blocks (Hybrid)**
 - Pertahankan fallback `sendConvertedRichAsSimple` ketika server tidak menerima rich payload.
 - Jangan membuka Heading/Pullquote/Footer/Math/Checklist/Table hanya berdasarkan local entitlement sampai ada bukti acceptance end-to-end.
 
-### 16.5 Pekerjaan audit lanjutan sebelum implementasi Tahap 3
+### 16.5 Hasil pendalaman jalur konversi dan entity standar
 
-- [ ] Baca penuh `SendMessagesHelper.prepareSendingArticle(...)` dan request TL yang dikirim.
-- [ ] Telusuri implementasi `ChatActivityEnterView.sendConvertedRichAsSimple(...)` serta pemetaan rich text ke message entities.
-- [ ] Audit serializer/deserializer `TL_iv.RichMessage` dan seluruh block penting, termasuk flags dan media references.
-- [ ] Identifikasi sumber `richEditorAllowed()` dan konfigurasi/response yang mengisinya; jangan menyamakannya dengan entitlement lokal.
-- [ ] Periksa apakah ordinary formatting entities (bold/italic/code/link) sudah tersedia pada composer normal tanpa Rich Article.
-- [ ] Buat matriks penerima: Tele-ß → Tele-ß, Tele-ß → Telegram resmi, Telegram resmi → Tele-ß.
-- [ ] Rancang test non-Premium: draft, restart, send, edit, reply, forward, media, checklist, fallback, dan server rejection.
-- [ ] Setelah bukti payload lengkap, tulis spesifikasi implementasi dan baru mulai patch.
+Pemeriksaan lanjutan dilakukan pada source `master` setelah audit awal. Temuan berikut sudah terverifikasi secara statis:
+
+1. **Konversi ke pesan biasa mempertahankan span yang masih kompatibel.** `ChatActivityEnterView.sendConvertedRichAsSimple(...)` membungkus hasil konversi ke `SpannableStringBuilder`, memproses emoji, menormalkan quote, memasang teks ke composer, lalu mengirim melalui `sendMessageInternal(...)`. Jadi jalur fallback benar-benar masuk ke pipeline pesan biasa, bukan mengirim Rich Message diam-diam.
+2. **Konversi memang menghapus sebagian format yang tidak punya representasi aman.** `RichMessageConvert.rowsToSimpleMessage(...)` menghapus style MARKED, SUBSCRIPT, SUPERSCRIPT dan `MathSpan`. `inlineLossy(...)` menggolongkan marked, subscript, superscript, math, dan inline button sebagai lossy. Block bersarang, pullquote, details, table, list, dan block non-paragraf/preformatted/blockquote juga dianggap lossy.
+3. **Model Rich Text mendukung format lebih luas daripada message entities biasa.** `RichTextStyle` memetakan bold, italic, underline, strike, monospace, spoiler, subscript, superscript, marked, URL, custom emoji, date, math, dan inline button ke struktur Rich Text/span. Keberadaan span di editor tidak otomatis berarti semuanya bisa dikirim sebagai entity standar.
+4. **Composer normal punya konversi TextStyleSpan → MessageEntity.** `MediaDataController.getEntities(...)` memiliki jalur ekstraksi span ke entity; potongan yang diperiksa secara eksplisit memetakan italic, code, strike, dan underline. Pipeline standar juga punya pembentukan dan pembacaan style runs dari `TLRPC.MessageEntity`. Ini memperkuat kandidat implementasi native lewat composer normal, tanpa Rich Article.
+5. **Batas format yang aman belum boleh diasumsikan dari daftar span saja.** Perlu menyelesaikan audit penuh daftar entity yang diekstrak (termasuk bold, spoiler, link, custom emoji), offset setelah perubahan teks/markdown, serta cara `sendMessageInternal` memasukkan entity tersebut ke request.
+6. **Rich Article adalah payload terpisah dari ordinary message entities.** `SendMessagesHelper.prepareSendingArticle(...)` membangun `TL_iv.RichMessage`, mengumpulkan blocks/media, lalu membuat `SendMessageParams.ofRichMessage(...)`. `richMessageToInputRichMessage(...)` mengubahnya menjadi `TL_iv.TL_inputRichMessage` dengan flags dan referensi input photo/document/user. Jalur edit memakai `editRichMessage(...)`, bukan jalur edit teks biasa.
+7. **Native TDLib juga memperlakukan Rich Message sebagai model tersendiri.** `RichMessage::get_input_rich_message(...)` membentuk `telegram_api::InputRichMessage` dari blocks dan media; `RichMessage::can_send(...)` memeriksa `RestrictedRights` untuk pesan dan setiap block. Ini bukti bahwa format artikel bukan sekadar dekorasi lokal. Pemeriksaan ini belum membuktikan gate Premium yang tepat atau syarat entitlement server.
+8. **Draft rich memiliki representasi tersendiri.** Source TDLib `DraftMessage` menyimpan dan mem-parse `rich_message_` ketika draft bertipe rich; karena itu migrasi Rich Draft → Simple Draft perlu diuji secara khusus, termasuk restart dan undo.
+9. **Request TL Rich Message dan serialisasi flags sudah ditemukan**, tetapi audit operasi edit/update, receive/render pada klien Android, dan perilaku server terhadap akun non-Premium masih belum lengkap. Belum ada bukti runtime bahwa server menerima semua jenis rich block dari akun non-Premium.
+
+### 16.6 Batas implementasi yang sudah dapat ditetapkan
+
+- **Jalur Native yang layak diprioritaskan:** formatting teks biasa melalui composer standar dan `TLRPC.MessageEntity`, bukan membuka seluruh Rich Editor. Kandidat awal: bold, italic, underline, strikethrough, code/monospace, spoiler, dan text URL/link setelah tiap pemetaan serializer diverifikasi.
+- **Custom emoji:** entity standar Telegram tersedia, tetapi pengiriman dokumen/akses emoji dan batas akun harus diaudit terpisah; jangan masukkan ke daftar aman hanya karena span dapat dirender.
+- **Rich Article:** tetap Hybrid/server-dependent. Jangan mengubah `UserConfig.isPremium()`, `richEditorAllowed()`, atau `RestrictedRights`; jangan memaksa request `InputRichMessage` untuk akun non-Premium.
+- **Fallback:** pertahankan konversi yang sudah ada. Jangan mengubah klasifikasi `isLossy()` sebelum setiap block diuji round-trip dan dibandingkan dengan hasil konversi.
+- **Tidak boleh kehilangan konten diam-diam:** saat konversi menghapus format/struktur, UI harus menjelaskan bagian yang akan diratakan/dihilangkan sebelum pengguna mengonfirmasi pengiriman.
+
+### 16.7 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
+
+- [x] Baca `SendMessagesHelper.prepareSendingArticle(...)`, `prepareEditingArticle(...)`, dan pembentukan `TL_inputRichMessage`.
+- [x] Telusuri `ChatActivityEnterView.sendConvertedRichAsSimple(...)` dan fallback ke pipeline pesan biasa.
+- [x] Audit dasar konversi Rich Text ↔ Spannable serta klasifikasi lossy.
+- [x] Verifikasi bahwa composer normal memiliki jalur TextStyleSpan ↔ Telegram MessageEntity.
+- [x] Periksa jalur native TDLib untuk Rich Message, media references, draft representation, dan RestrictedRights.
+- [ ] Petakan seluruh entity yang benar-benar diekstrak oleh `MediaDataController.getEntities(...)` dan bagaimana hasilnya dipakai dalam `sendMessageInternal` / request TL.
+- [ ] Temukan sumber dan lifecycle `MessagesController.richEditorAllowed()` serta `richEditorAvailable()`; bedakan server app config, availability, entitlement akun, dan hak block.
+- [ ] Audit request edit Rich Article, response/update, receive/render, retry file-reference, dan sinkronisasi Android ↔ TDLib.
+- [ ] Telusuri rich draft save/load/clear, simple draft, restart, dan konversi/undo.
+- [ ] Verifikasi operasi forward, reply quote rich, scheduled send, media upload, dan error/rejection server.
+- [ ] Buat matriks penerima: Tele-ß → Tele-ß, Tele-ß → Telegram resmi, Telegram resmi → Tele-ß; uji per format dan block.
+- [ ] Susun test matrix non-Premium dan Premium tanpa mengubah entitlement: compose, preview, send, edit, reply, forward, draft, restart, fallback, media, schedule, dan server rejection.
+- [ ] Setelah seluruh jalur di atas terpetakan, tetapkan daftar format Native final, patch boundary, dan acceptance criteria. Baru setelah itu Tahap 3 dinyatakan siap implementasi.
+
+**Status audit saat ini: BELUM SIAP IMPLEMENTASI.** Jalur fallback, entity standar, dan pembentukan payload Rich Article sudah jauh lebih jelas, tetapi masih belum terpetakan penuh lifecycle entitlement/config, request/response edit/receive, serta kompatibilitas lintas klien. Tidak ada source implementation yang dilakukan dalam audit ini.
 
 **Kesimpulan Tahap 3:** ada jalur yang layak dibangun sebagai Formatting Tools Native Tele-ß menggunakan message entities standar. Rich Editor Telegram berbasis `TL_iv` adalah jalur hybrid dan tidak boleh di-unlock secara menyeluruh hanya dengan local flag.
 
