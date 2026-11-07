@@ -1,0 +1,127 @@
+name: Sync Telegram Android Upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: "Telegram Android branch, tag, or commit SHA (blank = upstream default branch HEAD)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: telegram-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-upstream:
+    name: Prepare Telegram upstream update
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Tele-ß migration branch
+        uses: actions/checkout@v5
+        with:
+          ref: migration/vendor-telegram-full-source
+          fetch-depth: 0
+
+      - name: Resolve upstream revision
+        id: upstream
+        shell: bash
+        env:
+          REQUESTED_REF: ${{ inputs.upstream_ref }}
+        run: |
+          set -euo pipefail
+          repo="https://github.com/TelegramOrg/Telegram-Android.git"
+          if [ -n "$REQUESTED_REF" ]; then
+            revision="$REQUESTED_REF"
+          else
+            revision="$(git ls-remote "$repo" HEAD | awk 'NR==1 {print $1}')"
+          fi
+          test -n "$revision"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "Resolved upstream revision: $revision"
+
+      - name: Fetch upstream snapshot
+        shell: bash
+        env:
+          UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
+        run: |
+          set -euo pipefail
+          git init /tmp/telegram-upstream
+          git -C /tmp/telegram-upstream remote add origin https://github.com/TelegramOrg/Telegram-Android.git
+          git -C /tmp/telegram-upstream fetch --depth=1 origin "$UPSTREAM_REVISION"
+          git -C /tmp/telegram-upstream checkout --detach FETCH_HEAD
+          actual="$(git -C /tmp/telegram-upstream rev-parse HEAD)"
+          test "$actual" = "$UPSTREAM_REVISION"
+          test -f /tmp/telegram-upstream/gradlew
+          test -d /tmp/telegram-upstream/TMessagesProj
+          test -d /tmp/telegram-upstream/TMessagesProj_AppStandalone
+          echo "Fetched Telegram Android: $actual"
+
+      - name: Sync upstream files while preserving Tele-ß files
+        shell: bash
+        env:
+          UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.migration/' \
+            --exclude='README.md' \
+            --exclude='patches/' \
+            /tmp/telegram-upstream/ ./
+
+          rm -rf .gitmodules upstream/Telegram-Android _telegram-upstream
+          printf '%s\\n' "$UPSTREAM_REVISION" > UPSTREAM_TELEGRAM_COMMIT
+
+          test -f gradlew
+          test -d TMessagesProj
+          test -d TMessagesProj_AppStandalone
+          test ! -e .gitmodules
+          test ! -e upstream/Telegram-Android
+          test ! -e _telegram-upstream
+
+      - name: Verify and stage source update
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
+            echo "::error::A submodule gitlink must not be introduced by upstream sync."
+            exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "Upstream is already synchronized; no update is required."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update upstream sync pull request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          base: migration/vendor-telegram-full-source
+          branch: automation/telegram-upstream-sync
+          delete-branch: true
+          commit-message: "build: sync Telegram Android upstream"
+          title: "build: sync Telegram Android upstream"
+          body: |
+            ## Telegram Android upstream sync
+
+            This pull request updates the vendored Telegram Android source from the upstream repository.
+
+            - Upstream: https://github.com/TelegramOrg/Telegram-Android
+            - Resolved commit: ${{ steps.upstream.outputs.revision }}
+            - Baseline file: UPSTREAM_TELEGRAM_COMMIT
+
+            Repository-owned .github/, .migration/, README.md, and patches/ are preserved.
+            The update is staged for review; it does not merge itself.
+          labels: upstream-sync
