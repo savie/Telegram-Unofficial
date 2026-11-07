@@ -623,6 +623,25 @@ public final class TeleBetaLocalProfileStyle {
     peer_file.write_text(peer_source, encoding="utf-8")
 
 
+    profile_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
+    profile_activity_source = profile_activity.read_text(encoding="utf-8")
+    profile_style_import = "import org.telegram.messenger.TeleBetaLocalProfileStyle;\n"
+    profile_style_import_anchor = "import org.telegram.messenger.UserObject;\n"
+    if profile_style_import not in profile_activity_source:
+        if profile_activity_source.count(profile_style_import_anchor) != 1:
+            raise SystemExit("Could not locate ProfileActivity local collectible import anchor.")
+        profile_activity_source = profile_activity_source.replace(profile_style_import_anchor, profile_style_import_anchor + profile_style_import, 1)
+    profile_peer_color_anchor = "            peerColor = MessagesController.PeerColor.fromCollectible(user.emoji_status);"
+    profile_peer_color_local = """            TLRPC.TL_emojiStatusCollectible teleBetaLocalCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(user);
+            if (teleBetaLocalCollectible != null) user.emoji_status = teleBetaLocalCollectible;
+            peerColor = MessagesController.PeerColor.fromCollectible(user.emoji_status);"""
+    if profile_activity_source.count(profile_peer_color_anchor) != 1:
+        raise SystemExit("Could not uniquely locate ProfileActivity collectible peer-color rendering.")
+    profile_activity_source = profile_activity_source.replace(profile_peer_color_anchor, profile_peer_color_local, 1)
+    profile_activity.write_text(profile_activity_source, encoding="utf-8")
+
+
+
 
     # Local emoji discovery: enable suggestions and preview/install controls for
     # emoji packs in Tele-beta. Sending premium emoji/status remains server-gated.
