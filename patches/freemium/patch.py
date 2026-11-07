@@ -529,6 +529,42 @@ public final class TeleBetaLocalProfileStyle {
     setup_method = """        public void setupValues() {"""
     if peer_source.count(setup_guard) != 1:
         raise SystemExit("Could not uniquely locate PeerColorActivity Page.setupValues.")
+
+    setup_profile_anchor = """                    selectedEmojiCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null;
+                    selectedPeerCollectible = null;"""
+    setup_profile_local = """                    TLRPC.TL_emojiStatusCollectible localCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(user);
+                    selectedEmojiCollectible = localCollectible != null ? localCollectible : (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null);
+                    selectedPeerCollectible = null;"""
+    setup_name_anchor = """                    selectedEmojiCollectible = null;
+                    selectedPeerCollectible = user != null && user.color instanceof TLRPC.TL_peerColorCollectible ? (TLRPC.TL_peerColorCollectible) user.color : null;"""
+    setup_name_local = """                    selectedEmojiCollectible = null;
+                    TLRPC.TL_peerColorCollectible localNameCollectible = TeleBetaLocalProfileStyle.getNameCollectible(user);
+                    selectedPeerCollectible = localNameCollectible != null ? localNameCollectible : (user != null && user.color instanceof TLRPC.TL_peerColorCollectible ? (TLRPC.TL_peerColorCollectible) user.color : null);"""
+    if peer_source.count(setup_profile_anchor) != 1 or peer_source.count(setup_name_anchor) != 1:
+        raise SystemExit("Could not uniquely locate local profile collectible restore anchors.")
+    peer_source = peer_source.replace(setup_profile_anchor, setup_profile_local, 1)
+    peer_source = peer_source.replace(setup_name_anchor, setup_name_local, 1)
+
+    local_button_anchor = """    private void buttonClick() {
+        if (loading) {
+            return;
+        }
+        if (isChannel) {"""
+    local_button_code = """    private void buttonClick() {
+        if (loading) {
+            return;
+        }
+        if (isTeleBetaLocalProfileStyleEnabled()) {
+            apply();
+            finishFragment();
+            showBulletin();
+            return;
+        }
+        if (isChannel) {"""
+    if peer_source.count(local_button_anchor) != 1:
+        raise SystemExit("Could not uniquely locate local profile style button click insertion point.")
+    peer_source = peer_source.replace(local_button_anchor, local_button_code, 1)
+
     # UserObject getters transparently overlay persisted local colors for the current account.
 
     click_guard = "if (!getUserConfig().isPremium()) {"
@@ -547,7 +583,7 @@ public final class TeleBetaLocalProfileStyle {
             if (me.color == null) {"""
     apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
             if (isTeleBetaLocalProfileStyleEnabled()) {
-                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor, profilePage.selectedEmoji);
+                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor, profilePage.selectedEmoji, namePage.selectedPeerCollectible, profilePage.selectedEmojiCollectible);
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
                 return;
             }
