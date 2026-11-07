@@ -695,26 +695,33 @@ Audit lanjutan mengonfirmasi dua jalur penting:
 
 **Status Tahap 3: BELUM SIAP IMPLEMENTASI.** Jalur send dan edit pesan standar serta sebagian pemulihan draft kini lebih jelas. Blocker audit terbesar yang tersisa adalah asal-usul entitlement Rich Editor dan pembuktian lifecycle draft/receive serta kompatibilitas lintas klien. Tidak ada perubahan source code.
 
-### 16.9 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
 
 
-- [x] Baca `SendMessagesHelper.prepareSendingArticle(...)`, `prepareEditingArticle(...)`, dan pembentukan `TL_inputRichMessage`.
-- [x] Telusuri `ChatActivityEnterView.sendConvertedRichAsSimple(...)` dan fallback ke pipeline pesan biasa.
-- [x] Audit dasar konversi Rich Text ↔ Spannable serta klasifikasi lossy.
-- [x] Verifikasi bahwa composer normal memiliki jalur TextStyleSpan ↔ Telegram MessageEntity.
-- [x] Periksa jalur native TDLib untuk Rich Message, media references, draft representation, dan RestrictedRights.
-- [x] Petakan seluruh entity yang diekstrak oleh `MediaDataController.getEntities(...)` dan verifikasi pemakaian entity pada preview serta field `entities` di request `TL_messages_sendMessage`.
-- [ ] Temukan sumber dan lifecycle `MessagesController.richEditorAllowed()` serta `richEditorAvailable()`; bedakan server app config, availability, entitlement akun, dan hak block.
-- [ ] Audit request edit Rich Article, response/update, receive/render, retry file-reference, dan sinkronisasi Android ↔ TDLib.
-- [ ] Telusuri rich draft save/load/clear, simple draft, restart, dan konversi/undo.
-- [ ] Verifikasi operasi forward, reply quote rich, scheduled send, media upload, dan error/rejection server.
-- [ ] Buat matriks penerima: Tele-ß → Tele-ß, Tele-ß → Telegram resmi, Telegram resmi → Tele-ß; uji per format dan block.
-- [ ] Susun test matrix non-Premium dan Premium tanpa mengubah entitlement: compose, preview, send, edit, reply, forward, draft, restart, fallback, media, schedule, dan server rejection.
-- [ ] Setelah seluruh jalur di atas terpetakan, tetapkan daftar format Native final, patch boundary, dan acceptance criteria. Baru setelah itu Tahap 3 dinyatakan siap implementasi.
+### 16.12 Penyimpanan draft lokal, caption media, dan pemulihan Rich Article
 
-**Status audit saat ini: BELUM SIAP IMPLEMENTASI.** Jalur fallback, entity standar, dan pembentukan payload Rich Article sudah jauh lebih jelas, tetapi masih belum terpetakan penuh lifecycle entitlement/config, request/response edit/receive, serta kompatibilitas lintas klien. Tidak ada source implementation yang dilakukan dalam audit ini.
+Pemeriksaan tambahan pada source `MediaDataController.java` mengonfirmasi bahwa saat controller dibuat, aplikasi membaca seluruh entri dari SharedPreferences `drafts` (atau `drafts{account}`). Nilai draft dideserialisasi sebagai objek TL dan dimuat kembali ke koleksi `drafts`/`draftMessages` berdasarkan dialog dan thread. Dengan demikian, terdapat pemulihan draft lokal saat inisialisasi controller, bukan hanya penyimpanan sementara di memori.
 
-**Kesimpulan Tahap 3:** ada jalur yang layak dibangun sebagai Formatting Tools Native Tele-ß menggunakan message entities standar. Rich Editor Telegram berbasis `TL_iv` adalah jalur hybrid dan tidak boleh di-unlock secara menyeluruh hanya dengan local flag.
+Batas bukti: potongan constructor membuktikan pembacaan dan deserialisasi cache lokal, tetapi belum cukup untuk menyimpulkan kapan setiap perubahan draft dipersistenkan, urutan sinkronisasi dengan server, konflik lokal/server, atau pemulihan penuh setelah proses dimatikan. Perlu menelusuri method mutasi dan serialization yang menulis ke `draftPreferences` serta jalur `messages.getAllDrafts`/`messages.saveDraft` secara lengkap.
+
+Untuk caption media, source `ChatAttachAlertPhotoLayout.java` mengekstrak `MessageEntity` dari caption sebelum menyiapkan media. `StoriesController.java` juga mengekstrak entity caption untuk story bila `storyEntitiesAllowed()` mengizinkan, dan meneruskan caption entities beserta `scheduleDate` ke helper pengiriman foto/video untuk share story ke dialog. Ini membuktikan adanya jalur caption ber-entity pada operasi media tertentu, tetapi bukan bukti seluruh alur foto, video, dokumen, edit caption, dan scheduled message biasa memiliki dukungan identik.
+
+Untuk Rich Article, `FileRefController.java` memiliki jalur khusus: ketika parent message membawa `rich_message`, controller mengirim `TL_iv.getRichMessage` untuk memperoleh ulang rich message ketika menangani file reference. Ini mengonfirmasi mekanisme refresh payload Rich Article pada kebutuhan file reference. Belum membuktikan keseluruhan receive/update/render atau retry media untuk seluruh block dan seluruh jenis kegagalan.
+
+**Implikasi:** jangan mengasumsikan satu helper entity yang sama mencakup teks biasa, caption media, story caption, edit caption, dan scheduled send. Setiap jalur perlu diverifikasi dari ekstraksi entity sampai field request TL dan respons server.
+
+### 16.13 Status audit setelah pemeriksaan tambahan
+
+- [x] Konfirmasi constructor `MediaDataController` membaca dan mendeserialisasi cache draft lokal saat inisialisasi.
+- [x] Konfirmasi caption foto di attach layout mengekstrak entities.
+- [x] Konfirmasi story caption dapat membawa entities dan schedule date pada helper pengiriman foto/video.
+- [x] Konfirmasi `FileRefController` memiliki request `TL_iv.getRichMessage` untuk refresh Rich Article terkait file reference.
+- [ ] Telusuri seluruh method penulisan SharedPreferences draft, pemuatan draft server, dan resolusi konflik local/server.
+- [ ] Temukan definisi/lifecycle `richEditorAllowed()` dan `richEditorAvailable()`; hasil code search pada default branch belum menemukan definisinya. Perlu pemeriksaan file penuh/struktur class karena file `MessagesController.java` sangat besar dan fetch awal tidak mengembalikan isi.
+- [ ] Buktikan request biasa untuk scheduled text, scheduled media, edit caption, dan edit pesan yang membawa entities; jangan menyamakan scheduled story dengan scheduled chat message.
+- [ ] Telusuri response/update Rich Article sampai adapter/layout Android dan state edit; `getRichMessage` baru membuktikan jalur refresh file reference.
+- [ ] Uji matriks lintas klien dan akun Premium/non-Premium setelah implementasi kandidat disetujui. Belum ada hasil runtime test.
+
+**Status Tahap 3 tetap BELUM SIAP IMPLEMENTASI.** Temuan tambahan memperjelas pemulihan cache draft lokal, entity caption pada beberapa jalur media, serta refresh Rich Article untuk file reference. Blocker utama yang belum terjawab adalah definisi gate Rich Editor, lifecycle sinkronisasi draft, cakupan edit/scheduled media, dan receive/render Rich Article.
 
 ## 17. Koreksi urutan roadmap dan status P0
 
