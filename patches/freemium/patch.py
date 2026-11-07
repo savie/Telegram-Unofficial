@@ -653,12 +653,11 @@ public final class TeleBetaLocalProfileStyle {
         if suggest_source.count(suggest_anchor) != 1:
             raise SystemExit("Could not locate SuggestEmojiView Freemium import anchor.")
         suggest_source = suggest_source.replace(suggest_anchor, suggest_anchor + suggest_import, 1)
-    suggest_gate = "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()"
+    suggest_gate = re.compile(r"SharedConfig\\.suggestAnimatedEmoji\\s*&&\\s*UserConfig\\.getInstance\\(currentAccount\\)\\.isPremium\\(\\)")
     suggest_local_gate = "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI))"
-    if suggest_source.count(suggest_gate) == 1:
-        suggest_source = suggest_source.replace(suggest_gate, suggest_local_gate, 1)
-    else:
-        raise SystemExit("Could not uniquely locate SuggestEmojiView animated emoji suggestion gate.")
+    suggest_source, suggest_matches = suggest_gate.subn(suggest_local_gate, suggest_source, count=1)
+    if suggest_matches != 1:
+        raise SystemExit("Could not locate SuggestEmojiView animated emoji suggestion gate (regex).")
     suggest_file.write_text(suggest_source, encoding="utf-8")
 
     adapter_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java"
