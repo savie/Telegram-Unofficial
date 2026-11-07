@@ -93,18 +93,28 @@ jobs:
           test ! -e upstream/Telegram-Android
 
       - name: Verify vendored source and stage migration
+        id: changes
         shell: bash
         run: |
           set -euo pipefail
           git add -A
-          git diff --cached --stat
-          test -n "$(git status --porcelain)"
+
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
             echo "::error::A submodule gitlink is still present in the staged index."
             exit 1
           fi
 
+          git diff --cached --stat
+          if git diff --cached --quiet; then
+            echo "Vendored source is already present and matches the pinned upstream snapshot."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Vendored source changes are staged."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit and push vendored source to master
+        if: steps.changes.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
