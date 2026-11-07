@@ -159,3 +159,91 @@ Catatan: workflow `migrate-telegram-vendored.yml` tetap dapat dijalankan manual 
 - Tidak mengubah tiga file workflow YAML.
 - Tidak menjalankan CI atau build.
 - Audit belum final; status fitur tetap mengikuti bukti source pada matriks di atas.
+
+## 10. Audit lanjutan berdasarkan source `master`
+
+**Baseline audit:** commit source `3373782567b90f94870eebb001f38f796cb6461e` (yang dipakai Build Android #96). Hasil pencarian GitHub dan pembacaan file penuh pada branch `master` setelah dokumentasi audit sebelumnya ditambahkan. Ini merupakan audit statis source; belum menggantikan pengujian runtime pada akun non-Premium.
+
+### 10.1 Temuan penting: aktivasi lokal saat ini hanya mengganti tampilan, bukan entitlement fitur
+
+Di `patches/freemium/patch.py`, `grantFreemium()` hanya menulis tier dan lima feature key ke SharedPreferences. Tetapi gate upstream yang diperiksa masih membaca `UserConfig.isPremium()`, `MessagesController.premiumFeaturesBlocked()`, limit konfigurasi Telegram, atau respons server. Belum ada pemakaian `TeleBetaFreemium.isFeatureEnabled(...)` yang menghubungkan entitlement lokal dengan fitur upstream pada source yang ditelusuri.
+
+Ada masalah kedua pada alur sukses: method patch mengarahkan layar ke `PremiumPreviewFragment("freemium").setForcePremium()`. `forcePremium` adalah flag presentasi. Source constructor dan success UI memakainya untuk menampilkan tampilan subscribed, sementara status akun dan gate fitur tetap membaca status Premium yang sebenarnya. Jadi layar “You are all set” yang terlihat pada screenshot bukan bukti fitur telah diaktifkan.
+
+**Kesimpulan valid dari source:** perilaku yang terlihat pada build #96 konsisten dengan aktivasi kosmetik/presentasi. Persistensi tier lokal bisa terjadi, tetapi belum mengubah otorisasi fitur Telegram di titik pemakaian. Patch satu method `buyPremium(...)` tidak cukup untuk menghasilkan akses Premium yang fungsional.
+
+### 10.2 Business: sebagian besar operasi inti secara eksplisit memakai API Telegram
+
+Source Business diperiksa sampai alur penyimpanan:
+
+| Fitur | Source dan operasi | Hasil audit |
+|---|---|---|
+| Location | `Business/LocationActivity.java`: `TL_account.updateBusinessLocation` dikirim melalui `sendRequest` | Data profil disimpan melalui server; tidak dapat dianggap client-only |
+| Opening Hours | `Business/OpeningHoursActivity.java`: `TL_account.updateBusinessWorkHours` | Server-dependent |
+| Greeting Messages | `Business/GreetMessagesActivity.java`: `TL_account.updateBusinessGreetingMessage` | Server-dependent |
+| Away Messages | `Business/AwayMessagesActivity.java`: `TL_account.updateBusinessAwayMessage` | Server-dependent |
+| Business Intro / Start Page | `Business/BusinessIntroActivity.java`: `TL_account.updateBusinessIntro` | Server-dependent |
+| Chatbots | `Business/ChatbotsActivity.java` mengirim update request; `BusinessChatbotController.java` memuat `TL_account.getConnectedBots` | Server-dependent dan melibatkan bot pihak ketiga |
+| Business Links | `BusinessLinksActivity.java` menggunakan controller/model link Business; perlu telusuri implementasi `BusinessLinksController` sampai request sebelum menilai operasi CRUD satu per satu | Belum ditetapkan; bukan bukti client-only |
+| Quick Replies | `Business/QuickRepliesController.java` memuat daftar dari cache lokal `business_replies`, tetapi juga melakukan fetch/sort/edit/delete/send melalui `TL_messages_*QuickReply*` dan update Greeting/Away melalui `TL_account.*` | Hybrid; cache lokal tidak berarti entitlement dan sinkronisasi bisa dihilangkan |
+
+Business settings dibuka dari daftar fitur `PremiumPreviewFragment.java` hanya ketika `getUserConfig().isPremium()` true. Untuk membuka halaman secara lokal saja memang mungkin secara teknis, tetapi simpan/perubahan operasi di atas tetap divalidasi oleh Telegram. Menghapus guard UI tanpa hasil valid dari server hanya akan membuat layar dapat dibuka, bukan memastikan fitur Business benar-benar bekerja.
+
+**Kesimpulan Business:** tidak ada dasar source untuk menyatakan seluruh Business dapat diaktifkan melalui local grant. Paling tidak, Location, Hours, Greeting, Away, Intro, dan Chatbots terbukti server-backed. Quick Replies adalah campuran local cache dan API Telegram, sehingga juga tidak boleh diklasifikasikan client-only.
+
+### 10.3 Katalog Premium pada source saat ini lebih luas dari lima feature key Tele-ß
+
+`PremiumPreviewFragment.java` mendefinisikan feature ID sampai `PREMIUM_FEATURE_RICH_EDITOR` dan katalog yang mencakup:
+
+- Stories dan subfiturnya: stealth mode, view history, expiration duration, save to gallery, links/formatting, priority order, caption, quality.
+- Limits dan upload/download: doubled limits, upload limit, download speed.
+- Voice-to-text, translation, ads, reactions, stickers, emoji status, animated emoji/avatar, profile badge.
+- Advanced chat management, app icons, wallpaper, name/profile colors, saved tags/folder tags.
+- Last seen/read time, message privacy, disable sharing.
+- Business: Location, Opening Hours, Quick Replies, Greeting, Away, Chatbots, Intro, Chat Links.
+- Message effects, TODO/checklists, AI Editor, Rich Editor.
+
+Lima key saat ini (`CUSTOM_THEMES`, `CHAT_CUSTOMIZATION`, `CUSTOM_UI`, `ADVANCED_DOWNLOADS`, `ADVANCED_PRIVACY`) tidak mencakup atau memetakan katalog ini secara granular. Sebelum implementasi, perlu dibuat registry Tele-ß per capability, bukan satu sakelar global.
+
+### 10.4 Inventaris gate yang ditemukan di source root
+
+Pencarian GitHub pada `master` menemukan 92 file hasil untuk pencarian `isPremium()` dan 26 file untuk `premiumFeaturesBlocked`. Ini adalah hasil pencarian terindeks, bukan jaminan hitungan total seluruh kemunculan. Daftar di bawah mengelompokkan call site yang berhasil ditemukan; tiap kelompok masih perlu dipasangkan dengan method operasi dan request terkait sebelum diubah.
+
+| Kelompok | File contoh yang terverifikasi | Interpretasi |
+|---|---|---|
+| Gate umum / upsell | `PremiumPreviewFragment.java`, `SettingsActivity.java`, `PremiumFeatureBottomSheet.java` | Navigation/katalog/upsell; bukan satu-satunya enforcement |
+| Limits folder/tag | `FiltersSetupActivity.java`, `FilterCreateActivity.java`, `DialogCellTags.java` | Sebagian limit lokal berbasis config, sebagian fitur warna/tag; perlu cek server limits untuk create/update |
+| Translation | `TranslateController.java`, `TranslateButton.java`, `TranslateAlert3.java` | Gate akun Premium lokal di UI/controller; request translate tetap ke Telegram dan server dapat membatasi |
+| Voice transcription | `TranscribeButton.java` | Request server dan trial/cooldown; tidak dapat dibuka hanya lewat local grant |
+| Rich Editor | `ChatAttachAlertRichLayout.java`, `RichEditor.java`, `RichEditorToolbar.java` | UI lock dan format/payload pengiriman; hybrid dan perlu test server |
+| Stickers / reactions | `StickerCell.java`, `StickerEmojiCell.java`, `ReactionsContainerLayout.java`, `StickersActivity.java`, `TopicCreateFragment.java` | Campuran preview/selector/UI gate dan server-backed document/reaction data |
+| Privacy | `PrivacyControlActivity.java`, `PrivacySettingsActivity.java`, `MessagePrivateSeenView.java` | Beberapa kontrol memerlukan update privacy rules Telegram; server-dependent |
+| Stories | `StoriesController.java`, `StealthModeAlert.java`, `SelfStoryViewsPage.java`, `Stories/recorder/*` | Story capabilities dan view history terkait API/server state; audit khusus diperlukan |
+| Download/upload | `FileLoader.java`, `FileLoadOperation.java`, `FileUploadOperation.java`, `SearchViewPager.java` | Sebagian UI/download behavior; batas kecepatan dan kuota juga dipengaruhi konfigurasi/native/server |
+| Profile appearance | `PeerColorActivity.java`, `ProfileActivity2.java`, `ImageReceiver.java`, `StatusBadgeComponent.java` | Ada state tampilan lokal namun warna/status/profile flags dapat disinkronkan ke server |
+| Paid messages / gifts | `PrivacyControlActivity.java`, `GiftSheet.java`, `GiftPremiumBottomSheet.java` | Melibatkan Stars, transaksi, atau state akun; jangan diperlakukan sebagai local-only |
+| Auto-archive / chat management | `ArchiveSettingsActivity.java`, `SettingsActivity.java` | Ada kondisi lokal dan flag/config server; perlu klasifikasi per operasi |
+| Ads | `VideoAds.java`, `SearchAdsInfoBottomSheet.java` | Pengaturan/penyembunyian iklan tidak boleh disamakan dengan server premium entitlement |
+
+Selain gate `isPremium()`, `premiumFeaturesBlocked()` sendiri menyebar ke menu, settings, sticker/reactions, stories, privacy, limit sheet, dan premium presentation. Tidak aman untuk mengubah return value helper global tersebut menjadi “Freemium aktif”: dampaknya lintas fitur dan dapat mencampur kebijakan `premiumLocked` server.
+
+### 10.5 Keputusan implementasi yang sudah bisa dipastikan
+
+Belum ada patch feature-access yang dibuat dalam pembaruan ini. Berdasarkan bukti source:
+
+1. **Jangan mengubah** `UserConfig.isPremium()`, `TLRPC.User.premium`, propagasi Premium ke native, `premiumFeaturesBlocked()`, atau limit Premium server menjadi true karena Tele-ß Freemium.
+2. **Jangan membuka semua Business screen sekaligus**. Operasi penyimpanannya mengirim request Telegram dan server dapat menolak.
+3. **Jangan menganggap forcePremium sebagai entitlement**. Pertahankan hanya untuk presentation jika memang diperlukan, tetapi jangan jadikan indikator fitur aktif.
+4. **Bisa dipertimbangkan untuk implementasi terpisah**: fitur yang sepenuhnya lokal setelah ditelusuri sampai efek akhir (contoh kandidat appearance/UI customization). Namun daftar aman belum ditetapkan: setiap kandidat harus dibuktikan tidak menuntut Premium akun untuk fetch, persist, share, atau operasi server.
+5. **Butuh uji runtime sebelum mengklaim sukses**: gunakan akun non-Premium pada build Tele-ß; jalankan tiap operasi end-to-end, periksa callback sukses/error dari server, tutup dan buka ulang app, restart proses, dan verifikasi state tetap konsisten.
+
+### 10.6 Status pemeriksaan modul
+
+Build project menggunakan modul media3 dari `TMessagesProj_Modules/media` melalui `settings.gradle` dan dependency `TMessagesProj/build.gradle`. Source modul tersebut merupakan fork/media library ExoPlayer; foldernya tidak mengandung referensi Premium/Business pada hasil pencarian repository. Dengan demikian, tidak ditemukan gate entitlement Telegram di modul media yang terindeks, dan modul ini bukan target utama patch Premium.
+
+Batasan: GitHub code search mengembalikan pencarian source yang terindeks, bukan hasil ripgrep menyeluruh dari checkout. Karena itu, modul media dinilai **tidak ada indikasi Premium gate dari pencarian**, bukan dinyatakan telah diaudit setiap baris. Source modul lain tidak ditemukan di `TMessagesProj_Modules/` selain `media` pada tree saat ini.
+
+### 10.7 Batas pekerjaan dan tindak lanjut
+
+Audit ini sudah menemukan alasan teknis mengapa build #96 menampilkan sukses tetapi tidak membuka fitur: local grant belum terhubung ke gate pemakaian. Audit belum membuktikan satu paket penuh fitur Premium dapat dibuka secara legal/teknis oleh client-only entitlement. Fokus implementasi yang valid berikutnya adalah menyusun matriks per capability (gate UI, gate controller, data persistence, RPC, server acceptance, limit) lalu melakukan perubahan kecil pada capability yang memang lokal. Untuk fitur server-dependent, status server harus tetap dihormati; local patch tidak bisa menjamin operasi diterima.
+
