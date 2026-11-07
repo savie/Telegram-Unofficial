@@ -144,6 +144,9 @@ public class ReplyMessageLine {
             wasColorId = colorId;
             wasMessageId = msgId;
         }
+        if (colorId < 0) {
+            colorId = 0;
+        }
         if (colorId < 7) {
             color1 = color2 = color3 = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);
             hasColor2 = hasColor3 = false;
