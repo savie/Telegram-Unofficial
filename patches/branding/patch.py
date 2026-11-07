@@ -3,7 +3,7 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path("upstream/Telegram-Android")
+ROOT = Path(".")
 
 def replace_once(path: Path, pattern: str, replacement: str, label: str, flags=0):
     original = path.read_text(encoding="utf-8")
