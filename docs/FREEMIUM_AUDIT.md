@@ -247,3 +247,77 @@ Batasan: GitHub code search mengembalikan pencarian source yang terindeks, bukan
 
 Audit ini sudah menemukan alasan teknis mengapa build #96 menampilkan sukses tetapi tidak membuka fitur: local grant belum terhubung ke gate pemakaian. Audit belum membuktikan satu paket penuh fitur Premium dapat dibuka secara legal/teknis oleh client-only entitlement. Fokus implementasi yang valid berikutnya adalah menyusun matriks per capability (gate UI, gate controller, data persistence, RPC, server acceptance, limit) lalu melakukan perubahan kecil pada capability yang memang lokal. Untuk fitur server-dependent, status server harus tetap dihormati; local patch tidak bisa menjamin operasi diterima.
 
+## 11. Audit terarah berdasarkan seluruh fitur pada screenshot pengguna
+
+Bagian ini memetakan item pada screenshot Premium umum dan Business. Klasifikasi client-side gate hanya berarti aplikasi mengunci UI/perilaku lokal; bukan bukti Telegram server menerima operasi. Server-dependent berarti operasi/data utama dikelola Telegram. Hybrid berarti keduanya berperan.
+
+### 11.1 Fitur Premium umum
+
+| Fitur screenshot | Source yang ditelusuri | Klasifikasi dan implikasi |
+|---|---|---|
+| Stories | StoriesController.java, StealthModeAlert.java, SelfStoryViewsPage.java, Stories/recorder/* | Hybrid/server-dependent. Story memakai banyak RPC TL_stories.*; caption dan expiration limits membaca isPremium(). Local grant tidak mengubah kuota server. Stealth/view-history terkait data view dan aturan privasi. |
+| Unlimited Cloud Storage | FileLoader.java, FileLoadOperation.java, FileUploadOperation.java, ConnectionsManager.java, TgNetWrapper.cpp, native ConnectionsManager.cpp | Server/native-dependent. Cloud storage Telegram, upload-size dan download limits bukan storage lokal; tidak dapat dijamin unlimited dengan local preference. |
+| Doubled Limits | MessagesController.java, FiltersSetupActivity.java, FilterCreateActivity.java, PremiumPreviewFragment.java, DoubledLimitsBottomSheet.java, native Premium.cpp | Hybrid/server-dependent. Config dan UI menampilkan limit, tetapi operasi server dapat memvalidasi channel, folder, pin, public link, dan akun. Mengubah angka lokal tidak menjamin server menerima limit lebih tinggi. |
+| Telegram Business | Business source pada bagian 10.2 dan BusinessLinksController.java | Server-dependent/hybrid; rincian delapan fitur ada di 11.2. |
+| Last Seen Times | PrivacyControlActivity.java, PrivacySettingsActivity.java, MessagePrivateSeenView.java | Server-dependent. Data last-seen/read-time dan aturan privasi berasal dari server; menghapus UI lock tidak menciptakan data yang tidak diberikan server. |
+| Voice-to-Text | Components/TranscribeButton.java | Server-dependent. Mengirim TL_messages_transcribeAudio; source menangani trial/cooldown pada respons. Local grant tidak memberi kuota server. |
+| Faster Download Speed | FileLoadOperation.java, FileLoader.java | Client + network/server constraints. FileLoadOperation memilih koneksi dan byte budget berdasar isPremium(). Kandidat perubahan client-side, tetapi tidak menjamin throughput; perlu benchmark dan uji stabilitas. |
+| Real-Time Translation | TranslateController.java, TranslateButton.java, TranslateAlert3.java | Hybrid/server-dependent. Gate lokal isPremium(); request TL_messages_translateText dan TL_messages_translateRichMessage dikirim ke Telegram. UI unlock bukan bukti server mengizinkan. |
+| Animated Emoji | SelectAnimatedEmojiDialog.java, StickersAlert.java, TopicCreateFragment.java, MediaDataController.java | Hybrid. Rendering di client, tetapi ketersediaan custom emoji/document dan pengiriman bergantung pada data/kebijakan Telegram. |
+| Emoji Statuses | SetupEmojiStatusSheet.java, PeerColorActivity.java, ProfileActivity2.java | Hybrid/server-dependent. UI pemilih lokal, tetapi status profil/expiry/collectible disimpan sebagai state profil Telegram. |
+| Tags in Saved Messages | SavedMessagesController.java, SearchTagsList.java, DialogCellTags.java, ReactionsContainerLayout.java | Hybrid. Ada gate isPremium() untuk tag; perlu verifikasi penuh apakah setiap operasi tag disimpan lokal atau disinkronkan. Belum aman disebut client-only. |
+| Name and Profile Colors | PeerColorActivity.java, ProfileActivity2.java, StatusBadgeComponent.java | Hybrid. Preview/pemilihan client-side; penerapan warna profil dapat mengubah state profil server. |
+| Wallpaper for Both Sides | ThemePreviewActivity.java dan alur chat theme/wallpaper | Belum dipastikan. Wallpaper lokal sendiri berbeda dari mengirim theme ke kedua pihak; request dan server acceptance perlu ditelusuri sebelum implementasi. |
+| Profile Badge | StatusBadgeComponent.java, ProfileActivity2.java, UserConfig.java | Hybrid/server-dependent. Badge akun Telegram bukan sekadar ikon lokal. Tele-ß boleh punya badge merek sendiri, bukan menyamar sebagai Premium Telegram. |
+| Paid Messages | PrivacyControlActivity.java dan Stars/payment controllers | Server/payment-dependent. Memerlukan Stars/transaksi/validasi server; bukan fitur yang bisa dijadikan gratis melalui local grant. |
+| Disable Sharing | PrivacyControlActivity.java, ChatActivity.java, MessagesController.java | Server-dependent/hybrid. Pembatasan forward/save harus didukung server/platform; menghapus client gate tidak menjamin proteksi. |
+| Advanced Chat Management | ArchiveSettingsActivity.java, SettingsActivity.java, MessagesController.java | Hybrid. Sebagian setting lokal; beberapa batas archive/folder dan sinkronisasi dipengaruhi config/server. Klasifikasi per subfitur diperlukan. |
+| No Ads | VideoAds.java, SearchAdsInfoBottomSheet.java, PremiumPreviewFragment.java | Hybrid/server-dependent. Client bisa menyembunyikan sebagian tampilan iklan, tetapi sponsored messages dan distribusi iklan terkait server. |
+| Premium App Icons | SettingsActivity.java, AppIconsSelectorCell.java | Client-side candidate. Launcher icon Android merupakan fungsi lokal; kandidat kuat untuk entitlement Freemium setelah manifest/alias dan aset diverifikasi. |
+| Infinite Reactions | ReactionsContainerLayout.java, ReactionsDoubleTapManageActivity.java, reaction models | Hybrid/server-dependent. Selector dikunci oleh isPremium(); daftar reaksi dan pengiriman tetap terkait data/protokol Telegram. |
+| Animated Profile Pictures | ImageReceiver.java, ProfileActivity2.java, profile media handling | Hybrid. Rendering animasi lokal; upload/media profil dan aturan profil bergantung server. |
+| Premium Stickers | StickerCell.java, StickerEmojiCell.java, StickersAlert.java, MediaDataController.java | Hybrid/server-dependent. Rendering lokal, tetapi akses set/document, install, dan pengiriman mengikuti data/kebijakan Telegram. |
+| Message Effects | ReactionsContainerLayout.java, CustomEmojiReactionsWindow.java, MessageSendPreview.java | Hybrid/server-dependent. Pemilihan/render lokal; payload, media, penerima, dan server menentukan hasil. |
+| AI Tools | AIEditorAlert.java, TranslateController.java, BotWebViewContainer.java | Hybrid/server-dependent. Limit lokal dan layanan remote harus dipisahkan per alat/provider; local grant bukan kuota AI remote. |
+| Formatting Tools | RichEditor.java, ChatAttachAlertRichLayout.java, MessagePreviewView.java | Hybrid. Editor/payload disusun client-side; format/payload khusus perlu diuji kompatibilitas server dan klien penerima. |
+| Checklists | PremiumPreviewFragment.java, message/media models, checklist UI | Belum dipastikan sampai operasi. UI katalog tidak membuktikan operasi checklist lokal; telusuri payload, request, dan respons. |
+
+### 11.2 Telegram Business sesuai screenshot
+
+| Fitur | Jalur source/request | Klasifikasi |
+|---|---|---|
+| Location | LocationActivity.java → TL_account.updateBusinessLocation | Server-dependent |
+| Opening Hours | OpeningHoursActivity.java → TL_account.updateBusinessWorkHours | Server-dependent |
+| Quick Replies | QuickRepliesController.java → fetch/edit/delete/send TL_messages_*QuickReply*; cache juga disimpan di MessagesStorage | Hybrid; cache lokal tidak menghapus kebutuhan RPC |
+| Greeting Messages | GreetMessagesActivity.java / controller → TL_account.updateBusinessGreetingMessage | Server-dependent |
+| Away Messages | AwayMessagesActivity.java / controller → TL_account.updateBusinessAwayMessage | Server-dependent |
+| Links to Chat | BusinessLinksController.java → get/create/edit/deleteBusinessChatLink | Server-dependent |
+| Start Page | BusinessIntroActivity.java → TL_account.updateBusinessIntro | Server-dependent |
+| Chatbots | BusinessChatbotController.java → getConnectedBots; ChatbotsActivity.java → updateConnectedBot | Server-dependent dan terhubung bot pihak ketiga |
+
+Kesimpulan Business: semua delapan entri memerlukan operasi server untuk fungsi utamanya. Quick Replies memiliki cache lokal, tetapi daftar, shortcut, pesan, dan pengiriman tetap melibatkan RPC Telegram. Tidak ada dasar source untuk menjanjikan seluruh Business berjalan hanya dengan entitlement lokal.
+
+### 11.3 Solusi teknis Tele-ß
+
+**A. Tele-ß Native (client-only).** Buat registry capability lokal yang granular. Implementasikan hanya operasi yang sepenuhnya berjalan di perangkat. Kandidat kuat pertama dari screenshot adalah Premium App Icons. Tema/UI customization dan sebagian formatting dapat menjadi kandidat setelah persistensi dan payload diuji. Simpan entitlement lokal secara durable dan baca ulang saat Activity/proses dibuat kembali. Ini entitlement instalasi Tele-ß, bukan entitlement akun Telegram.
+
+**B. Telegram API (server-dependent).** Jika Telegram server memeriksa status Premium, client Tele-ß tidak dapat menjamin fitur itu aktif hanya dengan mengubah Java/Kotlin. Jalur yang valid adalah akun memperoleh hak melalui mekanisme resmi Telegram. Tele-ß harus mempertahankan status akun asli dan tidak mengubah UserConfig.isPremium(), TLRPC.User.premium, native premium flag, server limit, atau request identity untuk berpura-pura menjadi pelanggan.
+
+**C. Provider lokal/mandiri.** Tele-ß dapat membuat alternatif yang diberi label Tele-ß: transkripsi memakai model/provider pilihan pengguna, terjemahan memakai engine/provider sendiri, storage tambahan memakai storage milik pengguna, dan quick-reply template lokal. Ini fitur pengganti Tele-ß, bukan unlock layanan Telegram Premium.
+
+### 11.4 Prioritas implementasi
+
+| Prioritas | Capability | Keputusan |
+|---|---|---|
+| P0 | Durable entitlement + granular feature registry | Fondasi wajib; jangan gunakan satu flag generik untuk seluruh katalog. |
+| P1 | Premium App Icons | Implementasi lokal memungkinkan setelah manifest/alias/aset diverifikasi. |
+| P1 | Theme/UI customization | Implementasikan hanya pengaturan yang benar-benar lokal. |
+| P1 | Formatting/checklist editor | Audit payload dan kompatibilitas dahulu; implementasikan editor Tele-ß/format standar bila cocok. |
+| P2 | Faster Download Speed | Perubahan concurrency/byte budget client perlu benchmark; tidak menjamin unlimited atau throughput server. |
+| P2 | Quick Replies lokal | Bisa dibuat sebagai fitur Tele-ß mandiri; tidak otomatis menyinkronkan Business Quick Replies Telegram. |
+| P2 | Voice-to-Text/Translation | Sediakan provider alternatif atau BYO provider, bukan bypass kuota Telegram. |
+| P3 | Stories, limits, Business, Last Seen, Reactions, Premium Stickers, Paid Messages, Disable Sharing, No Ads, profile status | Server-dependent/hybrid; tidak dapat dijanjikan fully unlocked oleh local Freemium tanpa otorisasi server. |
+
+### 11.5 Mengapa belum ada patch gate pada commit audit ini
+
+Melepas gate UI sebelum menelusuri operasi akhir akan mengulang masalah build #96: UI terbuka, tetapi operasi bisa ditolak, tidak tersimpan, atau tidak tersinkron. Karena targetnya fitur yang benar-benar bekerja, tiap capability harus memiliki bukti entry point → gate → controller → persistence → RPC (jika ada) → respons sukses → reload/restart. Audit ini menyimpulkan bahwa tidak mungkin menjamin seluruh fitur pada screenshot berfungsi sebagai Telegram Premium hanya dengan patch client Tele-ß. Sebagian dapat dibuat sebagai fitur lokal Tele-ß; sebagian memerlukan entitlement Telegram resmi; sebagian lain dapat diganti dengan provider/fitur mandiri yang berbeda dari layanan Telegram.
