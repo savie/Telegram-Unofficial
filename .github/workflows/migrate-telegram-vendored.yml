@@ -2,8 +2,7 @@ name: Migrate Telegram Android to Vendored Source
 
 on:
   push:
-    branches:
-      - migration/vendor-telegram-full-source
+    branches: [master]
     paths:
       - ".github/workflows/migrate-telegram-vendored.yml"
       - ".migration/run-vendoring"
