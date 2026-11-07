@@ -242,6 +242,42 @@ public final class TeleBetaFreemium {
     wallpaper_file.write_text(wallpaper_source, encoding="utf-8")
 
 
+
+    # Theme accent editor is device-local for Tele-beta Freemium. Telegram's
+    # server color/wallpaper-for-both gates are deliberately kept unchanged.
+    accent_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemePreviewActivity.java"
+    accent_source = accent_file.read_text(encoding="utf-8")
+    accent_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    accent_import_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    if accent_import not in accent_source:
+        if accent_source.count(accent_import_anchor) != 1:
+            raise SystemExit("Could not uniquely locate ThemePreviewActivity accent import anchor.")
+        accent_source = accent_source.replace(accent_import_anchor, accent_import_anchor + accent_import, 1)
+
+    accent_apply_anchor = """                if (accent != null) {
+                    saveAccentWallpaper();
+                    Theme.saveThemeAccents(applyingTheme, true, false, false, false);
+                    Theme.clearPreviousTheme();"""
+    accent_apply_local = """                if (accent != null) {
+                    saveAccentWallpaper();
+                    boolean telebetaLocalAccent = screenType == SCREEN_TYPE_ACCENT_COLOR && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES);
+                    Theme.saveThemeAccents(applyingTheme, true, false, false, false);
+                    Theme.clearPreviousTheme();"""
+    if accent_source.count(accent_apply_anchor) != 1:
+        raise SystemExit("Could not uniquely locate ThemePreviewActivity accent apply/save block.")
+    accent_source = accent_source.replace(accent_apply_anchor, accent_apply_local, 1)
+
+    accent_save_menu_anchor = """                    Theme.saveThemeAccents(applyingTheme, true, false, false, true);
+                    Theme.applyPreviousTheme();"""
+    accent_save_menu_local = """                    boolean telebetaLocalAccent = TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES);
+                    Theme.saveThemeAccents(applyingTheme, true, false, false, !telebetaLocalAccent);
+                    Theme.applyPreviousTheme();"""
+    if accent_source.count(accent_save_menu_anchor) != 1:
+        raise SystemExit("Could not uniquely locate ThemePreviewActivity accent wallpaper save block.")
+    accent_source = accent_source.replace(accent_save_menu_anchor, accent_save_menu_local, 1)
+
+    accent_file.write_text(accent_source, encoding="utf-8")
+
     # Local-only profile/name colors for the current Tele-beta account.
     # These preferences intentionally never issue TL_account.updateColor.
     local_style = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaLocalProfileStyle.java"
