@@ -196,15 +196,15 @@ public final class TeleBetaFreemium {
     # uploading a Tele-beta-only theme to Telegram.
     theme_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java"
     theme_source = theme_file.read_text(encoding="utf-8")
-    theme_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    theme_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    theme_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    theme_anchor = "import org.telegram.messenger.MessagesController;\n"
     if theme_import not in theme_source:
         if theme_source.count(theme_anchor) != 1:
             raise SystemExit("Could not locate Theme.java import anchor.")
         theme_source = theme_source.replace(theme_anchor, theme_anchor + theme_import, 1)
 
-    remote_theme_save = "if (finalSave) {\\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\\n        }"
-    local_theme_save = "if (finalSave && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES)) {\\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\\n        }"
+    remote_theme_save = "if (finalSave) {\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\n        }"
+    local_theme_save = "if (finalSave && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_THEMES)) {\n            MessagesController.getInstance(themeInfo.account).saveThemeToServer(themeInfo, themeInfo.getAccent(false));\n        }"
     if theme_source.count(remote_theme_save) != 1:
         raise SystemExit("Could not uniquely locate Theme.saveCurrentTheme remote-save hook.")
     theme_source = theme_source.replace(remote_theme_save, local_theme_save, 1)
@@ -214,8 +214,8 @@ public final class TeleBetaFreemium {
     # Do not upload it as the account wallpaper for Tele-beta Freemium.
     wallpaper_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemePreviewActivity.java"
     wallpaper_source = wallpaper_file.read_text(encoding="utf-8")
-    wallpaper_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    wallpaper_anchor = "import org.telegram.messenger.MessagesController;\\n"
+    wallpaper_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    wallpaper_anchor = "import org.telegram.messenger.MessagesController;\n"
     if wallpaper_import not in wallpaper_source:
         if wallpaper_source.count(wallpaper_anchor) != 1:
             raise SystemExit("Could not locate ThemePreviewActivity import anchor.")
@@ -230,7 +230,7 @@ public final class TeleBetaFreemium {
         raise SystemExit("Could not uniquely locate wallpaper server-save call.")
     wallpaper_source = wallpaper_source.replace(remote_wallpaper_save, local_wallpaper_save, 1)
 
-    local_wallpaper_apply = "Theme.getActiveTheme().setOverrideWallpaper(wallpaperInfo);\\n                Theme.reloadWallpaper(true);"
+    local_wallpaper_apply = "Theme.getActiveTheme().setOverrideWallpaper(wallpaperInfo);\n                Theme.reloadWallpaper(true);"
     persistent_wallpaper_apply = """Theme.getActiveTheme().setOverrideWallpaper(wallpaperInfo);
                 Theme.reloadWallpaper(true);
                 if (teleBetaLocalPersonalWallpaper) {
