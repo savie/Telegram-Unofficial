@@ -291,6 +291,7 @@ public final class TeleBetaLocalProfileStyle {
     private static final String PREFS = "telebeta_local_profile_style";
     private static final String NAME_COLOR = "name_color_";
     private static final String PROFILE_COLOR = "profile_color_";
+    private static final String PROFILE_EMOJI = "profile_emoji_";
 
     private TeleBetaLocalProfileStyle() {}
 
@@ -318,10 +319,18 @@ public final class TeleBetaLocalProfileStyle {
         return p.getInt(PROFILE_COLOR + user.id, fallback);
     }
 
-    public static void save(int account, long userId, int nameColor, int profileColor) {
+    public static long getProfileEmoji(TLRPC.User user, long fallback) {
+        if (!isCurrentUser(user)) return fallback;
+        SharedPreferences p = prefs(UserConfig.selectedAccount);
+        String key = PROFILE_EMOJI + user.id;
+        return p.contains(key) ? p.getLong(key, 0L) : fallback;
+    }
+
+    public static void save(int account, long userId, int nameColor, int profileColor, long profileEmoji) {
         prefs(account).edit()
             .putInt(NAME_COLOR + userId, nameColor)
             .putInt(PROFILE_COLOR + userId, profileColor)
+            .putLong(PROFILE_EMOJI + userId, profileEmoji)
             .commit();
     }
 }
@@ -351,6 +360,34 @@ public final class TeleBetaLocalProfileStyle {
         raise SystemExit("Could not uniquely locate UserObject profile-color getter.")
     user_source = user_source.replace(name_fallback, name_local, 1)
     user_source = user_source.replace(profile_fallback, profile_local, 1)
+
+    profile_emoji_getter = """    public static long getProfileEmojiId(TLRPC.User user) {
+        if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+            return ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).pattern_document_id;
+        }
+        if (user != null && user.profile_color != null && (user.profile_color.flags & 2) != 0) return user.profile_color.background_emoji_id;
+        return 0;
+    }"""
+    profile_emoji_local = """    public static long getProfileEmojiId(TLRPC.User user) {
+        if (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible) {
+            return ((TLRPC.TL_emojiStatusCollectible) user.emoji_status).pattern_document_id;
+        }
+        long fallback = user != null && user.profile_color != null && (user.profile_color.flags & 2) != 0 ? user.profile_color.background_emoji_id : 0;
+        return TeleBetaLocalProfileStyle.getProfileEmoji(user, fallback);
+    }"""
+    only_profile_emoji_getter = """    public static long getOnlyProfileEmojiId(TLRPC.User user) {
+        if (user != null && user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 2) != 0) return user.profile_color.background_emoji_id;
+        return 0;
+    }"""
+    only_profile_emoji_local = """    public static long getOnlyProfileEmojiId(TLRPC.User user) {
+        long fallback = user != null && user.profile_color instanceof TLRPC.TL_peerColor && (user.profile_color.flags & 2) != 0 ? user.profile_color.background_emoji_id : 0;
+        return TeleBetaLocalProfileStyle.getProfileEmoji(user, fallback);
+    }"""
+    if user_source.count(profile_emoji_getter) != 1 or user_source.count(only_profile_emoji_getter) != 1:
+        raise SystemExit("Could not uniquely locate UserObject profile emoji getters.")
+    user_source = user_source.replace(profile_emoji_getter, profile_emoji_local, 1)
+    user_source = user_source.replace(only_profile_emoji_getter, only_profile_emoji_local, 1)
+
     user_object.write_text(user_source, encoding="utf-8")
 
     peer_file = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
@@ -390,7 +427,7 @@ public final class TeleBetaLocalProfileStyle {
             if (me.color == null) {"""
     apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
             if (isTeleBetaLocalProfileStyleEnabled()) {
-                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor);
+                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor, profilePage.selectedEmoji);
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
                 return;
             }
