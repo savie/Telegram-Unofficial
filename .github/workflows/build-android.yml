@@ -6,8 +6,10 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/build-android.yml"
-      - ".gitmodules"
-      - "upstream/Telegram-Android"
+      - "UPSTREAM_TELEGRAM_COMMIT"
+      - "gradlew"
+      - "TMessagesProj/**"
+      - "TMessagesProj_AppStandalone/**"
       - "patches/**"
 
 permissions:
@@ -21,31 +23,28 @@ jobs:
       - name: Checkout Tele-beta configuration
         uses: actions/checkout@v5
 
-      - name: Resolve pinned Telegram upstream revision
-        id: upstream
+      - name: Validate root-level vendored Telegram source
+        shell: bash
         run: |
-          sha="$(git ls-tree HEAD upstream/Telegram-Android | awk '{print $3}')"
-          test -n "$sha"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "Pinned Telegram Android revision: $sha"
-
-      - name: Restore Telegram submodule source cache
-        uses: actions/cache@v5
-        with:
-          path: .git/modules/upstream/Telegram-Android
-          key: telegram-android-git-${{ steps.upstream.outputs.sha }}
-          restore-keys: |
-            telegram-android-git-
-
-      - name: Initialize pinned Telegram submodule
-        run: |
-          git submodule sync --recursive
-          git submodule update --init --recursive
-          test -f upstream/Telegram-Android/gradlew
-          test -f upstream/Telegram-Android/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
-          actual="$(git -C upstream/Telegram-Android rev-parse HEAD)"
-          test "$actual" = "${{ steps.upstream.outputs.sha }}"
-          echo "Telegram source ready at $actual"
+          set -euo pipefail
+          test -s UPSTREAM_TELEGRAM_COMMIT
+          revision="$(tr -d '[:space:]' < UPSTREAM_TELEGRAM_COMMIT)"
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::UPSTREAM_TELEGRAM_COMMIT must contain a full commit SHA."
+            exit 1
+          }
+          test -f gradlew
+          test -f TMessagesProj/build.gradle
+          test -f TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+          test -d TMessagesProj_AppStandalone
+          test ! -e .gitmodules
+          test ! -e upstream/Telegram-Android
+          test ! -e _telegram-upstream
+          if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
+            echo "::error::Build source must not contain a Git submodule."
+            exit 1
+          fi
+          echo "Building root-level vendored Telegram source at $revision."
 
       - name: Validate Telegram API credentials
         env:
@@ -101,6 +100,15 @@ jobs:
         with:
           cache-provider: basic
 
+      - name: Add legacy patch-path compatibility link
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream
+          test ! -e upstream/Telegram-Android
+          ln -s .. upstream/Telegram-Android
+          test -f upstream/Telegram-Android/gradlew
+
       - name: Apply Tele-beta patches
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
@@ -112,12 +120,11 @@ jobs:
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
         run: |
           python3 patches/apply.py
-          keytool -list -keystore upstream/Telegram-Android/TMessagesProj/config/release.keystore \
+          keytool -list -keystore TMessagesProj/config/release.keystore \
             -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
           echo "Tele-beta signing certificate verified."
 
       - name: Build standalone APK
-        working-directory: upstream/Telegram-Android
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --build-cache --parallel \
@@ -126,7 +133,6 @@ jobs:
 
       - name: Show build cache statistics
         if: always()
-        working-directory: upstream/Telegram-Android
         run: |
           echo "===== CCACHE ====="
           ccache --show-stats
@@ -138,6 +144,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: tele-ß_${{ github.run_number }}
-          path: upstream/Telegram-Android/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
+          path: TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
           retention-days: 14
