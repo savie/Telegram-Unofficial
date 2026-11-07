@@ -643,6 +643,19 @@ Pemeriksaan lanjutan dilakukan pada source `master` setelah audit awal. Temuan b
 - **Fallback:** pertahankan konversi yang sudah ada. Jangan mengubah klasifikasi `isLossy()` sebelum setiap block diuji round-trip dan dibandingkan dengan hasil konversi.
 - **Tidak boleh kehilangan konten diam-diam:** saat konversi menghapus format/struktur, UI harus menjelaskan bagian yang akan diratakan/dihilangkan sebelum pengguna mengonfirmasi pengiriman.
 
+### 16.7 Pendalaman entity pada composer standar
+
+Pemeriksaan lengkap terhadap `MediaDataController.getEntities(CharSequence[] message, ...)` memperjelas bahwa composer standar tidak hanya mem-parsing Markdown code:
+
+- Markdown inline code dan fenced code diubah menjadi `TL_messageEntityCode` / `TL_messageEntityPre`; parser juga menghapus delimiter dari teks sebelum request.
+- `TextStyleSpan` diekstrak melalui `addStyle(...)`. Pemetaan yang terlihat pada helper tersebut mencakup bold, italic, monospace/code, strikethrough, dan underline.
+- `URLSpanUserMention` menjadi `TL_inputMessageEntityMentionName`; `URLSpanReplacement` menjadi `TL_messageEntityTextUrl` dan dapat membawa style tambahan.
+- `AnimatedEmojiSpan` menjadi `TL_messageEntityCustomEmoji`, termasuk document ID/reference.
+- `CodeHighlighting.Span` menjadi `TL_messageEntityPre` dengan language.
+- Parser juga menangani mention, URL, dan entity lain melalui jalur terpisah; karena itu jangan menyimpulkan daftar final hanya dari tombol formatting toolbar.
+
+**Implikasi:** fitur Native Tahap 3 dapat memanfaatkan infrastruktur entity standar yang sudah ada. Namun, daftar tombol yang boleh dibuka untuk semua akun harus dibatasi pada entity yang memang bisa dibentuk, diserialisasi, dikirim, diterima, dan dirender tanpa ketergantungan entitlement Premium. Perlu juga memeriksa interaksi Markdown parsing dengan span yang sudah ada agar offset tidak bergeser atau entity saling menimpa.
+
 ### 16.7 Pekerjaan audit yang masih terbuka sebelum implementasi Tahap 3
 
 - [x] Baca `SendMessagesHelper.prepareSendingArticle(...)`, `prepareEditingArticle(...)`, dan pembentukan `TL_inputRichMessage`.
