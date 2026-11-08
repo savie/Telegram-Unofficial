@@ -952,6 +952,53 @@ public final class TeleBetaLocalProfileStyle {
     emoji_packs_alert.write_text(packs_source, encoding="utf-8")
 
 
+    # Fix crash confirmed by R8 mapping: ChatMessageCell.drawNamesLayout()
+    # indexes a seven-entry avatar-name palette with collectible sentinel colorId=-1.
+    chat_cell = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java"
+    chat_source = chat_cell.read_text(encoding="utf-8")
+    unsafe_name_color = """                    if (colorId < 7) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));"""
+    safe_name_color = """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));"""
+    if unsafe_name_color in chat_source:
+        chat_source = chat_source.replace(unsafe_name_color, safe_name_color, 1)
+    elif chat_source.count(safe_name_color) != 1:
+        raise SystemExit("Could not uniquely locate ChatMessageCell avatar-name palette guard.")
+    chat_cell.write_text(chat_source, encoding="utf-8")
+
+    # Defer ThemeActivity adapter mutations until RecyclerView has completed layout.
+    theme_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ThemeActivity.java"
+    theme_source = theme_activity.read_text(encoding="utf-8")
+    unsafe_content_settings_callback = """                getMessagesController().getContentSettings(settings -> {
+                    if (listView != null && listView.isAttachedToWindow() && listAdapter != null) {
+                        if ((sensitiveContentRow >= 0) == (settings != null && settings.sensitive_can_change)) {
+                            listAdapter.notifyItemChanged(sensitiveContentRow);
+                        } else {
+                            updateRows(true);
+                        }
+                    }
+                });"""
+    safe_content_settings_callback = """                getMessagesController().getContentSettings(settings -> {
+                    RecyclerListView targetList = listView;
+                    if (targetList != null) {
+                        targetList.post(() -> {
+                            if (listView != targetList || !targetList.isAttachedToWindow() || listAdapter == null) {
+                                return;
+                            }
+                            if ((sensitiveContentRow >= 0) == (settings != null && settings.sensitive_can_change)) {
+                                listAdapter.notifyItemChanged(sensitiveContentRow);
+                            } else {
+                                updateRows(true);
+                            }
+                        });
+                    }
+                });"""
+    if unsafe_content_settings_callback in theme_source:
+        theme_source = theme_source.replace(unsafe_content_settings_callback, safe_content_settings_callback, 1)
+    elif theme_source.count(safe_content_settings_callback) != 1:
+        raise SystemExit("Could not uniquely locate ThemeActivity content-settings adapter callback.")
+    theme_activity.write_text(theme_source, encoding="utf-8")
+
     code = re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
     if any(token in code for token in ("UserConfig.getInstance", "TLRPC.User", ".premium")):
         raise SystemExit("Freemium engine must not inspect Telegram account entitlement.")
