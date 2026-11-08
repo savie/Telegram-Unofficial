@@ -682,10 +682,20 @@ public final class TeleBetaLocalProfileStyle {
             }
 
             final int color1 = colors.get(0) | 0xFF000000;"""
-    if peer_source.count(reply_collectible_colors_safe) != 1:
-        if peer_source.count(reply_collectible_colors) != 1:
-            raise SystemExit("Could not uniquely locate reply collectible color-list lookup.")
+    if peer_source.count(reply_collectible_colors_safe) == 1:
+        pass
+    elif peer_source.count(reply_collectible_colors) == 1:
         peer_source = peer_source.replace(reply_collectible_colors, reply_collectible_colors_safe, 1)
+    else:
+        # Current upstream already rejects null/empty lists before get(0).
+        # Preserve that upstream behavior; no fallback rewrite is needed.
+        reply_collectible_colors_guarded = """            final ArrayList<Integer> colors = dark && peerColorCollectible.dark_colors != null ? peerColorCollectible.dark_colors : peerColorCollectible.colors;
+            if (colors == null || colors.isEmpty())
+                return null;
+
+            final int color1 = colors.get(0) | 0xFF000000;"""
+        if peer_source.count(reply_collectible_colors_guarded) != 1:
+            raise SystemExit("Could not uniquely locate guarded reply collectible color-list lookup.")
 
     peer_file.write_text(peer_source, encoding="utf-8")
 
