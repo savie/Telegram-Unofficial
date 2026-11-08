@@ -921,3 +921,25 @@ Perbaikan:
 - Native ccache: 0/13.882 hits pada build ini. Cache path sudah konsisten dan cache berhasil dipulihkan, tetapi belum ada cache hit yang membuktikan percepatan kompilasi.
 
 **Catatan uji perangkat:** keberhasilan CI hanya membuktikan APK berhasil dibuat. Ia belum membuktikan crash Change Profile Color maupun Change Name Color hilang. Kedua alur wajib diuji pada perangkat sebelum ditutup.
+
+
+### 20.6 Investigasi lanjutan Change Profile Color dan Change Name Color — 8 November 2026
+
+Pengujian APK #160 menunjukkan kedua alur masih bermasalah setelah pemilihan collectible. Logcat yang diterima pada laporan ini hanya berisi pesan MIUI/TurboSched/hidden API dan tidak memuat blok `FATAL EXCEPTION`, sehingga penyebab crash runtime belum dapat dipastikan dari log tersebut.
+
+Audit source menemukan jalur render collectible yang belum defensif:
+- `PeerColorActivity.UserColorDrawable` membaca `colors.get(0)` untuk collectible nama.
+- Jalur collectible profil juga membaca elemen pertama daftar warna.
+- `PeerColorDrawable.from(TL_peerColorCollectible)` membaca daftar warna untuk preview/reply.
+
+Ketiga jalur mengasumsikan daftar warna selalu tersedia dan tidak kosong. Patch baru memilih dark palette hanya jika tidak kosong, lalu memakai `accent_color` sebagai fallback bila daftar warna null/kosong. Ini mencegah `NullPointerException` atau `IndexOutOfBoundsException` saat collectible dirender.
+
+**Verifikasi yang masih wajib:**
+- [ ] Jalankan patcher pada workspace CI bersih dan pastikan anchor ketiga jalur cocok.
+- [ ] Standalone APK build berhasil.
+- [ ] Uji Change Profile Color dengan collectible berbayar.
+- [ ] Uji Change Name Color dengan collectible berbayar.
+- [ ] Uji perpindahan tab Profile ↔ Name, preview, apply, dan render warna setelah halaman profil dibuka ulang.
+- [ ] Jika masih crash, ambil Logcat mulai dari baris `FATAL EXCEPTION` sampai seluruh stack trace; potongan log sebelumnya tidak memuat exception.
+
+**Status:** defensive fix telah masuk ke `patches/freemium/patch.py` pada commit `eee522f`. Belum dinyatakan selesai sebelum CI dan pengujian perangkat membuktikannya.
