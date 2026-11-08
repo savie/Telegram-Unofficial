@@ -655,6 +655,38 @@ public final class TeleBetaLocalProfileStyle {
             raise SystemExit("Could not uniquely locate PeerColorDrawable.from palette lookup.")
         peer_source = peer_source.replace(drawable_palette, drawable_palette_guarded, 1)
 
+    # Collectible gifts may omit a usable color list (or only provide the
+    # opposite-theme list). Never call colors.get(0) before validating it.
+    collectible_colors = """                final ArrayList<Integer> colors = dark && p.dark_colors != null ? p.dark_colors : p.colors;
+
+                final int color1 = colors.get(0) | 0xFF000000;"""
+    collectible_colors_safe = """                ArrayList<Integer> colors = dark && p.dark_colors != null && !p.dark_colors.isEmpty() ? p.dark_colors : p.colors;
+                if (colors == null || colors.isEmpty()) {
+                    colors = new ArrayList<>();
+                    colors.add(accent_color);
+                }
+
+                final int color1 = colors.get(0) | 0xFF000000;"""
+    if peer_source.count(collectible_colors_safe) != 2:
+        if peer_source.count(collectible_colors) != 2:
+            raise SystemExit("Expected both collectible color-list lookups in PeerColorActivity.")
+        peer_source = peer_source.replace(collectible_colors, collectible_colors_safe)
+
+    reply_collectible_colors = """            final ArrayList<Integer> colors = dark && peerColorCollectible.dark_colors != null ? peerColorCollectible.dark_colors : peerColorCollectible.colors;
+
+            final int color1 = colors.get(0) | 0xFF000000;"""
+    reply_collectible_colors_safe = """            ArrayList<Integer> colors = dark && peerColorCollectible.dark_colors != null && !peerColorCollectible.dark_colors.isEmpty() ? peerColorCollectible.dark_colors : peerColorCollectible.colors;
+            if (colors == null || colors.isEmpty()) {
+                colors = new ArrayList<>();
+                colors.add(peerColorCollectible.accent_color);
+            }
+
+            final int color1 = colors.get(0) | 0xFF000000;"""
+    if peer_source.count(reply_collectible_colors_safe) != 1:
+        if peer_source.count(reply_collectible_colors) != 1:
+            raise SystemExit("Could not uniquely locate reply collectible color-list lookup.")
+        peer_source = peer_source.replace(reply_collectible_colors, reply_collectible_colors_safe, 1)
+
     peer_file.write_text(peer_source, encoding="utf-8")
 
 
