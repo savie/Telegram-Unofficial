@@ -17,7 +17,7 @@ Tidak termasuk:
 - perubahan workflow CI;
 - perubahan status Premium akun Telegram di sisi client/server.
 
-Tujuan produk: pengguna Tele-ß memperoleh paket Freemium lokal tanpa berlangganan Telegram Premium. Hak ini hanya berlaku untuk kemampuan yang dapat dijalankan dan diverifikasi di client. Fitur yang memerlukan entitlement atau validasi server Telegram tetap mengikuti aturan server.
+Tujuan produk: seluruh capability Telegram Premium dan Telegram Business yang masuk roadmap harus tersedia sebagai Freemium Tele-ß tanpa mewajibkan langganan Telegram Premium. Jalurnya ditentukan per capability: membuka gate Premium client yang spesifik, memakai kemampuan lokal yang sudah tersedia, atau membangun alternatif native/local/provider Tele-ß untuk fungsi yang dikendalikan server. Entitlement akun Telegram tidak boleh dipalsukan. Jika operasi Telegram native ditolak server, capability belum selesai: harus ada alternatif Tele-ß yang berfungsi atau blocker yang dinyatakan jelas; sekadar membuka tombol tidak dihitung selesai.
 
 ## 2. Prinsip entitlement
 
@@ -544,9 +544,9 @@ Roadmap ini mengarahkan pekerjaan setelah Theme/UI. Prioritas didasarkan pada du
 16. **AI Writing Tools.** Provider pilihan pengguna atau local model; BYO key, budget, model controls, opt-in, dan pemrosesan lokal bila tersedia. Tidak menyamarkan remote API sebagai entitlement Telegram.
 17. **Cloud Storage / Backup (opsional).** Backup terenkripsi end-to-end ke lokasi pilihan pengguna; default tetap lokal. Bukan syarat untuk local Freemium.
 
-### Tidak menjadi target local unlock
+### Tidak dapat dibuka dengan local gate saja — perlu alternatif Tele-ß
 
-Fitur berikut tetap server/account/payment-dependent. Jangan membuat patch yang memalsukan keberhasilan:
+Fitur berikut tetap masuk tujuan produk Freemium, tetapi tidak selesai hanya dengan menghapus pemeriksaan Premium di UI. Untuk tiap capability, gunakan integrasi Telegram resmi bila akun memiliki hak server, atau bangun alternatif native/local/provider Tele-ß yang benar-benar berfungsi. Jangan membuat patch yang memalsukan keberhasilan:
 - Telegram Business settings/sync: Location, Opening Hours, Greeting, Away, Start Page, Chat Links, Chatbots, dan Business Quick Replies sync.
 - Voice-to-text/translation Telegram native jika server menerapkan quota/entitlement.
 - Stories premium options, story views/stealth, limits, upload limits, dan download speed quota yang diberlakukan server.
@@ -596,7 +596,7 @@ Fitur berikut tetap server/account/payment-dependent. Jangan membuat patch yang 
 
 | Subfitur | Klasifikasi | Keputusan |
 |---|---|---|
-| Bold/italic/underline/strike/code/link sebagai message entities standar | Native candidate | Dapat menjadi Formatting Tools Tele-ß pada composer biasa jika memakai entity standar dan tidak membutuhkan Rich Article. Audit jalur entity serialization/send masih diperlukan. |
+| Bold/italic/underline/strike/spoiler/monospace dan kontrol format Rich Editor | Existing Rich Editor controls + Premium gate pada editor/send flow | Target Tahap 3: gunakan kontrol upstream yang sudah ada dan hubungkan gate Premium lokal ke entitlement Freemium. Ordinary MessageEntity tetap menjadi jalur pesan biasa/fallback; bukan pengganti Rich Editor. |
 | Rich Article editor dan block protocol `TL_iv` | Hybrid/server-dependent | Jangan bypass `richEditorAllowed()` atau memaksa `prepareSendingArticle()` untuk akun non-Premium sebelum schema, server acceptance, dan penerima diverifikasi. |
 | Heading, Pullquote, Footer, Math, Tables, Details, Checklist | Hybrid | Editor dapat membentuk block lokal, tetapi pengiriman dan rendering memakai payload khusus. Uji round-trip diperlukan. |
 | Checklist/TODO | Hybrid/server-dependent | Model `pageBlockList` / `pageBlockOrderedList` memakai item checkbox/checked; bukan checklist lokal sederhana. Perlu audit request, response, edit/update, dan penerima. |
@@ -604,22 +604,25 @@ Fitur berikut tetap server/account/payment-dependent. Jangan membuat patch yang 
 | Rich media (photo/video/audio/document/map) dalam artikel | Hybrid | Media upload dan article send melibatkan controller serta server. Jangan menganggapnya local-only. |
 | AI compose/editor di Rich Editor | Provider-backed/hybrid | Audit provider, request, entitlement, dan biaya secara terpisah; bukan bagian dari formatting dasar. |
 
-### 16.4 Arah implementasi yang direkomendasikan
+### 16.4 Arah implementasi yang direkomendasikan — DIKOREKSI
 
-**Tahap 3 tidak boleh dimulai dengan menghapus Premium gate Rich Editor secara massal.** Implementasi yang aman dibagi menjadi dua jalur:
+**Target utama Tahap 3 adalah Rich Editor upstream yang sudah ada.** Jangan membuat toolbar formatting baru pada composer biasa dan jangan mengalihkan tahap ini menjadi proyek editor pengganti.
 
-A. **Formatting Native Tele-ß**
-- Gunakan composer pesan biasa dan entity standar Telegram yang memang didukung.
-- Sediakan kontrol formatting lokal untuk bold, italic, underline, strikethrough, monospace/code, dan link bila serializer yang ada mendukungnya.
-- Persistensi draft dan formatting selection lokal.
-- Kirim hanya payload standar yang kompatibel; tidak mengubah entitlement atau request identity.
-- Fitur harus dites dengan akun non-Premium dan penerima Telegram resmi.
+A. **Unlock Rich Editor dengan Tele-ß Freemium**
+- Pertahankan `RichEditor`, `RichEditorToolbar`, selection controls, block editor, preview, draft, dan send pipeline.
+- Audit gate Premium per titik: entry point, premium button decoration, send lock, preview, conversion sheet, serta gate pada pengiriman.
+- Tambahkan capability Rich Editor ke registry Tele-ß dan ganti hanya pemeriksaan Premium client yang terbukti menjadi gate lokal fitur tersebut.
+- Pertahankan app-config/protocol availability, `RestrictedRights`, content limits, dan respons penolakan server.
+- Uji semua kontrol formatting yang sudah ada dengan akun non-Premium; jangan menyamakan dekorasi tombol dengan hak kirim.
 
-B. **Rich Article / Advanced Blocks (Hybrid)**
-- Audit lengkap schema `TL_iv`, serializer/deserializer, `prepareSendingArticle`, request TL yang dihasilkan, edit/resend, draft, media upload, serta render di klien penerima.
-- Kelompokkan block yang server terima tanpa Premium, yang benar-benar memerlukan Premium, dan yang dapat dikonversi secara lossless/lossy.
-- Pertahankan fallback `sendConvertedRichAsSimple` ketika server tidak menerima rich payload.
-- Jangan membuka Heading/Pullquote/Footer/Math/Checklist/Table hanya berdasarkan local entitlement sampai ada bukti acceptance end-to-end.
+B. **Ordinary MessageEntity sebagai kompatibilitas dan fallback**
+- Tetap gunakan `MediaDataController.getEntities(...)` dan jalur `SendMessagesHelper` untuk pesan biasa, edit, draft, scheduled, serta hasil konversi Rich → Simple.
+- Jalur ini bukan pengganti Rich Editor dan bukan target UI baru Tahap 3.
+
+C. **Rich Article dan advanced blocks**
+- Audit schema `TL_iv`, serializer/deserializer, `prepareSendingArticle`, request TL, edit/resend, draft, media upload, dan render penerima.
+- Bedakan gate Premium client dari app-config/protocol gate dan server validation.
+- Jika payload ditolak server untuk akun non-Premium, pertahankan fallback yang aman atau bangun alternatif Tele-ß yang berfungsi; jangan mengklaim unlock hanya karena tombol terbuka.
 
 ### 16.5 Hasil pendalaman jalur konversi dan entity standar
 
