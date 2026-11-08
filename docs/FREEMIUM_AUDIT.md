@@ -1022,3 +1022,106 @@ Perbaikan:
 - Perubahan crash ChatMessageCell dan ThemeActivity tetap berada di patcher yang sama.
 
 **Status:** perbaikan kompatibilitas anchor telah di-commit pada `ea39072`. Workflow baru harus membuktikan `Apply Tele-ß patches` berhasil, kemudian standalone APK build. CI #162 tidak pernah mencapai tahap build APK.
+
+
+### 16.16 Penutupan audit source Rich Editor dan keputusan implementasi — 8 November 2026
+
+**Baseline pemeriksaan lanjutan:** branch `master`, berdasarkan source yang dibaca langsung pada sesi ini. Pemeriksaan mencakup `RichEditor.java`, `RichEditorToolbar.java`, `ChatAttachAlertRichLayout.java`, `RichEditorListView.java`, `RichTextCell.java`, `BlockRow.java`, `RichCommand.java`, `MediaDataController.java`, `SendMessagesHelper.java`, dan `MessageObject.java`. Ini audit statis; belum ada patch implementasi atau runtime test baru.
+
+#### 16.16.1 Gate Rich Editor: bagian yang dapat dan tidak dapat dipastikan
+
+- Call site yang dapat diverifikasi memakai `MessagesController.richEditorAllowed()` sebagai keputusan apakah Rich Article boleh dikirim. `RichEditor.sendMessage(...)` dan `ChatAttachAlertRichLayout.sendSelectedItems(...)` mengalihkan konten ke `sendConvertedRichAsSimple(...)` bila gate tersebut false.
+- Untuk konten yang dianggap lossy, `isSendLocked()` mengunci tombol dan `showConversionSheet()` menawarkan konversi; callback paywall masih memeriksa `UserConfig.isPremium()`.
+- Gate visual toolbar berbeda dengan gate operasi. `RichEditor.updatePremiumButtons()` / `ChatAttachAlertRichLayout.updateSendButtonLocked()` menghitung lock dari `!richEditorAllowed() && !isPremium()`. Kontrol yang memiliki premium decoration dapat mencakup fitur yang tidak sama dengan izin mengirim Rich Article.
+- Definisi method `richEditorAllowed()` tetap belum ditemukan pada source Java yang dapat diakses melalui pencarian/unduhan GitHub pada baseline ini. Karena itu sumber konfigurasi/entitlement dan semua kondisi internal gate **belum dapat dinyatakan selesai diaudit**. Tidak boleh mengasumsikan bahwa method hanya membaca satu konfigurasi, atau mengubah return value-nya.
+
+#### 16.16.2 Inventaris kontrol formatting Rich Editor
+
+Source editor memuat dua permukaan toolbar yang saling berkaitan:
+
+| Kontrol | Implementasi saat ini | Keputusan untuk local unlock |
+|---|---|---|
+| Bold | `RichTextStyle.BOLD` | Formatting Native kandidat, tetapi di Rich Article tetap block/span payload artikel |
+| Italic | `ITALIC` | Sama |
+| Underline | `UNDERLINE` | Sama |
+| Strikethrough | `STRIKE` | Sama |
+| Spoiler | `SPOILER` | Native candidate hanya lewat ordinary message entities; jangan dianggap sama dengan Rich Article |
+| Monospace/code | `MONO` | Native candidate lewat entity code/pre pada ordinary message |
+| Marked/highlight | `MARKED`, tombol premium-decorated di editor utama | Tetap Rich Article/format non-standar; konversi simple terpetakan lossy |
+| Subscript | `SUBSCRIPT`, premium-decorated | Tidak masuk subset native awal |
+| Superscript | `SUPERSCRIPT`, premium-decorated | Tidak masuk subset native awal |
+| Quote | blockquote/selection quote | Representasi block/span rich; perlu pemetaan dan round-trip khusus |
+| Link | dialog/link action tersendiri | URL text entity standar kandidat; inline button/link block tidak disamakan |
+| Inline button | `pageBlockRelatedArticles` / inline button block dan referensi user | Rich Article; server/user reference dan hak penggunaan perlu dipertahankan |
+| Date / Math | rich inline style/block; math memakai render LaTeX | Rich-specific; bukan ordinary message entity subset awal |
+| Checklist / ordered / bulleted list | `pageBlockList` dengan `level`, `num`, `checkbox`, `checked` di `BlockRow` | Local editing dapat berlangsung, tetapi wire format dan send gate tetap Rich Article |
+| Details / table / heading / pullquote / footer | `TL_iv.PageBlock` khusus | Hybrid; tidak dibuka melalui grant lokal tanpa hasil acceptance server |
+
+Catatan penting: `RichEditorToolbar.addFormattingButton(..., premium)` hanya menambahkan premium decoration/daftar tombol yang dikunci melalui `setPremiumLocked()`. Listener tetap memanggil delegate formatting. Untuk toolbar yang dibangun di `RichEditor`, tombol tersebut memanggil `listView.onFormattingClicked(styleFlag)`. UI premium decoration bukan bukti bahwa transformasi data tidak dapat dijalankan atau bahwa request akan diterima.
+
+#### 16.16.3 Checklist dan lifecycle item
+
+- `BlockRow` menyimpan metadata item list: `level`, `num`, `checkbox`, dan `checked`. `isChecklist()` diturunkan dari `level > 0 && checkbox`.
+- Menu list menyediakan mode none, bulleted, numbered, dan checklist melalui `turnIntoList(row, 0..3)`.
+- Markdown shortcut `[] `, `[ ] `, `[x] ` / `[X] ` membentuk row paragraph dengan flag checklist dan checked.
+- `RichCommand` menyediakan perintah `/todo` dan `/checklist`.
+- State checked dikirim sebagai struktur Rich Article, bukan `MessageEntity` ordinary. Karena itu checklist tidak boleh dimasukkan ke capability Formatting Native yang mengirim teks biasa.
+- Perubahan checked perlu diuji pada `onCheckboxToggle`, undo/redo history, persist draft, edit `onlyCheckbox`, sinkronisasi update, dan penerimaan lintas klien. Source cell memiliki delegate `onCheckboxToggle`; audit sesi ini belum membuktikan keseluruhan server update path dan hasil konsistensi lintas klien.
+- `RichTextCell.toggleCollapsed()` memutakhirkan `pageBlockBlockquote.collapsed` lalu memanggil `delegate.onTextChanged(currentRow)`. Komentar implementasi menyebut asumsi bahwa hook tersebut menandai block dirty/persist. Ini perlu diuji karena state metadata non-teks berpotensi tidak masuk ke history atau persistence bila delegate tidak menangani perubahan seperti yang diasumsikan.
+
+#### 16.16.4 Draft, server updates, edit, dan render
+
+- `MediaDataController.loadDraftsIfNeed()` mengirim `TL_messages_getAllDrafts`, kemudian menyerahkan respons `Updates` ke `MessagesController.processUpdates(...)`. Status `draftsLoaded` baru disimpan setelah callback sukses.
+- `MediaDataController.saveDraft(..., RichMessage)` membentuk `TL_draftMessage` yang dapat memuat ordinary entities dan `rich_message` secara terpisah. Cache lokal serialisasi draft dan reply disimpan ke SharedPreferences. Draft juga dikirim melalui request `TL_messages_saveDraft` dengan field rich payload tersendiri.
+- Overload `saveDraft(..., draft, replyToMessage, fromServer)` menyimpan atau menghapus draft di map/cache dan SharedPreferences. Untuk `fromServer=true`, method mengurus pemulihan reply message serta mengirim `newDraftReceived`. Namun, aturan konflik secara final bergantung pada urutan update yang masuk melalui `processUpdates`; audit ini tidak menyatakan ada merge tiga-arah atau conflict resolution khusus.
+- Schema `updateDraftMessage` memiliki `peer`, optional `top_msg_id`, optional `saved_peer_id`, dan `draft`. Jadi server draft update membawa keseluruhan DraftMessage; bukan bukti otomatis bahwa local draft akan selalu menang terhadap update yang lebih lama.
+- Rich Article edit melalui `SendMessagesHelper.editRichMessage(...)` dan input rich payload; berbeda dari `TL_messages_editMessage` biasa yang membawa ordinary entities. `MessageObject.getDisplayRichMessage()` memilih translated rich message bila tersedia, selain itu rich message asli. `generateLayout()` membentuk/memperbarui `RichMessageLayout` berdasarkan payload dan max width.
+- `FileRefController` dapat meminta `TL_iv.getRichMessage` untuk refresh rich article yang membutuhkan file reference. Ini adalah jalur refresh referensi media, bukan bukti seluruh operasi update/edit Rich Article selesai ditelusuri.
+- Scheduled Rich Article diproses melalui `prepareSendingArticle(..., scheduleDate, ...)`; edit Rich Article memakai helper terpisah. Ini jangan dicampur dengan ordinary scheduled text/media entity flow.
+
+#### 16.16.5 Keputusan arsitektur implementasi Tahap 3
+
+**Batas tegas:** jangan meng-unlock seluruh `RichEditor`, jangan mengubah `UserConfig.isPremium()`, jangan memalsukan `TLRPC.User.premium`, jangan mengubah `richEditorAllowed()`, dan jangan memaksa request rich article/checklist ke Telegram.
+
+Implementasi yang disetujui untuk dirancang terlebih dahulu adalah **Formatting Native Tele-ß pada composer pesan biasa**, bukan menghapus paywall Rich Article. Scope awal:
+
+1. Bold, italic, underline, strikethrough, spoiler, monospace/code, dan text URL/link menggunakan ordinary `TLRPC.MessageEntity`.
+2. Formatting bekerja pada text composer standar, dengan selection-aware toggle dan state toolbar yang tidak merusak span/entity yang sudah ada.
+3. Pakai `MediaDataController.getEntities(...)` dan jalur `SendMessagesHelper` yang sudah memasukkan entities pada `TL_messages_sendMessage`, edit message, dan jalur schedule yang telah diverifikasi.
+4. Draft lokal harus menyimpan teks + entities dan dipulihkan setelah restart; pengiriman draft server tetap mengikuti mekanisme resmi.
+5. Custom emoji, mention, blockquote, code language highlighting, formatted date, TON address, media caption, story caption, checklist, Rich Article, dan rich inline buttons tetap di luar scope awal sampai tes khusus lulus.
+6. Jangan melakukan migrasi otomatis Rich Draft ke simple draft tanpa konfirmasi eksplisit jika `isLossy()` menunjukkan ada format/block yang akan hilang.
+7. Bila pengguna memilih fitur advanced Rich Article dari entry point yang tersedia, pertahankan alur upstream dan conversion sheet yang sekarang. Local grant tidak menggantikan server entitlement.
+
+**Catatan UI/arsitektur:** kontrol Rich Editor saat ini melekat pada selection helper dan `RichTextCell` / `RichEditorListView`, bukan toolbar composer biasa. Untuk Native Formatting dibutuhkan adapter UI baru di composer standar atau re-use yang terisolasi; jangan sekadar menambahkan feature key ke `premiumButtons` karena itu hanya mengubah lock decoration toolbar rich. Implementasi harus memastikan entity offsets mengikuti UTF-16 index Android, termasuk emoji/surrogate pair dan transformasi Markdown, serta tidak tumpang tindih secara invalid.
+
+#### 16.16.6 Rencana uji implementasi wajib
+
+| Area | Kasus minimum | Hasil yang harus dibuktikan |
+|---|---|---|
+| Formatting | setiap style pada selection kosong, sebagian, seluruh teks | toggle dan state konsisten |
+| Selection | selection melintasi emoji/surrogate pair, newline, mention, URL, code | offset entity valid; tidak memotong surrogate |
+| Compose | format tunggal, bersarang, overlap, paste, undo/redo, select-all | span dan entity tidak rusak |
+| Send | pesan normal, silent, scheduled, retry/resend | request membawa entity yang diharapkan; server menerima |
+| Edit | edit pesan terkirim, edit draft, edit scheduled | entity tidak hilang atau berubah |
+| Draft | save, app force-stop/restart, restore, multi-account, forum/thread | teks/entity/reply/thread pulih tepat |
+| Receive | penerima Tele-ß dan Telegram resmi, Android/iOS/Desktop bila tersedia | render konsisten dan kompatibel |
+| Fallback | unsupported/invalid entity atau server error | teks tetap terkirim atau kegagalan dijelaskan; tidak ada kehilangan diam-diam |
+| Entitlement | akun non-Premium dan Premium | capability Tele-ß lokal tidak mengubah status Telegram Premium |
+| Regression | Rich Article premium, conversion sheet, media attach, captions | perilaku upstream yang sudah ada tidak berubah |
+
+#### 16.16.7 Kesiapan dan blocker tersisa
+
+**Status audit:** source-level audit untuk pemisahan ordinary formatting vs Rich Article, toolbar/editor controls, checklist model, local/server draft write path, rich article edit/send/render telah cukup untuk menetapkan arsitektur dan scope implementasi Native awal. Tidak ada lagi alasan untuk menahan rancangan Native Formatting hanya karena semua jalur Rich Article belum selesai.
+
+**Status implementasi:** **SIAP MASUK IMPLEMENTASI TERBATAS — Formatting Native Tele-ß pada composer biasa saja.** Bukan persetujuan membuka Rich Editor/Rich Article atau checklist penuh.
+
+Sebelum mengklaim implementasi final, tetap wajib:
+- temukan dan dokumentasikan definisi asli `MessagesController.richEditorAllowed()` dari checkout/build source yang sama bila Rich Article akan disentuh;
+- verifikasi semua operation edit/caption/media untuk setiap media type jika scope kelak diperluas ke sana;
+- verifikasi update draft remote pada `processUpdates` dan multi-device conflict behavior;
+- jalankan matrix runtime non-Premium ↔ akun/penerima Telegram resmi;
+- pertahankan gate server Rich Article sampai ada bukti acceptance resmi end-to-end.
+
+**Kesimpulan Tahap 3:** audit tidak merekomendasikan "membuka Premium Rich Editor". Rekomendasinya adalah mengimplementasikan Formatting Native Tele-ß pada ordinary composer dengan entity standar. Checklist, block editor, Rich Article, media-rich article, AI tools, dan advanced formatting tetap jalur terpisah.
+
