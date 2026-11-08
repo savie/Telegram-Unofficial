@@ -688,9 +688,9 @@ public final class TeleBetaLocalProfileStyle {
     safe_color_patches = [
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java",
-            """                    if (colorId < 7) {
+            """                    if (colorId >= 0 && colorId < 7) {
                         Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
-                    } else {
+                    } else if (colorId >= 7) {
                         MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
                         MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
                         if (peerColor != null) {
@@ -698,6 +698,8 @@ public final class TeleBetaLocalProfileStyle {
                         } else {
                             Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
                         }
+                    } else {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
                     }""",
             """                    if (colorId >= 0 && colorId < 7) {
                         Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
