@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   build:
@@ -132,7 +133,7 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - name: Restore C++ compilation cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/ccache
           key: ccache-ndk27-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -187,6 +188,40 @@ jobs:
           ./gradlew --no-daemon --build-cache --parallel \
             :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
             :TMessagesProj_AppStandalone:assembleAfatStandalone
+
+      - name: Save updated C++ compilation cache
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/ccache
+          key: ccache-ndk27-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Remove previous C++ compilation cache snapshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_key="ccache-ndk27-${RUNNER_OS}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export CURRENT_CACHE_KEY="$current_key"
+
+          old_cache_ids="$(gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/actions/caches?per_page=100" \
+            --jq '.actions_caches[]
+              | select(.ref == "refs/heads/master")
+              | select(.key | startswith("ccache-ndk27-Linux-"))
+              | select(.key != env.CURRENT_CACHE_KEY)
+              | .id')"
+
+          if [ -z "$old_cache_ids" ]; then
+            echo "No previous ccache snapshots to remove."
+            exit 0
+          fi
+
+          while IFS= read -r cache_id; do
+            [ -n "$cache_id" ] || continue
+            echo "Removing previous ccache snapshot ID $cache_id"
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$cache_id"
+          done <<< "$old_cache_ids"
 
       - name: Show build cache statistics
         if: always()
