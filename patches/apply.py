@@ -23,8 +23,8 @@ def main() -> None:
     configure_standalone_suffix()
     configure_firebase()
     configure_native_build_cache()
-    apply_freemium()
     apply_rich_editor_freemium()
+    apply_freemium()
     print("All Tele-ß build patches applied.")
 
 
