@@ -28,13 +28,18 @@ def apply_rich_editor_freemium() -> None:
     engine_source = ENGINE_PATCH.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    engine_template = '    source = """package org.telegram.messenger;'
-    if engine_source.count(old_feature) == 1:
-        engine_source = engine_source.replace(old_feature, new_feature, 1)
-    elif engine_source.count(new_feature) != 1:
+    source_start = engine_source.find('    source = """package org.telegram.messenger;')
+    if source_start < 0:
+        raise SystemExit("TeleBetaFreemium source template was not found.")
+    source_end = engine_source.find('\n"""', source_start)
+    if source_end < 0:
+        raise SystemExit("TeleBetaFreemium source template boundary was not found.")
+    template = engine_source[source_start:source_end]
+    if template.count(old_feature) == 1:
+        template = template.replace(old_feature, new_feature, 1)
+    elif template.count(new_feature) != 1:
         raise SystemExit("Rich Editor feature registry anchor missing or ambiguous.")
-    if "Feature.RICH_EDITOR" not in engine_source:
-        raise SystemExit("Rich Editor feature enum update was not persisted.")
+    engine_source = engine_source[:source_start] + template + engine_source[source_end:]
     ENGINE_PATCH.write_text(engine_source, encoding="utf-8")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
