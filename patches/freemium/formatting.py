@@ -16,6 +16,12 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> str:
+    if import_line in source:
+        return source
+    return _replace_once(source, anchor, anchor + import_line, label + " import")
+
+
 def apply_rich_editor_freemium() -> None:
     # apply_freemium() already generated this class earlier in the orchestrator.
     engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
@@ -61,6 +67,19 @@ def apply_rich_editor_freemium() -> None:
         source = _replace_once(source, old_send_lock, new_send_lock, "RichEditor lossy send lock")
     elif source.count(new_send_lock) != 1:
         raise SystemExit("RichEditor lossy send lock is in an unknown state.")
+
+    # The attach-alert's own lossy send predicate is a second enforcement path.
+    attach_send_lock = """        return !MessagesController.getInstance(currentAccount).richEditorAllowed()
+            && !UserConfig.getInstance(currentAccount).isPremium()
+            && listView.isLossy();"""
+    attach_send_unlock = """        return !MessagesController.getInstance(currentAccount).richEditorAllowed()
+            && !UserConfig.getInstance(currentAccount).isPremium()
+            && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.RICH_EDITOR)
+            && listView.isLossy();"""
+    if attach_send_lock in source:
+        source = _replace_once(source, attach_send_lock, attach_send_unlock, "ChatAttachAlertRichLayout lossy send predicate")
+    elif source.count(attach_send_unlock) != 1:
+        raise SystemExit("ChatAttachAlertRichLayout lossy send predicate is in an unknown state.")
 
     old_conversion = """            if (!UserConfig.getInstance(currentAccount).isPremium()) {
                 showDialog(new PremiumFeatureBottomSheet(this, PremiumPreviewFragment.PREMIUM_FEATURE_RICH_EDITOR, true));
