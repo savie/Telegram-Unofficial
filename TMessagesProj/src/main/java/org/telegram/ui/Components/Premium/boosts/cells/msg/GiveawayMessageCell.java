@@ -464,9 +464,6 @@ public class GiveawayMessageCell {
         }
         final int color;
         int colorId = ChatObject.getColorId(chat);
-        if (colorId < 0) {
-            colorId = 0;
-        }
         if (colorId < 7) {
             color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);
         } else {
