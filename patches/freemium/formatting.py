@@ -42,7 +42,7 @@ def apply_rich_editor_freemium() -> None:
     source = rich_editor.read_text(encoding="utf-8")
     source = _ensure_import(
         source,
-        "import org.telegram.messenger.UserConfig;\n",
+        "import org.telegram.messenger.MessagesController;\n",
         "import org.telegram.messenger.TeleBetaFreemium;\n",
         "RichEditor",
     )
@@ -87,7 +87,7 @@ def apply_rich_editor_freemium() -> None:
     source = layout.read_text(encoding="utf-8")
     source = _ensure_import(
         source,
-        "import org.telegram.messenger.UserConfig;\n",
+        "import org.telegram.messenger.MessagesController;\n",
         "import org.telegram.messenger.TeleBetaFreemium;\n",
         "ChatAttachAlertRichLayout",
     )
