@@ -684,41 +684,25 @@ public final class TeleBetaLocalProfileStyle {
             f"found original={avatar_color_name_original_count}, guarded={avatar_color_name_guarded_count}."
         )
 
-    # Guard negative local collectible color IDs before upstream array lookups.
+    # Normalize every legacy palette index before an array lookup. In this
+    # upstream revision ChatMessageCell no longer owns the old color block;
+    # the crash-prone lookups are in LinkPreview, ReplyMessageLine and other
+    # focused UI components. Keep exact, idempotent anchors for each site.
     safe_color_patches = [
-        (
-            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java",
-            """                    if (colorId >= 0 && colorId < 7) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
-                    } else if (colorId >= 7) {
-                        MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
-                        MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
-                        if (peerColor != null) {
-                            Theme.chat_namePaint.setColor(peerColor.getColor(0, resourcesProvider));
-                        } else {
-                            Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
-                        }
-                    } else {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
-                    }""",
-            """                    if (colorId >= 0 && colorId < 7) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
-                    } else if (colorId >= 7) {
-                        MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
-                        MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
-                        if (peerColor != null) {
-                            Theme.chat_namePaint.setColor(peerColor.getColor(0, resourcesProvider));
-                        } else {
-                            Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
-                        }
-                    } else {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
-                    }""",
-        ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Paint/Views/LinkPreview.java",
             """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());""",
-            """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());""",
+            """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[Math.floorMod(colorId, Theme.keys_avatar_nameInMessage.length)]) : color.getColor1());""",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Forum/MessageTopicButton.java",
+            """            if (colorId < 7) {
+                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+            """            if (colorId < 0) {
+                colorId = 0;
+            }
+            if (colorId < 7) {
+                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ReplyMessageLine.java",
@@ -732,10 +716,10 @@ public final class TeleBetaLocalProfileStyle {
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
-            """                int colorId = UserObject.getColorId(user);
+            """                int colorId = ChatObject.getColorId(chat);
                 if (colorId < 7) {
                     color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
-            """                int colorId = UserObject.getColorId(user);
+            """                int colorId = ChatObject.getColorId(chat);
                 if (colorId < 0) {
                     colorId = 0;
                 }
@@ -744,10 +728,10 @@ public final class TeleBetaLocalProfileStyle {
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
-            """                int colorId = ChatObject.getColorId(chat);
+            """                int colorId = UserObject.getColorId(user);
                 if (colorId < 7) {
                     color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
-            """                int colorId = ChatObject.getColorId(chat);
+            """                int colorId = UserObject.getColorId(user);
                 if (colorId < 0) {
                     colorId = 0;
                 }
@@ -775,16 +759,6 @@ public final class TeleBetaLocalProfileStyle {
             color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
         (
-            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Forum/MessageTopicButton.java",
-            """            if (colorId < 7) {
-                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
-            """            if (colorId < 0) {
-                colorId = 0;
-            }
-            if (colorId < 7) {
-                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
-        ),
-        (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayMessageCell.java",
             """        if (colorId < 7) {
             color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
@@ -800,17 +774,16 @@ public final class TeleBetaLocalProfileStyle {
         old_count = source_text.count(old_snippet)
         new_count = source_text.count(new_snippet)
         if new_count == 1:
-            # Guarded form is present. The unguarded anchor can also match
-            # inside the guarded block, so check this first.
-            pass
-        elif old_count == 1:
+            continue
+        if old_count == 1:
             source_text = source_text.replace(old_snippet, new_snippet, 1)
             file_path.write_text(source_text, encoding="utf-8")
         else:
             raise SystemExit(
-                f"Expected one unguarded or already-guarded color lookup in {file_path.name}; "
-                f"found old={old_count}, new={new_count}."
+                f"Expected one original or guarded color lookup in {file_path}; "
+                f"found original={old_count}, guarded={new_count}."
             )
+
 
 
     # Local emoji discovery: enable suggestions and preview/install controls for
