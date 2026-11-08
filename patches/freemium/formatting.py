@@ -23,16 +23,17 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # Add the capability to the generated Java source while keeping the
-    # existing Freemium patch file unchanged.
-    engine_source = ENGINE_PATCH.read_text(encoding="utf-8")
+    # The engine generator stays unchanged in patches/freemium/patch.py.
+    # Extend the generated Java source after the existing Freemium patch runs.
+    engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
+    engine_java = engine_file.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if engine_source.count(old_feature) == 1:
-        engine_source = engine_source.replace(old_feature, new_feature, 1)
-        ENGINE_PATCH.write_text(engine_source, encoding="utf-8")
-    elif engine_source.count(new_feature) != 1:
-        raise SystemExit("Rich Editor feature registry anchor missing or ambiguous.")
+    if engine_java.count(old_feature) == 1:
+        engine_java = engine_java.replace(old_feature, new_feature, 1)
+        engine_file.write_text(engine_java, encoding="utf-8")
+    elif engine_java.count(new_feature) != 1:
+        raise SystemExit("Generated TeleBetaFreemium feature registry anchor missing or ambiguous.")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
