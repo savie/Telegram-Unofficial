@@ -145,7 +145,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/telebeta-native-cache"
           ccache --set-config=cache_dir="$RUNNER_TEMP/telebeta-native-cache"
           ccache --zero-stats
-          echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/telebeta-native-cache" >> "$GITHUB_ENV"
           echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
           echo "CMAKE_CXX_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
           ccache --version
@@ -159,9 +159,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/telebeta-native-cache
-          key: telebeta-native-v1-${{ runner.os }}-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
+          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
           restore-keys: |
-            telebeta-native-v1-${{ runner.os }}-
+            telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-
 
       - name: Apply Tele-ß patches
         env:
@@ -242,7 +242,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/telebeta-native-cache
-          key: telebeta-native-v1-${{ runner.os }}-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
+          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
 
       - name: Prepare R8 mapping artifact
         shell: bash
