@@ -909,3 +909,15 @@ Perbaikan:
 - Patcher tetap menolak source yang tidak cocok dengan bentuk upstream maupun bentuk guard yang dikenal.
 
 **Status:** koreksi lanjutan sudah di-commit. CI berikutnya harus membuktikan tahap patch selesai sebelum APK build dapat dinilai.
+
+
+### 20.5 Hasil CI #160
+
+- Workflow run #160 selesai dengan status **success**.
+- `Apply Tele-ß patches`: success.
+- `Build standalone APK`: success.
+- APK artifact `tele-ß_160` tersedia.
+- R8 mapping artifact `telebeta-mapping-160` tersedia.
+- Native ccache: 0/13.882 hits pada build ini. Cache path sudah konsisten dan cache berhasil dipulihkan, tetapi belum ada cache hit yang membuktikan percepatan kompilasi.
+
+**Catatan uji perangkat:** keberhasilan CI hanya membuktikan APK berhasil dibuat. Ia belum membuktikan crash Change Profile Color maupun Change Name Color hilang. Kedua alur wajib diuji pada perangkat sebelum ditutup.
