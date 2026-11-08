@@ -241,6 +241,37 @@ jobs:
           echo "===== CHECKOUT SOURCE STATUS ====="
           git status --short
 
+      - name: Prepare R8 mapping artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapping_root="$TELEBETA_BUILD_DIR/TMessagesProj_AppStandalone/build/outputs/mapping"
+          mapping_file="$(find "$mapping_root" -type f -name mapping.txt -print -quit 2>/dev/null || true)"
+
+          if [ -z "$mapping_file" ] || [ ! -s "$mapping_file" ]; then
+            echo "::error::R8 mapping.txt was not generated for the standalone APK."
+            echo "Checked: $mapping_root"
+            exit 1
+          fi
+
+          artifact_dir="$RUNNER_TEMP/telebeta-r8-mapping"
+          mkdir -p "$artifact_dir"
+          cp "$mapping_file" "$artifact_dir/mapping.txt"
+          printf 'commit=%s\nrun_number=%s\nrun_id=%s\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ID" \
+            > "$artifact_dir/build-info.txt"
+          echo "R8 mapping prepared from: $mapping_file"
+
+      - name: Upload R8 mapping
+        uses: actions/upload-artifact@v6
+        with:
+          name: telebeta-mapping-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/telebeta-r8-mapping/mapping.txt
+            ${{ runner.temp }}/telebeta-r8-mapping/build-info.txt
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Upload APK
         uses: actions/upload-artifact@v6
         with:
