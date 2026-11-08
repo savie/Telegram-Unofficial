@@ -687,6 +687,33 @@ public final class TeleBetaLocalProfileStyle {
     # Guard negative local collectible color IDs before upstream array lookups.
     safe_color_patches = [
         (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java",
+            """                    if (colorId < 7) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
+                    } else {
+                        MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
+                        MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
+                        if (peerColor != null) {
+                            Theme.chat_namePaint.setColor(peerColor.getColor(0, resourcesProvider));
+                        } else {
+                            Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
+                        }
+                    }""",
+            """                    if (colorId >= 0 && colorId < 7) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));
+                    } else if (colorId >= 7) {
+                        MessagesController.PeerColors peerColors = MessagesController.getInstance(currentAccount).peerColors;
+                        MessagesController.PeerColor peerColor = peerColors != null ? peerColors.getColor(colorId) : null;
+                        if (peerColor != null) {
+                            Theme.chat_namePaint.setColor(peerColor.getColor(0, resourcesProvider));
+                        } else {
+                            Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
+                        }
+                    } else {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.key_chat_inForwardedNameText));
+                    }""",
+        ),
+        (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Paint/Views/LinkPreview.java",
             """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId % Theme.keys_avatar_nameInMessage.length]) : color.getColor1());""",
             """            previewPaint.setColor(color == null ? Theme.getColor(Theme.keys_avatar_nameInMessage[colorId >= 0 ? colorId % Theme.keys_avatar_nameInMessage.length : 0]) : color.getColor1());""",
