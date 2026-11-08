@@ -819,6 +819,22 @@ public final class TeleBetaLocalProfileStyle {
         if old_count == 1:
             source_text = source_text.replace(old_snippet, new_snippet, 1)
             file_path.write_text(source_text, encoding="utf-8")
+        elif file_path.name == "PeerColorActivity.java":
+            # PeerColorActivity's UserColorDrawable and PeerColorDrawable.from()
+            # use a stricter non-negative palette guard for local collectible -1.
+            # Accept those guards instead of rewriting -1 to palette index 0.
+            local_collectible_guarded = (
+                "UserObject.getColorId(user)" in old_snippet
+                and "colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length" in source_text
+            ) or (
+                "PeerColorDrawable from(int currentAccount, int colorId)" in old_snippet
+                and "if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length)" in source_text
+            )
+            if not local_collectible_guarded:
+                raise SystemExit(
+                    f"Expected one original or guarded color lookup in {file_path}; "
+                    f"found original={old_count}, guarded={new_count}."
+                )
         else:
             raise SystemExit(
                 f"Expected one original or guarded color lookup in {file_path}; "
