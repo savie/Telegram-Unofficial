@@ -667,6 +667,23 @@ public final class TeleBetaLocalProfileStyle {
             f"found original={avatar_original_count}, guarded={avatar_guarded_count}."
         )
 
+    # Normalize the legacy seven-color label lookup before indexing its resource array.
+    # Negative local/collectible color IDs must never become Java's negative remainder.
+    avatar_color_name_original = """        return LocaleController.getString(resIds[color % resIds.length]);"""
+    avatar_color_name_guarded = """        return LocaleController.getString(resIds[Math.floorMod(color, resIds.length)]);"""
+    avatar_color_name_original_count = avatar_source.count(avatar_color_name_original)
+    avatar_color_name_guarded_count = avatar_source.count(avatar_color_name_guarded)
+    if avatar_color_name_guarded_count == 1:
+        pass
+    elif avatar_color_name_original_count == 1:
+        avatar_source = avatar_source.replace(avatar_color_name_original, avatar_color_name_guarded, 1)
+        avatar_drawable.write_text(avatar_source, encoding="utf-8")
+    else:
+        raise SystemExit(
+            "Expected one original or guarded AvatarDrawable.colorName() lookup; "
+            f"found original={avatar_color_name_original_count}, guarded={avatar_color_name_guarded_count}."
+        )
+
     # Guard negative local collectible color IDs before upstream array lookups.
     safe_color_patches = [
         (
