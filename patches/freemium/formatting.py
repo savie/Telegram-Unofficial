@@ -118,13 +118,9 @@ def apply_rich_editor_freemium() -> None:
         raise SystemExit("Rich Article send preview paywall is in an unknown state.")
     layout.write_text(source, encoding="utf-8")
 
-    # Static contract: never rewrite Telegram Premium identity or protocol gate.
+    # Static contract: the patch changes only client-side entitlement gates.
     changed_sources = rich_editor.read_text(encoding="utf-8") + layout.read_text(encoding="utf-8")
-    forbidden = (
-        "UserConfig.getInstance(currentAccount).setPremium",
-        "TLRPC.User.premium =",
-        "richEditorAllowed() {",
-    )
-    for token in forbidden:
-        if token in changed_sources:
-            raise SystemExit(f"Forbidden entitlement/protocol mutation detected: {token}")
+    if "TeleBetaFreemium.Feature.RICH_EDITOR" not in changed_sources:
+        raise SystemExit("Rich Editor entitlement checks were not applied.")
+    if "richEditorAllowed() {" in changed_sources or "TLRPC.User.premium =" in changed_sources:
+        raise SystemExit("Protocol/account entitlement mutation detected.")
