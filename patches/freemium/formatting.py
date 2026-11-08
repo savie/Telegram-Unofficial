@@ -123,6 +123,29 @@ def apply_rich_editor_freemium() -> None:
         source = _replace_once(source, old_preview, new_preview, "Rich Article send preview paywall")
     elif source.count(new_preview) != 1:
         raise SystemExit("Rich Article send preview paywall is in an unknown state.")
+    # Rich Article text-type menu has a separate Premium-decorated heading gate.
+    menu_lock = """        final boolean premiumLock = !MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium();"""
+    menu_unlock = """        final boolean premiumLock = !MessagesController.getInstance(currentAccount).richEditorAllowed()
+            && !UserConfig.getInstance(currentAccount).isPremium()
+            && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.RICH_EDITOR);"""
+    if menu_lock in source:
+        source = _replace_once(source, menu_lock, menu_unlock, "ChatAttachAlertRichLayout text-type menu lock")
+    elif source.count(menu_unlock) != 1:
+        raise SystemExit("ChatAttachAlertRichLayout text-type menu lock is in an unknown state.")
+
+    # Send preview and conversion sheet are independent direct Premium gates.
+    old_conversion = """            if (!UserConfig.getInstance(currentAccount).isPremium()) {
+                new PremiumFeatureBottomSheet(parentAlert.baseFragment, getContext(), currentAccount, PremiumPreviewFragment.PREMIUM_FEATURE_RICH_EDITOR, true).show();
+            }"""
+    new_conversion = """            if (!UserConfig.getInstance(currentAccount).isPremium()
+                && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.RICH_EDITOR)) {
+                new PremiumFeatureBottomSheet(parentAlert.baseFragment, getContext(), currentAccount, PremiumPreviewFragment.PREMIUM_FEATURE_RICH_EDITOR, true).show();
+            }"""
+    if old_conversion in source:
+        source = _replace_once(source, old_conversion, new_conversion, "ChatAttachAlertRichLayout conversion paywall")
+    elif source.count(new_conversion) != 1:
+        raise SystemExit("ChatAttachAlertRichLayout conversion paywall is in an unknown state.")
+
     layout.write_text(source, encoding="utf-8")
 
     # Static contract: the patch changes only client-side entitlement gates.
