@@ -625,6 +625,11 @@ public final class TeleBetaLocalProfileStyle {
     peer_source = peer_source.replace(helper_anchor, helper_methods, 1)
     peer_file.write_text(peer_source, encoding="utf-8")
 
+
+
+
+
+    profile_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
     # Guard the actual peer-color preview renderer. A local collectible is
     # represented by sentinel -1; it must take a safe peer-color/fallback path.
     peer_color_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
@@ -691,10 +696,6 @@ public final class TeleBetaLocalProfileStyle {
         peer_color_source = peer_color_source.replace(local_name_helper_anchor, local_name_helper + local_name_helper_anchor, 1)
     peer_color_activity.write_text(peer_color_source, encoding="utf-8")
 
-
-
-
-    profile_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
     profile_activity_source = profile_activity.read_text(encoding="utf-8")
     profile_style_import = "import org.telegram.messenger.TeleBetaLocalProfileStyle;\n"
     profile_style_import_anchor = "import org.telegram.messenger.UserObject;\n"
