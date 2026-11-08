@@ -1005,3 +1005,20 @@ Perbaikan patch:
 - [ ] Verifikasi tidak ada lagi kedua FATAL tersebut pada Logcat sesudah APK baru dipasang.
 
 **Status:** source-level root cause untuk dua crash telah ditemukan dan patch telah ditambahkan. Belum dinyatakan selesai atau lolos runtime sampai CI dan uji perangkat membuktikannya. Defensive patch collectible pada 20.6 merupakan hardening terpisah; bukan penyebab yang telah dibuktikan untuk crash A.
+
+
+### 20.8 Hasil CI #162 dan koreksi anchor patch — 8 November 2026
+
+CI #162 gagal pada tahap **Apply Tele-ß patches**, sebelum Gradle/standalone build dijalankan. Log CI menunjukkan:
+`Could not uniquely locate reply collectible color-list lookup.`
+
+Penyebabnya bukan compiler: source upstream `PeerColorDrawable.from(TL_peerColorCollectible)` sudah memiliki guard:
+`if (colors == null || colors.isEmpty()) return null;`
+Anchor patch sebelumnya mengasumsikan source upstream belum memiliki guard tersebut, sehingga validasi terlalu ketat dan menghentikan seluruh patcher.
+
+Perbaikan:
+- Patcher sekarang menerima tiga bentuk yang dikenal: bentuk upstream tanpa guard, bentuk hasil patch fallback, dan bentuk upstream yang sudah melakukan null/empty guard.
+- Bentuk upstream yang sudah aman dipertahankan apa adanya; tidak ditulis ulang tanpa kebutuhan.
+- Perubahan crash ChatMessageCell dan ThemeActivity tetap berada di patcher yang sama.
+
+**Status:** perbaikan kompatibilitas anchor telah di-commit pada `ea39072`. Workflow baru harus membuktikan `Apply Tele-ß patches` berhasil, kemudian standalone APK build. CI #162 tidak pernah mencapai tahap build APK.
