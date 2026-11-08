@@ -714,6 +714,28 @@ public final class TeleBetaLocalProfileStyle {
                     color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
         ),
         (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
+            """                int colorId = ChatObject.getColorId(chat);
+                if (colorId < 7) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+            """                int colorId = ChatObject.getColorId(chat);
+                if (colorId < 0) {
+                    colorId = 0;
+                }
+                if (colorId < 7) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
+        ),
+        (
+            ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java",
+            """        public static PeerColorDrawable from(int currentAccount, int colorId) {
+            if (colorId < 7) {""",
+            """        public static PeerColorDrawable from(int currentAccount, int colorId) {
+            if (colorId < 0) {
+                colorId = 0;
+            }
+            if (colorId < 7) {""",
+        ),
+        (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Premium/boosts/cells/msg/GiveawayResultsMessageCell.java",
             """        if (colorId < 7) {
             color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);""",
