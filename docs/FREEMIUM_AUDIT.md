@@ -1158,3 +1158,87 @@ Definisi `MessagesController.richEditorAllowed()` belum ditemukan pada source ya
 7. Setelah APK tersedia, uji akun non-Premium untuk formatting, send/preview, draft/restart, edit, scheduled, receive/render, dan regresi Rich Article.
 
 **Status koreksi:** arah audit dan implementasi Tahap 3 sudah diluruskan. Belum ada perubahan source aplikasi dalam commit dokumentasi ini.
+
+## 22. Keputusan prioritas local-only dan penundaan fitur server-dependent — 8 November 2026
+
+Bagian ini menjadi keputusan operasional terbaru untuk menentukan pekerjaan setelah Tahap 1 (Premium App Icons) dan Tahap 2 (Theme/UI customization) yang telah diuji pengguna. Bagian historis sebelumnya tetap dipertahankan sebagai catatan audit, tetapi bila terdapat rekomendasi urutan yang berbeda, keputusan pada bagian ini yang berlaku.
+
+### 22.1 Prinsip pemilihan
+
+Capability hanya masuk kelompok **Local Tele-ß** bila fungsi utamanya dapat dijalankan, disimpan, dipulihkan, dan digunakan tanpa mengubah entitlement Telegram atau meminta operasi Telegram yang memerlukan hak Premium. Jika sebuah fitur Telegram memakai RPC/server entitlement, fitur tersebut tidak dibuka melalui local gate. Tele-ß boleh menyediakan **alternatif mandiri** dengan data, penyimpanan, dan identitas fitur Tele-ß sendiri.
+
+Istilah:
+- **Local-only**: operasi utama dan persistensi berada di perangkat; tidak membutuhkan server Telegram untuk memberikan fungsi tersebut.
+- **Alternatif Tele-ß**: fungsi baru/berbeda yang dibuat Tele-ß, dapat memakai penyimpanan lokal atau provider pilihan pengguna; bukan unlock layanan Telegram.
+- **Server-dependent / ditunda**: fungsi native bergantung pada hak, kuota, data, atau validasi Telegram. Jangan menghapus gate sekarang.
+- **Hybrid / audit lanjutan**: ada bagian lokal, tetapi belum ada bukti cukup untuk membuka seluruh capability.
+
+### 22.2 Daftar yang dapat dikerjakan secara lokal terlebih dahulu
+
+| Capability | Jenis pekerjaan | Keputusan dan batas |
+|---|---|---|
+| Premium App Icons | Local-only | Tahap 1. Telah masuk implementasi Tele-ß; pertahankan sebagai capability lokal dan gunakan hasil uji perangkat sebagai bukti status akhir. |
+| Theme Editor, tema global, accent/theme colors yang tersimpan di perangkat | Local-only | Tahap 2. Lanjutkan hanya pada jalur yang mengubah theme lokal. Jangan campur dengan profile colors, collectible ownership, atau theme yang disinkronkan ke pihak lain. |
+| Personal wallpaper | Local-only | Tahap 2. Wallpaper untuk perangkat sendiri dapat dipertahankan sebagai fungsi lokal. Wallpaper-for-both dan wallpaper group/channel tetap bukan local-only. |
+| Chat Theme lokal per dialog | Local-only | Tahap 2. Terapkan dan simpan lokal tanpa RPC sinkronisasi Telegram. Tidak mengubah tema pada perangkat lawan bicara. |
+| Tele-ß local profile appearance | Alternatif Tele-ß | Warna/appearance overlay pada profil sendiri dapat tetap lokal selama tidak memanggil update profile RPC dan diberi batas local-only. Jangan menyatakan perubahan sebagai warna/status akun Telegram. Persistence dan seluruh permukaan rendering harus tetap diuji. |
+| Local Quick Replies | Alternatif Tele-ß | Kandidat berikutnya. Bangun template, shortcut/autocomplete, insert ke composer, kategori, pencarian, serta import/export dengan database lokal. Jangan memakai RPC Telegram Business Quick Replies dan jangan menyebutnya sinkron dengan Business. |
+| Local Download Manager | Alternatif Tele-ß | Kandidat berikutnya. Queue, pause/resume, jadwal, Wi-Fi-only, prioritas file, lokasi simpan, dan batas paralel dapat dikelola client. Jangan menjanjikan unlimited speed atau bypass kuota/byte budget Telegram; throughput tetap bergantung jaringan/server/akun. |
+| Local Chat Organization | Alternatif Tele-ß | Kandidat bersyarat. UI pengelompokan, pin lokal, shortcut, dan preferensi tampilan dapat dibuat lokal. Jangan mengubah folder/filter/tag Telegram atau limit server sebelum tiap operasi dipastikan lokal. |
+| Local Privacy Tools | Alternatif Tele-ß | Kandidat bersyarat: app lock, hide/archive lokal, kontrol notifikasi per chat, dan proteksi tampilan yang hanya berlaku di perangkat. Tidak termasuk pengubahan last seen/read receipts, larangan forward server-side, atau jaminan anti-screenshot pada perangkat penerima. |
+| AI Writing Tools | Alternatif Tele-ß | Dapat dibuat dengan model on-device atau provider/BYOK. Pisahkan provider, API key, anggaran, izin penggunaan, dan cache Tele-ß dari AI Tools Telegram. |
+| Voice-to-Text | Alternatif Tele-ß | Dapat dibuat dengan speech model on-device atau provider pilihan pengguna. Tidak memakai atau mengubah trial/cooldown Telegram. |
+| Translation | Alternatif Tele-ß | Dapat dibuat dengan engine on-device atau provider pilihan pengguna, glossary dan cache lokal. Bukan unlock Telegram Translate atau kuotanya. |
+| Extra storage/backup | Alternatif Tele-ß | Penyimpanan perangkat dan backup terenkripsi ke lokasi pilihan pengguna dapat dibuat sebagai fungsi Tele-ß opsional. Bukan tambahan kuota Telegram Cloud Storage. |
+
+**Urutan implementasi yang disarankan setelah Tahap 1–2:**
+1. Local Quick Replies sebagai fitur pengganti Business yang paling langsung bermanfaat dan dapat dibangun tanpa Telegram Business RPC.
+2. Local Download Manager sebagai peningkatan client-side yang tidak mengklaim membuka kuota Telegram.
+3. Local Chat Organization dan Local Privacy Tools, setelah audit tiap aksi membuktikan data/pengaturannya memang dapat tetap lokal.
+4. Provider/on-device Voice-to-Text, Translation, dan AI Writing Tools setelah desain provider, cache, dan kontrol biaya jelas.
+
+Urutan ini adalah prioritas produk, bukan pernyataan bahwa seluruh kandidat sudah diimplementasikan. Setiap capability tetap membutuhkan source audit, test, persistence, dan uji perangkat sebelum dinyatakan selesai.
+
+### 22.3 Fitur yang ditunda karena hak atau operasi Telegram server
+
+| Fitur native Telegram | Alasan penundaan |
+|---|---|
+| Telegram Business: Location, Opening Hours, Greeting Messages, Away Messages, Start Page, Links to Chat, Chatbots | Operasi utamanya menggunakan API Telegram untuk menyimpan/mengambil konfigurasi atau menghubungkan bot. Jangan membuka halaman lalu mengklaim fungsinya aktif. Alternatif lokal harus menjadi produk Local Business Tele-ß yang terpisah. |
+| Telegram Business Quick Replies dan sinkronisasinya | Cache lokal tidak menghapus RPC fetch/edit/delete/send. Yang boleh dikerjakan adalah Local Quick Replies Tele-ß, bukan bypass Business Quick Replies Telegram. |
+| Rich Editor / Formatting Tools yang mengirim Rich Article | Payload memakai model/protokol Rich Message dan gate `richEditorAllowed()`. Pengguna telah menguji Build #187 dan masih melihat paywall **Remove Formatting** serta **Formatting Tools**. Karena penerimaan payload akun non-Premium belum dibuktikan, hentikan patch unlock Rich Article dan jangan lanjutkan percobaan menghapus gate untuk fitur ini sekarang. |
+| Checklists / TODO pada Rich Article | State checklist berada di block Rich Article, bukan sekadar teks biasa. Ditunda bersama Rich Article sampai hak pengiriman, update, draft, dan kompatibilitas penerima terbukti. |
+| Unlimited Cloud Storage dan batas upload | Kuota dan hak penyimpanan Telegram bukan pengaturan storage lokal. |
+| Doubled Limits / limits akun | Nilai UI lokal tidak memberikan hak server untuk folder, pin, channel, link, atau batas akun lain. |
+| Last Seen Times, Read Time, Disable Sharing | Melibatkan privacy rules, server state, atau kemampuan klien penerima; tidak dapat dibuat efektif lintas akun hanya dengan perubahan lokal. |
+| Stories premium options, Stealth Mode, Story Views, upload limits | Data, kuota, dan izin story terkait server Telegram. |
+| Voice-to-Text dan Real-Time Translation Telegram native | Request dan trial/quota tetap dikelola Telegram. Gunakan alternatif provider Tele-ß, bukan local gate bypass. |
+| Infinite Reactions, Premium Stickers, premium emoji send, Message Effects | Akses dokumen, hak penggunaan, payload, serta penerimaan/pengiriman melibatkan data dan aturan Telegram. Preview/render lokal tidak sama dengan hak mengirim. |
+| Paid Messages, Stars/Gems, Premium Gifts, purchase callbacks | Transaksi, saldo, dan entitlement akun/server. Tidak boleh diganti oleh grant lokal. |
+| No Ads secara menyeluruh | Client dapat mengatur tampilan tertentu, tetapi sponsored content dan distribusi iklan dapat dikontrol server. Tidak boleh diklaim sebagai penghapusan semua iklan. |
+| Boost features dan wallpaper-for-both | Bergantung pada status boost, hak akun, atau operasi Telegram terhadap pihak lain. |
+
+### 22.4 Keputusan khusus Tahap 3 — Rich Editor
+
+Tahap 3 **ditunda sebagai unlock Rich Article native**. Build #187 tidak membuktikan fitur berhasil: hasil uji pengguna memperlihatkan paywall masih muncul pada alur Remove Formatting dan Formatting Tools. Bukti tersebut menjadi regression test wajib jika fitur ditinjau ulang.
+
+Keputusan saat ini:
+1. Jangan menambah patch bypass untuk `richEditorAllowed()`, `RestrictedRights`, atau server validation.
+2. Jangan mengubah `UserConfig.isPremium()`, `TLRPC.User.premium`, native Premium identity, ataupun gift/payment callbacks.
+3. Jangan menyamakan toolbar yang dapat diedit dengan hak mengirim Rich Article.
+4. Pertahankan fallback upstream yang aman agar konten tidak hilang atau gagal diam-diam.
+5. Tinjau kembali Rich Article hanya bila ada bukti resmi dan pengujian end-to-end bahwa akun non-Premium dapat mengirim/menerima payload terkait. Jika tidak, fitur tersebut tetap ditunda; alternatif Local Rich Composer harus menjadi capability Tele-ß terpisah dan bukan klaim bahwa Rich Editor Telegram telah terbuka.
+
+Dengan keputusan ini, Tahap 3 tidak menjadi pekerjaan aktif berikutnya. Prioritas berikutnya adalah audit dan desain **Local Quick Replies**.
+
+### 22.5 Checklist sebelum capability lokal dinyatakan selesai
+
+- [ ] Entry point dan semua gate client telah dipetakan.
+- [ ] Penyimpanan lokal teridentifikasi dan tidak mengirim RPC Telegram untuk operasi yang diklaim local-only.
+- [ ] Entitlement terpisah, granular, default-deny, serta tidak mengubah status Premium akun.
+- [ ] Data bertahan setelah force-stop/restart dan tidak bocor antar-akun.
+- [ ] Perilaku offline, data kosong, reset, logout/login, dan account switching diuji.
+- [ ] APK standalone berhasil dibangun di CI.
+- [ ] Pengujian perangkat pada akun Telegram non-Premium berhasil.
+- [ ] Untuk alternatif Tele-ß, label dan UI menjelaskan bahwa data/fitur tidak disinkronkan sebagai layanan Telegram native.
+
+**Status keputusan 8 November 2026:** Tahap 1–2 menjadi baseline yang telah dikerjakan dan diuji pengguna. Rich Editor/Rich Article serta native Business ditunda karena ketergantungan server belum dapat dibuktikan dapat dilewati. Fokus kandidat local-first berikutnya adalah Local Quick Replies, kemudian Local Download Manager.
