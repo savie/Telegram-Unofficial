@@ -131,9 +131,6 @@ public class MessageTopicButton {
             } else if (userOrChat instanceof TLRPC.Chat) {
                 colorId = ChatObject.getColorId((TLRPC.Chat) userOrChat);
             }
-            if (colorId < 0) {
-                colorId = 0;
-            }
             if (colorId < 7) {
                 topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);
             } else {
