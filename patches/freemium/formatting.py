@@ -23,90 +23,18 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # Reuse the existing TeleBetaFreemium engine generator. Do not edit patch.py.
+    # Extend the source template in the existing Freemium patch without
+    # editing that patch file or generating a second TeleBetaFreemium class.
     engine_source = ENGINE_PATCH.read_text(encoding="utf-8")
-        source = """package org.telegram.messenger;
-    
-    import android.content.Context;
-    import android.content.SharedPreferences;
-    import java.util.Collections;
-    import java.util.HashSet;
-    import java.util.Set;
-    
-    /** Client-local Tele-beta entitlements, independent from Telegram Premium. */
-    public final class TeleBetaFreemium {
-        public enum Tier { FREE, FREEMIUM }
-        public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }
-    
-        private static final String PREFS = "telebeta_freemium";
-        private static final String KEY_TIER = "tier";
-        private static final String KEY_FEATURES = "features";
-        private static volatile TeleBetaFreemium instance;
-        private final SharedPreferences preferences;
-    
-        private TeleBetaFreemium(Context context) {
-            preferences = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        }
-    
-        public static TeleBetaFreemium getInstance() {
-            TeleBetaFreemium local = instance;
-            if (local == null) {
-                synchronized (TeleBetaFreemium.class) {
-                    local = instance;
-                    if (local == null) {
-                        Context context = ApplicationLoader.applicationContext;
-                        if (context == null) throw new IllegalStateException("Application context is not initialized");
-                        instance = local = new TeleBetaFreemium(context);
-                    }
-                }
-            }
-            return local;
-        }
-    
-        public Tier getTier() {
-            String value = preferences.getString(KEY_TIER, Tier.FREE.name());
-            try { return Tier.valueOf(value); }
-            catch (IllegalArgumentException | NullPointerException ignored) { return Tier.FREE; }
-        }
-    
-        public boolean isFeatureEnabled(Feature feature) {
-            if (feature == null || getTier() != Tier.FREEMIUM) return false;
-            return preferences.getStringSet(KEY_FEATURES, Collections.emptySet()).contains(feature.name());
-        }
-    
-        /** Whether the app-local Freemium tier has been durably granted. */
-        public boolean isFreemiumActive() {
-            return getTier() == Tier.FREEMIUM;
-        }
-    
-        /** Grant the app-local Freemium tier without changing Telegram account premium. */
-        public void grantFreemium() {
-            Set<Feature> enabled = java.util.EnumSet.allOf(Feature.class);
-            applyEntitlement(Tier.FREEMIUM, enabled);
-        }
-    
-        public void applyEntitlement(Tier tier, Set<Feature> enabledFeatures) {
-            if (tier == null) throw new IllegalArgumentException("tier must not be null");
-            Set<String> values = new HashSet<>();
-            if (tier == Tier.FREEMIUM && enabledFeatures != null) {
-                for (Feature feature : enabledFeatures) if (feature != null) values.add(feature.name());
-            }
-            preferences.edit().putString(KEY_TIER, tier.name()).putStringSet(KEY_FEATURES, values).commit();
-        }
-    }
-    """
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(source, encoding="utf-8")
-    
-    
-    # The source generator above is the exact existing TeleBetaFreemium engine
-    # from patch.py; extend its registry without duplicating the class.
-    feature_old = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
-    feature_new = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if engine_source.count(feature_old) == 1:
-        engine_source = engine_source.replace(feature_old, feature_new, 1)
-    elif engine_source.count(feature_new) != 1:
+    old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
+    new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
+    engine_template = '    source = """package org.telegram.messenger;'
+    if engine_source.count(old_feature) == 1:
+        engine_source = engine_source.replace(old_feature, new_feature, 1)
+    elif engine_source.count(new_feature) != 1:
         raise SystemExit("Rich Editor feature registry anchor missing or ambiguous.")
+    if "Feature.RICH_EDITOR" not in engine_source:
+        raise SystemExit("Rich Editor feature enum update was not persisted.")
     ENGINE_PATCH.write_text(engine_source, encoding="utf-8")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
