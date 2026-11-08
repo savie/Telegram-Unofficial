@@ -852,3 +852,14 @@ Alur yang terkonfirmasi di source:
 - [ ] Uji perangkat: buka Change Name Color, pilih warna biasa 0–6, pilih collectible, tekan Change, berpindah Profile ↔ Name dan scroll gift list.
 
 **Status:** akar crash teridentifikasi dan guard telah ditambahkan ke patcher. Belum dinyatakan selesai sebelum standalone build dan uji perangkat lolos.
+
+
+### 19.4 Koreksi urutan patch PeerColorActivity
+
+Pemeriksaan pipeline patch menemukan bahwa blok perlindungan PeerColorActivity sempat ditempatkan sebelum blok penulisan `PeerColorActivity.java` dari `peer_source`. Akibatnya, patch awal berisiko ditimpa oleh penulisan source berikutnya. Urutan diperbaiki: seluruh transformasi `peer_source` diselesaikan dan ditulis lebih dahulu, kemudian patch palette `PeerColorActivity` diterapkan ke file hasil tersebut.
+
+Validasi tambahan wajib memastikan:
+- hasil source final memiliki import Freemium tepat satu kali;
+- ketiga indeks palette telah memakai rentang non-negatif;
+- patcher dapat dijalankan ulang tanpa duplikasi import atau helper;
+- CI berhenti pada diagnosis yang spesifik jika bentuk source berubah.
