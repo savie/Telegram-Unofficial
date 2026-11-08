@@ -863,3 +863,36 @@ Validasi tambahan wajib memastikan:
 - ketiga indeks palette telah memakai rentang non-negatif;
 - patcher dapat dijalankan ulang tanpa duplikasi import atau helper;
 - CI berhenti pada diagnosis yang spesifik jika bentuk source berubah.
+
+
+---
+
+## 20. Perbaikan patch crash Change Name Color — 8 November 2026
+
+### 20.1 Koreksi diagnosis source
+
+Pemeriksaan ulang terhadap source lengkap memperjelas bahwa `PeerColorGrid.getColor()` sudah memiliki cabang `selectedColor < 0` sebelum akses palette. Jalur tersebut bukan penyebab langsung exception pada build #150, tetapi kondisi palette diperketat menjadi rentang non-negatif agar invariant tetap eksplisit.
+
+Dua akses yang benar-benar berbahaya untuk sentinel collectible lokal `-1` adalah:
+- `UserColorDrawable`: `UserObject.getColorId(user)` kemudian kondisi lama `colorId < 7` mengindeks `Theme.keys_avatar_nameInMessage[colorId]`.
+- `PeerColorDrawable.from(currentAccount, colorId)`: kondisi lama `colorId < 7` juga mengindeks palette untuk nilai negatif.
+
+Jalur `ChatObject.getColorId(chat)` tidak diubah karena bukan getter warna user collectible yang menghasilkan sentinel lokal ini.
+
+### 20.2 Implementasi
+
+- Ketiga kondisi palette di `PeerColorActivity` sekarang menggunakan batas `id >= 0 && id < Theme.keys_avatar_nameInMessage.length`.
+- Transformasi digabung ke variabel `peer_source` yang sama dengan patch Freemium lain sebelum satu kali `peer_file.write_text()`. Ini menghindari perubahan yang tertimpa penulisan source dan menghindari import/helper ganda.
+- Blok patch terpisah yang membaca ulang file yang sama dihapus.
+- Patch dibuat idempotent: menerima bentuk guarded saat dijalankan ulang, atau mengubah tepat satu anchor upstream; bentuk source yang tidak dikenal menghentikan patch dengan pesan eksplisit.
+
+### 20.3 Verifikasi
+
+- [x] Source upstream memiliki tepat satu anchor untuk masing-masing dari tiga lookup yang ditangani.
+- [x] Patcher hanya menulis `PeerColorActivity.java` sekali setelah seluruh transformasi.
+- [x] Guard negatif berada di patcher dan tidak bergantung pada perubahan manual source vendored.
+- [ ] Eksekusi patcher pada workspace CI bersih.
+- [ ] Standalone APK build berhasil.
+- [ ] Uji perangkat pada Change Name Color, collectible, tombol Change, dan perpindahan Profile ↔ Name.
+
+**Status:** perbaikan patcher telah di-commit. Belum dinyatakan lolos sebelum CI menerapkan patch dan standalone build selesai.
