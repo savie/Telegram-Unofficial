@@ -79,6 +79,16 @@ def apply_rich_editor_freemium() -> None:
         source = _replace_once(source, old_conversion, new_conversion, "RichEditor conversion paywall")
     elif source.count(new_conversion) != 1:
         raise SystemExit("RichEditor conversion paywall is in an unknown state.")
+    # Existing block-type menu has its own Premium decoration gate, separate
+    # from the toolbar-wide premiumButtons list.
+    menu_lock = """            final boolean premiumLock = !MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium();"""
+    menu_unlock = """            final boolean premiumLock = !MessagesController.getInstance(currentAccount).richEditorAllowed()
+                && !UserConfig.getInstance(currentAccount).isPremium()
+                && !TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.RICH_EDITOR);"""
+    if menu_lock in source:
+        source = _replace_once(source, menu_lock, menu_unlock, "RichEditor block menu lock")
+    elif source.count(menu_unlock) != 1:
+        raise SystemExit("RichEditor block menu lock is in an unknown state.")
     rich_editor.write_text(source, encoding="utf-8")
 
     # Gate 2: attach-alert send-button lock, separate from toolbar decoration.
