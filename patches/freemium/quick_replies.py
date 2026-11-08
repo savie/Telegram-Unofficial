@@ -220,9 +220,16 @@ public final class TeleBetaLocalQuickReplies {
     chat = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
     source = chat.read_text(encoding="utf-8")
     import_anchor = "import org.telegram.messenger.MessagesController;\n"
-    import_line = "import org.telegram.messenger.TeleBetaLocalQuickReplies;\n"
-    if import_line not in source:
-        source = _replace_once(source, import_anchor, import_anchor + import_line, "ChatActivity import")
+    import_lines = (
+        "import org.telegram.messenger.TeleBetaFreemium;\\n"
+        "import org.telegram.messenger.TeleBetaLocalQuickReplies;\\n"
+    )
+    if "import org.telegram.messenger.TeleBetaLocalQuickReplies;\\n" not in source:
+        source = _replace_once(source, import_anchor, import_anchor + import_lines, "ChatActivity imports")
+    elif "import org.telegram.messenger.TeleBetaFreemium;\\n" not in source:
+        source = _replace_once(source, "import org.telegram.messenger.TeleBetaLocalQuickReplies;\\n",
+                               "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalQuickReplies;\\n",
+                               "ChatActivity Freemium import")
 
     menu_anchor = """        if (chatMode == MODE_QUICK_REPLIES && !QuickRepliesController.isSpecial(quickReplyShortcut)) {
             menu.addItem(edit_quick_reply, R.drawable.group_edit).setContentDescription(LocaleController.getString(R.string.Edit));
