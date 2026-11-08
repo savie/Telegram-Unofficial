@@ -23,9 +23,11 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # The engine generator stays unchanged in patches/freemium/patch.py.
-    # Extend the generated Java source after the existing Freemium patch runs.
+    # apply_freemium() creates this class before this patch is invoked.
+    # Extend the generated local registry without changing the old generator.
     engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
+    if not engine_file.exists():
+        raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_java = engine_file.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
