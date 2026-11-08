@@ -1242,3 +1242,24 @@ Dengan keputusan ini, Tahap 3 tidak menjadi pekerjaan aktif berikutnya. Priorita
 - [ ] Untuk alternatif Tele-ß, label dan UI menjelaskan bahwa data/fitur tidak disinkronkan sebagai layanan Telegram native.
 
 **Status keputusan 8 November 2026:** Tahap 1–2 menjadi baseline yang telah dikerjakan dan diuji pengguna. Rich Editor/Rich Article serta native Business ditunda karena ketergantungan server belum dapat dibuktikan dapat dilewati. Fokus kandidat local-first berikutnya adalah Local Quick Replies, kemudian Local Download Manager.
+
+
+### 22.6 Implementasi awal Local Quick Replies — 8 November 2026
+
+**Commit implementasi patch terpisah:** `patches/freemium/quick_replies.py`.
+
+Perubahan source yang masuk:
+- Menambahkan generator `TeleBetaLocalQuickReplies.java` melalui patch module tersendiri.
+- Menambahkan feature key granular `LOCAL_QUICK_REPLIES` ke `TeleBetaFreemium.Feature` setelah engine dasar dibuat.
+- Menambahkan entry point pada action bar chat standar untuk membuka picker Local Quick Replies.
+- Menyediakan operasi tambah, pilih/insert ke composer, edit, dan hapus template.
+- Menyimpan daftar sebagai JSON di `SharedPreferences` lokal yang dipisahkan berdasarkan account slot Tele-ß.
+- Mengganti pemanggilan patch Rich Editor pada orchestrator dengan `apply_local_quick_replies()`. Patch Rich Editor tidak lagi dieksekusi pada build karena Rich Article native ditunda pada Bagian 22.4.
+
+**Batas implementasi:**
+- Local Quick Replies adalah template teks lokal Tele-ß, bukan Telegram Business Quick Replies.
+- Template tidak dibuat sebagai shortcut server, tidak memakai `TL_messages_*QuickReply*`, tidak melakukan fetch/sync Business, dan tidak mengubah Greeting/Away Messages.
+- Saat template dipilih, teks dimasukkan ke composer chat aktif. Pengiriman setelah itu tetap menjadi pesan chat biasa sesuai perilaku Telegram.
+- Data template tersimpan per account slot pada perangkat; tidak disinkronkan ke Telegram atau perangkat lain.
+
+**Status verifikasi:** kode patch dan integrasi orchestrator sudah masuk ke `master`, tetapi belum boleh dinyatakan selesai sampai CI membuktikan Apply Tele-ß patches dan Build standalone APK berhasil, lalu pengguna menguji CRUD, insert, restart persistence, dan pemisahan antar-akun pada APK. Bila patch step gagal, perbaiki anchor/transformasi sebelum melanjutkan.
