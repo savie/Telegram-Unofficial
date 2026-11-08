@@ -769,3 +769,49 @@ Audit source penuh pada default branch kini menutup beberapa pertanyaan yang seb
 - [ ] Verifikasi kompatibilitas lintas klien serta akun Premium/non-Premium melalui runtime test setelah CI gate dibuka.
 
 **Status Tahap 3: AUDIT LANJUT, BELUM SIAP IMPLEMENTASI.** Draft local write + server save, render layout Rich Article, scheduled text, beberapa scheduled media, dan scheduled edit kini memiliki bukti source langsung. Blocker utama tetap definisi gate entitlement richEditorAllowed(), pemetaan lengkap operasi media/edit caption, sinkronisasi draft server/local, dan pengujian runtime. Tidak ada perubahan source aplikasi.
+
+
+---
+
+## 18. Investigasi kegagalan CI #148 — 8 November 2026
+
+**Run:** [42445138517](https://github.com/savie/Telegram-Unofficial/actions/runs/42445138517)  
+**Commit:** `49b89f6321c7d17ec6641a429c49474e991ea4bc`  
+**Status:** GAGAL pada tahap penerapan patch, sebelum Gradle/native compilation dimulai.
+
+### 18.1 Akar kegagalan yang terkonfirmasi
+
+Log job `build` menunjukkan langkah `Apply Tele-ß patches` menjalankan `python3 patches/apply.py` dan berhenti dengan:
+
+```
+Expected one unguarded or already-guarded color lookup in ChatMessageCell.java; found old=0, new=0.
+```
+
+Ini bukan kegagalan compiler dan bukan masalah cache. Patch freemium memiliki entri `safe_color_patches` yang mengasumsikan satu blok warna tertentu di `ChatMessageCell.java`; source vendored pada branch `master` tidak memiliki blok tersebut. Pemeriksaan anchor menghasilkan nol kecocokan, sehingga patcher berhenti secara fail-fast.
+
+Dampak: build belum mencapai `assembleAfatStandalone`; tidak ada APK baru. Statistik ccache `0/0` konsisten dengan build yang berhenti sebelum kompilasi native, dan tidak membuktikan efektivitas atau kegagalan cache.
+
+### 18.2 Temuan tambahan cache
+
+Workflow sebelumnya mengatur `CCACHE_DIR` ke `$HOME/.cache/ccache`, tetapi kemudian menimpa konfigurasi direktori ccache dengan `$RUNNER_TEMP/telebeta-native-cache`. Step cache GitHub memulihkan direktori temporary itu. Namun, karena `CCACHE_DIR` diekspor ke lokasi berbeda, variabel lingkungan dan konfigurasi efektif tidak selaras. Perbaikan workflow harus memakai satu direktori yang sama.
+
+Fingerprint native juga harus dipisahkan berdasarkan versi toolchain/format cache. Prefix baru digunakan untuk mencegah cache lama lintas konfigurasi dipulihkan secara tidak sengaja.
+
+### 18.3 Tindakan korektif
+
+1. Revisi anchor ChatMessageCell berdasarkan source upstream yang benar-benar ada, bukan menurunkan validasi menjadi warning atau melewati patch.
+2. Pertahankan semua perlindungan indeks warna negatif dan pastikan patcher idempotent: bentuk patched diterima tepat satu kali, bentuk upstream diubah tepat satu kali, bentuk tak dikenal menggagalkan build dengan diagnosis yang jelas.
+3. Selaraskan `CCACHE_DIR` dengan direktori yang disimpan/dipulihkan oleh Actions cache.
+4. Pisahkan namespace cache native menggunakan versi cache dan identitas toolchain.
+5. Jalankan validasi syntax/anchor patch lokal sebelum memicu CI. Hanya klaim lolos setelah standalone APK berhasil dibuat.
+
+### 18.4 Status verifikasi
+
+- [x] Job log dan langkah yang gagal diperiksa melalui GitHub Actions.
+- [x] Kegagalan diklasifikasikan sebagai patch-application failure, bukan compiler/cache failure.
+- [x] Ketidaksesuaian konfigurasi `CCACHE_DIR` dan cache path diidentifikasi.
+- [ ] Penyesuaian patch ChatMessageCell belum dilakukan pada catatan audit ini.
+- [ ] Workflow cache belum diperbaiki pada catatan audit ini.
+- [ ] Belum ada standalone APK pascaperbaikan.
+
+**Kesimpulan:** jangan rerun CI #148. Ia akan mengulang kegagalan deterministik yang sama. Perbaiki anchor patch dan konfigurasi cache lebih dulu, kemudian jalankan validasi patch dan satu standalone build.
