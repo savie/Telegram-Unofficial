@@ -598,6 +598,33 @@ public final class TeleBetaLocalProfileStyle {
         raise SystemExit("Could not uniquely locate local collectible apply button label.")
     peer_source = peer_source.replace(button_state_anchor, button_state_local, 1)
 
+
+
+
+    apply_user_anchor = """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (me.color == null) {"""
+    apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (isTeleBetaLocalProfileStyleEnabled()) {
+                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor, profilePage.selectedEmoji, namePage.selectedPeerCollectible, profilePage.selectedEmojiCollectible);
+                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
+                return;
+            }
+            if (me.color == null) {"""
+    if peer_source.count(apply_user_anchor) != 1:
+        raise SystemExit("Could not uniquely locate profile-style apply block.")
+    peer_source = peer_source.replace(apply_user_anchor, apply_user_local, 1)
+
+    helper_anchor = "    private boolean applyingName, applyingProfile;"
+    helper_methods = """    private boolean isTeleBetaLocalProfileStyleEnabled() {
+        return !isChannel && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
+    }
+
+    private boolean applyingName, applyingProfile;"""
+    if peer_source.count(helper_anchor) != 1:
+        raise SystemExit("Could not uniquely locate profile-style helper insertion point.")
+    peer_source = peer_source.replace(helper_anchor, helper_methods, 1)
+    peer_file.write_text(peer_source, encoding="utf-8")
+
     # Guard the actual peer-color preview renderer. A local collectible is
     # represented by sentinel -1; it must take a safe peer-color/fallback path.
     peer_color_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
@@ -663,31 +690,6 @@ public final class TeleBetaLocalProfileStyle {
             raise SystemExit("Could not locate PeerColorActivity local name-page helper anchor.")
         peer_color_source = peer_color_source.replace(local_name_helper_anchor, local_name_helper + local_name_helper_anchor, 1)
     peer_color_activity.write_text(peer_color_source, encoding="utf-8")
-
-
-    apply_user_anchor = """            final TLRPC.User me = getUserConfig().getCurrentUser();
-            if (me.color == null) {"""
-    apply_user_local = """            final TLRPC.User me = getUserConfig().getCurrentUser();
-            if (isTeleBetaLocalProfileStyleEnabled()) {
-                TeleBetaLocalProfileStyle.save(currentAccount, me.id, namePage.selectedColor, profilePage.selectedColor, profilePage.selectedEmoji, namePage.selectedPeerCollectible, profilePage.selectedEmojiCollectible);
-                NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR);
-                return;
-            }
-            if (me.color == null) {"""
-    if peer_source.count(apply_user_anchor) != 1:
-        raise SystemExit("Could not uniquely locate profile-style apply block.")
-    peer_source = peer_source.replace(apply_user_anchor, apply_user_local, 1)
-
-    helper_anchor = "    private boolean applyingName, applyingProfile;"
-    helper_methods = """    private boolean isTeleBetaLocalProfileStyleEnabled() {
-        return !isChannel && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
-    }
-
-    private boolean applyingName, applyingProfile;"""
-    if peer_source.count(helper_anchor) != 1:
-        raise SystemExit("Could not uniquely locate profile-style helper insertion point.")
-    peer_source = peer_source.replace(helper_anchor, helper_methods, 1)
-    peer_file.write_text(peer_source, encoding="utf-8")
 
 
     profile_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
