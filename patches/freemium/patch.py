@@ -602,8 +602,8 @@ public final class TeleBetaLocalProfileStyle {
     # represented by sentinel -1; it must take a safe peer-color/fallback path.
     peer_color_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
     peer_color_source = peer_color_activity.read_text(encoding="utf-8")
-    import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
-    import_anchor = "import org.telegram.messenger.UserConfig;\\n"
+    import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
+    import_anchor = "import org.telegram.messenger.UserConfig;\n"
     if import_line not in peer_color_source:
         if peer_color_source.count(import_anchor) != 1:
             raise SystemExit("Could not locate PeerColorActivity Freemium import anchor.")
