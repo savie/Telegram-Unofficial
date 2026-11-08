@@ -767,10 +767,9 @@ public final class TeleBetaLocalProfileStyle {
             f"found original={avatar_color_name_original_count}, guarded={avatar_color_name_guarded_count}."
         )
 
-    # Normalize every legacy palette index before an array lookup. In this
-    # upstream revision ChatMessageCell no longer owns the old color block;
-    # the crash-prone lookups are in LinkPreview, ReplyMessageLine and other
-    # focused UI components. Keep exact, idempotent anchors for each site.
+    # Normalize palette lookups in focused UI components that can receive
+    # local/collectible colors. ChatMessageCell's three related draw paths are
+    # guarded in a consolidated post-pass below.
     safe_color_patches = [
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Paint/Views/LinkPreview.java",
@@ -962,18 +961,56 @@ public final class TeleBetaLocalProfileStyle {
     emoji_packs_alert.write_text(packs_source, encoding="utf-8")
 
 
-    # Fix crash confirmed by R8 mapping: ChatMessageCell.drawNamesLayout()
-    # indexes a seven-entry avatar-name palette with collectible sentinel colorId=-1.
+    # Guard all three ChatMessageCell palette accesses reachable by local name
+    # collectibles. The local collectible sentinel remains -1 and must take the
+    # peer-color/fallback branch rather than indexing the seven-entry palette.
     chat_cell = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Cells/ChatMessageCell.java"
     chat_source = chat_cell.read_text(encoding="utf-8")
-    unsafe_name_color = """                    if (colorId < 7) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));"""
-    safe_name_color = """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));"""
-    if unsafe_name_color in chat_source:
-        chat_source = chat_source.replace(unsafe_name_color, safe_name_color, 1)
-    elif chat_source.count(safe_name_color) != 1:
-        raise SystemExit("Could not uniquely locate ChatMessageCell avatar-name palette guard.")
+    chat_color_patches = [
+        (
+            "drawOutboundsContent",
+            """                    if (colorId < 7) {
+                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+        ),
+        (
+            "drawNamesLayout name",
+            """                    if (colorId < 7) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+        ),
+        (
+            "drawNamesLayout forwarded name",
+            """                    if (colorId < 7) {
+                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+        ),
+    ]
+    for label, unsafe_snippet, safe_snippet in chat_color_patches:
+        unsafe_count = chat_source.count(unsafe_snippet)
+        safe_count = chat_source.count(safe_snippet)
+        if unsafe_count == 1 and safe_count == 0:
+            chat_source = chat_source.replace(unsafe_snippet, safe_snippet, 1)
+        elif unsafe_count == 0 and safe_count == 1:
+            continue
+        else:
+            raise SystemExit(
+                f"Expected one original or guarded {label} palette lookup; "
+                f"found original={unsafe_count}, guarded={safe_count}."
+            )
+
+    # Fail the patch step if any known ChatMessageCell site remains unguarded.
+    for label, unsafe_snippet, safe_snippet in chat_color_patches:
+        unsafe_count = chat_source.count(unsafe_snippet)
+        safe_count = chat_source.count(safe_snippet)
+        if unsafe_count != 0 or safe_count != 1:
+            raise SystemExit(
+                f"ChatMessageCell {label} palette guard validation failed; "
+                f"found original={unsafe_count}, guarded={safe_count}."
+            )
     chat_cell.write_text(chat_source, encoding="utf-8")
 
     # Defer ThemeActivity adapter mutations until RecyclerView has completed layout.
