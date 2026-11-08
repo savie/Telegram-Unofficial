@@ -896,3 +896,16 @@ Jalur `ChatObject.getColorId(chat)` tidak diubah karena bukan getter warna user 
 - [ ] Uji perangkat pada Change Name Color, collectible, tombol Change, dan perpindahan Profile ↔ Name.
 
 **Status:** perbaikan patcher telah di-commit. Belum dinyatakan lolos sebelum CI menerapkan patch dan standalone build selesai.
+
+
+### 20.4 Hasil CI #159 dan koreksi lanjutan
+
+CI #159 gagal pada tahap `Apply Tele-ß patches`, bukan compiler atau Android build. Penyebabnya adalah validasi lama di daftar `safe_color_patches` masih mengharapkan bentuk guard generik yang menormalisasi semua ID negatif menjadi indeks 0. Bentuk itu tidak cocok dengan guard khusus collectible lokal `-1` yang baru diterapkan.
+
+Perbaikan:
+- Validasi safety patch kini menerima guard non-negatif khusus pada `UserColorDrawable` dan `PeerColorDrawable.from()`.
+- Sentinel `-1` tetap tidak dipaksa menjadi ID warna 0; ia melewati lookup palette dan menggunakan fallback peer color.
+- Patch generik `ChatObject.getColorId(chat)` tetap menggunakan normalisasi aman tersendiri.
+- Patcher tetap menolak source yang tidak cocok dengan bentuk upstream maupun bentuk guard yang dikenal.
+
+**Status:** koreksi lanjutan sudah di-commit. CI berikutnya harus membuktikan tahap patch selesai sebelum APK build dapat dinilai.
