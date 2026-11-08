@@ -23,22 +23,21 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # Keep the existing engine generator untouched. The registry capability is
-    # added to the generated TeleBetaFreemium source through a separate,
-    # independently applied source patch in this module.
-    engine_source_path = ROOT / "patches/freemium/patch.py"
-    engine_source = engine_source_path.read_text(encoding="utf-8")
-    source_start = engine_source.index('    source = """package org.telegram.messenger;')
-    source_end = engine_source.index('\n"""', source_start)
-    template = engine_source[source_start:source_end]
+    # Locate and patch the Java class source string without changing patch.py.
+    # All edits stay in this dedicated patch module.
+    engine_file = ROOT / "patches/freemium/patch.py"
+    engine_source = engine_file.read_text(encoding="utf-8")
+    java_start = engine_source.index('    source = """package org.telegram.messenger;')
+    java_end = engine_source.index('\n"""', java_start)
+    template = engine_source[java_start:java_end]
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
     if template.count(old_feature) == 1:
         template = template.replace(old_feature, new_feature, 1)
+        engine_source = engine_source[:java_start] + template + engine_source[java_end:]
+        engine_file.write_text(engine_source, encoding="utf-8")
     elif template.count(new_feature) != 1:
-        raise SystemExit("Rich Editor feature registry template missing or ambiguous.")
-    engine_source = engine_source[:source_start] + template + engine_source[source_end:]
-    engine_source_path.write_text(engine_source, encoding="utf-8")
+        raise SystemExit("Rich Editor capability template missing or ambiguous.")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
