@@ -623,6 +623,38 @@ public final class TeleBetaLocalProfileStyle {
     if peer_source.count(helper_anchor) != 1:
         raise SystemExit("Could not uniquely locate profile-style helper insertion point.")
     peer_source = peer_source.replace(helper_anchor, helper_methods, 1)
+
+    # Local collectible name colors use -1 as a sentinel. Never pass that
+    # value into the seven-entry legacy name-color palette.
+    selected_palette = """                } else if (selectedColor < 7) {
+                    return getThemedColor(Theme.keys_avatar_nameInMessage[selectedColor]);"""
+    selected_palette_guarded = """                } else if (selectedColor >= 0 && selectedColor < Theme.keys_avatar_nameInMessage.length) {
+                    return getThemedColor(Theme.keys_avatar_nameInMessage[selectedColor]);"""
+    if peer_source.count(selected_palette_guarded) != 1:
+        if peer_source.count(selected_palette) != 1:
+            raise SystemExit("Could not uniquely locate PeerColorGrid palette lookup.")
+        peer_source = peer_source.replace(selected_palette, selected_palette_guarded, 1)
+
+    user_palette = """                int colorId = UserObject.getColorId(user);
+                if (colorId < 7) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);"""
+    user_palette_guarded = """                int colorId = UserObject.getColorId(user);
+                if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);"""
+    if peer_source.count(user_palette_guarded) != 1:
+        if peer_source.count(user_palette) != 1:
+            raise SystemExit("Could not uniquely locate UserColorDrawable palette lookup.")
+        peer_source = peer_source.replace(user_palette, user_palette_guarded, 1)
+
+    drawable_palette = """        public static PeerColorDrawable from(int currentAccount, int colorId) {
+            if (colorId < 7) {"""
+    drawable_palette_guarded = """        public static PeerColorDrawable from(int currentAccount, int colorId) {
+            if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {"""
+    if peer_source.count(drawable_palette_guarded) != 1:
+        if peer_source.count(drawable_palette) != 1:
+            raise SystemExit("Could not uniquely locate PeerColorDrawable.from palette lookup.")
+        peer_source = peer_source.replace(drawable_palette, drawable_palette_guarded, 1)
+
     peer_file.write_text(peer_source, encoding="utf-8")
 
 
@@ -647,71 +679,7 @@ public final class TeleBetaLocalProfileStyle {
     profile_activity_source = profile_activity_source.replace(profile_peer_color_anchor, profile_peer_color_local, 1)
     profile_activity.write_text(profile_activity_source, encoding="utf-8")
 
-    # Guard the actual peer-color preview renderer. A local collectible is
-    # represented by sentinel -1; it must take a safe peer-color/fallback path.
-    peer_color_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/PeerColorActivity.java"
-    peer_color_source = peer_color_activity.read_text(encoding="utf-8")
-    import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
-    import_anchor = "import org.telegram.messenger.UserConfig;\n"
-    if import_line not in peer_color_source:
-        if peer_color_source.count(import_anchor) != 1:
-            raise SystemExit("Could not locate PeerColorActivity Freemium import anchor.")
-        peer_color_source = peer_color_source.replace(import_anchor, import_anchor + import_line, 1)
 
-    # PeerColorGrid.getColor(): selectedColor -1 is a no-name-color sentinel.
-    selected_palette = """                } else if (selectedColor < 7) {
-                    return getThemedColor(Theme.keys_avatar_nameInMessage[selectedColor]);"""
-    selected_palette_guarded = """                } else if (selectedColor >= 0 && selectedColor < Theme.keys_avatar_nameInMessage.length) {
-                    return getThemedColor(Theme.keys_avatar_nameInMessage[selectedColor]);"""
-    if peer_color_source.count(selected_palette_guarded) != 1:
-        if peer_color_source.count(selected_palette) != 1:
-            raise SystemExit("Could not uniquely locate PeerColorGrid selectedColor palette lookup.")
-        peer_color_source = peer_color_source.replace(selected_palette, selected_palette_guarded, 1)
-
-    # UserColorDrawable: collectible name color is -1 and must not index the palette.
-    user_palette = """                int colorId = UserObject.getColorId(user);
-                if (colorId < 7) {
-                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);"""
-    user_palette_guarded = """                int colorId = UserObject.getColorId(user);
-                if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
-                    color = Theme.getColor(userTextColorKey = Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);"""
-    if peer_color_source.count(user_palette_guarded) != 1:
-        if peer_color_source.count(user_palette) != 1:
-            raise SystemExit("Could not uniquely locate UserColorDrawable palette lookup.")
-        peer_color_source = peer_color_source.replace(user_palette, user_palette_guarded, 1)
-
-    # PeerColorDrawable.from(): only legacy IDs 0..6 use the old palette.
-    drawable_palette = """        public static PeerColorDrawable from(int currentAccount, int colorId) {
-            if (colorId < 7) {"""
-    drawable_palette_guarded = """        public static PeerColorDrawable from(int currentAccount, int colorId) {
-            if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {"""
-    if peer_color_source.count(drawable_palette_guarded) != 1:
-        if peer_color_source.count(drawable_palette) != 1:
-            raise SystemExit("Could not uniquely locate PeerColorDrawable.from palette lookup.")
-        peer_color_source = peer_color_source.replace(drawable_palette, drawable_palette_guarded, 1)
-
-    # Local Name styling keeps Apply local; Telegram gift purchase/claim is not needed.
-    peer_button_anchor = """        public void updateButton(boolean animated) {
-            if (selectedResaleGift != null) {"""
-    peer_button_local = """        public void updateButton(boolean animated) {
-            if (selectedResaleGift != null && !isLocalNamePage()) {"""
-    if peer_color_source.count(peer_button_local) != 1:
-        if peer_color_source.count(peer_button_anchor) != 1:
-            raise SystemExit("Could not uniquely locate PeerColorActivity gift button state.")
-        peer_color_source = peer_color_source.replace(peer_button_anchor, peer_button_local, 1)
-
-    local_name_helper_anchor = "    public static final int PAGE_NAME = 1;"
-    local_name_helper = """    private boolean isLocalNamePage() {
-        return !isChannel && dialogId == getUserConfig().getClientUserId()
-                && TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.CUSTOM_UI);
-    }
-
-"""
-    if "private boolean isLocalNamePage()" not in peer_color_source:
-        if peer_color_source.count(local_name_helper_anchor) != 1:
-            raise SystemExit("Could not locate PeerColorActivity local name-page helper anchor.")
-        peer_color_source = peer_color_source.replace(local_name_helper_anchor, local_name_helper + local_name_helper_anchor, 1)
-    peer_color_activity.write_text(peer_color_source, encoding="utf-8")
 
 
     
