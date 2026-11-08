@@ -943,3 +943,65 @@ Ketiga jalur mengasumsikan daftar warna selalu tersedia dan tidak kosong. Patch 
 - [ ] Jika masih crash, ambil Logcat mulai dari baris `FATAL EXCEPTION` sampai seluruh stack trace; potongan log sebelumnya tidak memuat exception.
 
 **Status:** defensive fix telah masuk ke `patches/freemium/patch.py` pada commit `eee522f`. Belum dinyatakan selesai sebelum CI dan pengujian perangkat membuktikannya.
+
+
+### 20.7 Koreksi hasil Logcat dan perbaikan crash terpetakan — 8 November 2026
+
+Koreksi atas catatan 20.6: Logcat yang diterima **memuat FATAL EXCEPTION**. Pernyataan sebelumnya bahwa log tidak memuat FATAL adalah keliru. Investigasi dilanjutkan memakai R8 mapping artifact dari standalone build yang berhasil, lalu mencocokkan nama kelas/metode obfuscated dengan source vendored.
+
+#### Crash A — ChatMessageCell palette index negatif
+
+Stack trace:
+```
+ArrayIndexOutOfBoundsException: length=7; index=-1
+org.telegram.ui.Cells.u1.W1(...)
+org.telegram.ui.Cells.u1.S1(...)
+org.telegram.ui.Cells.u1.onDraw(...)
+```
+
+Hasil pemetaan R8:
+- `org.telegram.ui.Cells.u1` → `org.telegram.ui.Cells.ChatMessageCell`.
+- `W1` pada baris obfuscated 64 → `ChatMessageCell.drawNamesLayout()`, source line 22125.
+- `S1` pada baris obfuscated 1242 → `ChatMessageCell.drawInternal()`, source line 20341.
+
+Source line 22125 mengakses `Theme.keys_avatar_nameInMessage[colorId]` setelah hanya memeriksa `colorId < 7`. Sentinel `colorId == -1` lolos dari kondisi tersebut dan mengindeks array tujuh elemen pada indeks negatif. Ini cocok langsung dengan exception `length=7; index=-1`.
+
+Perbaikan patch:
+- Kondisi sekarang mensyaratkan `colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length`.
+- Nilai negatif masuk ke fallback peer-color; bila tidak ada peer color, nama memakai warna forwarded-name default.
+- Perbaikan dimasukkan ke `patches/freemium/patch.py`, bukan edit manual source hasil build.
+
+#### Crash B — ThemeActivity mengubah adapter saat RecyclerView layout
+
+Stack trace menunjukkan:
+```
+IllegalStateException: Cannot call this method while RecyclerView is computing a layout or scrolling
+RecyclerView adapter: org.telegram.ui.sc1
+org.telegram.ui.ThemeActivity.A0(...)
+org.telegram.ui.ThemeActivity.U(...)
+MessagesController.lambda$getContentSettings$504(...)
+```
+
+Hasil pemetaan R8:
+- `ThemeActivity.A0` → `ThemeActivity.updateRows(boolean)`.
+- `ThemeActivity.U` → lambda callback `createView` untuk `getContentSettings(...)`.
+
+Callback tersebut sebelumnya memanggil `listAdapter.notifyItemChanged(...)` atau `updateRows(true)` langsung ketika hasil `getContentSettings` diterima. Kedua jalur dapat memutasi adapter saat RecyclerView masih menghitung layout.
+
+Perbaikan patch:
+- Callback menangkap `RecyclerListView` yang aktif lalu menjadwalkan perubahan melalui `targetList.post(...)`.
+- Runnable memeriksa ulang bahwa list yang sama masih terpasang, attached, dan adapter masih tersedia sebelum memanggil notifikasi adapter atau `updateRows(true)`.
+- Perubahan dimasukkan ke `patches/freemium/patch.py` dengan validasi anchor tunggal dan dukungan bentuk yang sudah ter-patch.
+
+#### Status verifikasi
+
+- [x] R8 mapping mengidentifikasi kelas dan metode sumber untuk crash `ArrayIndexOutOfBoundsException`.
+- [x] Kondisi indeks negatif pada `ChatMessageCell.drawNamesLayout()` diperbaiki di patcher.
+- [x] Jalur callback `ThemeActivity.getContentSettings()` ditunda sampai setelah siklus layout RecyclerView.
+- [x] Kedua perubahan disimpan di patcher repository.
+- [ ] Jalankan workflow CI berikutnya: tahap `Apply Tele-ß patches` harus sukses.
+- [ ] Standalone APK harus berhasil dibangun.
+- [ ] Uji perangkat untuk render pesan/nama collectible dan buka halaman Chat Settings/Theme Settings untuk memicu callback content settings.
+- [ ] Verifikasi tidak ada lagi kedua FATAL tersebut pada Logcat sesudah APK baru dipasang.
+
+**Status:** source-level root cause untuk dua crash telah ditemukan dan patch telah ditambahkan. Belum dinyatakan selesai atau lolos runtime sampai CI dan uji perangkat membuktikannya. Defensive patch collectible pada 20.6 merupakan hardening terpisah; bukan penyebab yang telah dibuktikan untuk crash A.
