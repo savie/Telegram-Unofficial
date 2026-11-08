@@ -132,14 +132,6 @@ jobs:
           }
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
-      - name: Restore C++ compilation cache
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-ndk27-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: |
-            ccache-ndk27-${{ runner.os }}-
-
       - name: Set up ccache
         shell: bash
         run: |
@@ -150,6 +142,8 @@ jobs:
           ccache --set-config=max_size=5G
           ccache --set-config=compression=true
           ccache --set-config=compiler_check=content
+          mkdir -p "$RUNNER_TEMP/telebeta-native-cache"
+          ccache --set-config=cache_dir="$RUNNER_TEMP/telebeta-native-cache"
           ccache --zero-stats
           echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
           echo "CMAKE_C_COMPILER_LAUNCHER=ccache" >> "$GITHUB_ENV"
@@ -160,6 +154,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+
+      - name: Restore fingerprinted native object cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/telebeta-native-cache
+          key: telebeta-native-v1-${{ runner.os }}-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
+          restore-keys: |
+            telebeta-native-v1-${{ runner.os }}-
 
       - name: Apply Tele-ß patches
         env:
@@ -188,12 +190,6 @@ jobs:
           ./gradlew --no-daemon --build-cache --parallel \
             :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
             :TMessagesProj_AppStandalone:assembleAfatStandalone
-
-      - name: Save updated C++ compilation cache
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/ccache
-          key: ccache-ndk27-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Remove previous C++ compilation cache snapshots
         env:
@@ -240,6 +236,13 @@ jobs:
           fi
           echo "===== CHECKOUT SOURCE STATUS ====="
           git status --short
+
+      - name: Save fingerprinted native object cache
+        if: success()
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/telebeta-native-cache
+          key: telebeta-native-v1-${{ runner.os }}-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
 
       - name: Prepare R8 mapping artifact
         shell: bash
