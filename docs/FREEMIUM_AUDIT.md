@@ -1079,21 +1079,23 @@ Catatan penting: `RichEditorToolbar.addFormattingButton(..., premium)` hanya men
 - `FileRefController` dapat meminta `TL_iv.getRichMessage` untuk refresh rich article yang membutuhkan file reference. Ini adalah jalur refresh referensi media, bukan bukti seluruh operasi update/edit Rich Article selesai ditelusuri.
 - Scheduled Rich Article diproses melalui `prepareSendingArticle(..., scheduleDate, ...)`; edit Rich Article memakai helper terpisah. Ini jangan dicampur dengan ordinary scheduled text/media entity flow.
 
-#### 16.16.5 Keputusan arsitektur implementasi Tahap 3
+#### 16.16.5 Keputusan arsitektur implementasi Tahap 3 — DIKOREKSI
 
-**Batas tegas:** jangan meng-unlock seluruh `RichEditor`, jangan mengubah `UserConfig.isPremium()`, jangan memalsukan `TLRPC.User.premium`, jangan mengubah `richEditorAllowed()`, dan jangan memaksa request rich article/checklist ke Telegram.
+**Target Tahap 3 adalah membuka Formatting Tools pada Rich Editor yang sudah tersedia, menggunakan entitlement Freemium Tele-ß. Bukan membuat toolbar baru dan bukan mengganti target menjadi composer pesan biasa.**
 
-Implementasi yang disetujui untuk dirancang terlebih dahulu adalah **Formatting Native Tele-ß pada composer pesan biasa**, bukan menghapus paywall Rich Article. Scope awal:
+1. Pertahankan `RichEditor`, `RichEditorToolbar`, selection helper, block editor, preview, draft, dan send pipeline yang sudah ada.
+2. Tambahkan capability Freemium Rich Editor ke registry Tele-ß (registry saat ini belum memiliki feature key tersebut).
+3. Hubungkan entitlement lokal ke gate Premium spesifik yang ditemukan pada entry point, toolbar premium lock, send lock, preview, dan conversion sheet.
+4. Jangan mengubah `UserConfig.isPremium()`, `TLRPC.User.premium`, native premium identity, atau callback gift Telegram.
+5. Jangan mengubah `richEditorAllowed()` sebelum definisi dan fungsinya terverifikasi. Pertahankan app-config/protocol availability, `RestrictedRights`, content limits, dan server rejection.
+6. Ordinary `TLRPC.MessageEntity` tetap dipakai pada composer biasa dan fallback konversi agar interoperabilitas terjaga. Itu bukan pengganti target Rich Editor.
+7. Bila server menolak Rich Article/block untuk akun non-Premium, jangan mengklaim unlock berhasil. Sediakan fallback atau alternatif Tele-ß yang benar-benar berfungsi tanpa kehilangan konten.
 
-1. Bold, italic, underline, strikethrough, spoiler, monospace/code, dan text URL/link menggunakan ordinary `TLRPC.MessageEntity`.
-2. Formatting bekerja pada text composer standar, dengan selection-aware toggle dan state toolbar yang tidak merusak span/entity yang sudah ada.
-3. Pakai `MediaDataController.getEntities(...)` dan jalur `SendMessagesHelper` yang sudah memasukkan entities pada `TL_messages_sendMessage`, edit message, dan jalur schedule yang telah diverifikasi.
-4. Draft lokal harus menyimpan teks + entities dan dipulihkan setelah restart; pengiriman draft server tetap mengikuti mekanisme resmi.
-5. Custom emoji, mention, blockquote, code language highlighting, formatted date, TON address, media caption, story caption, checklist, Rich Article, dan rich inline buttons tetap di luar scope awal sampai tes khusus lulus.
-6. Jangan melakukan migrasi otomatis Rich Draft ke simple draft tanpa konfirmasi eksplisit jika `isLossy()` menunjukkan ada format/block yang akan hilang.
-7. Bila pengguna memilih fitur advanced Rich Article dari entry point yang tersedia, pertahankan alur upstream dan conversion sheet yang sekarang. Local grant tidak menggantikan server entitlement.
+**Pemetaan tombol yang sudah diverifikasi pada `RichEditorToolbar`:** Bold, Italic, Underline, Strikethrough, Spoiler, dan Monospace dibuat tanpa premium decoration; Subscript dan Superscript ditandai premium. Math dan beberapa block controls juga masuk `premiumButtons`. Link, Quote, Date, Inline Button, AI Style, dan block controls lain harus diklasifikasikan dari gate/aksi masing-masing, bukan disamaratakan.
 
-**Catatan UI/arsitektur:** kontrol Rich Editor saat ini melekat pada selection helper dan `RichTextCell` / `RichEditorListView`, bukan toolbar composer biasa. Untuk Native Formatting dibutuhkan adapter UI baru di composer standar atau re-use yang terisolasi; jangan sekadar menambahkan feature key ke `premiumButtons` karena itu hanya mengubah lock decoration toolbar rich. Implementasi harus memastikan entity offsets mengikuti UTF-16 index Android, termasuk emoji/surrogate pair dan transformasi Markdown, serta tidak tumpang tindih secara invalid.
+**Gate utama yang harus ditelusuri dan dihubungkan ke Freemium:** `RichEditor.updatePremiumButtons()`, `RichEditor.isSendLocked()`, `RichEditor.showConversionSheet()`, `ChatAttachAlertRichLayout.updateSendButtonLocked()`, dan `ChatAttachAlertRichLayout.showSendPreview()`. Khusus `showSendPreview()`, source saat ini memiliki pemeriksaan langsung `UserConfig.isPremium()` yang menampilkan `PremiumFeatureBottomSheet`.
+
+**Catatan:** audit ini belum menemukan definisi `MessagesController.richEditorAllowed()`. Jangan menganggap method itu sama dengan Premium entitlement sebelum definisi dan sumber nilainya ditemukan.
 
 #### 16.16.6 Rencana uji implementasi wajib
 
@@ -1112,9 +1114,9 @@ Implementasi yang disetujui untuk dirancang terlebih dahulu adalah **Formatting 
 
 #### 16.16.7 Kesiapan dan blocker tersisa
 
-**Status audit:** source-level audit untuk pemisahan ordinary formatting vs Rich Article, toolbar/editor controls, checklist model, local/server draft write path, rich article edit/send/render telah cukup untuk menetapkan arsitektur dan scope implementasi Native awal. Tidak ada lagi alasan untuk menahan rancangan Native Formatting hanya karena semua jalur Rich Article belum selesai.
+**Status audit:** penelusuran menemukan gate Premium pada Rich Editor yang sudah ada, tetapi keputusan sebelumnya salah mengalihkan sasaran ke composer biasa dan menyatakan perlu membuat toolbar baru. Kesimpulan tersebut dicabut. Definisi `richEditorAllowed()` dan seluruh gate Premium pada preview/send/conversion masih perlu dipastikan sebelum patch.
 
-**Status implementasi:** **SIAP MASUK IMPLEMENTASI TERBATAS — Formatting Native Tele-ß pada composer biasa saja.** Bukan persetujuan membuka Rich Editor/Rich Article atau checklist penuh.
+**Status implementasi:** **BELUM SIAP COMMIT.** Arah implementasi sudah benar: hubungkan entitlement Freemium Tele-ß ke gate Premium lokal pada Rich Editor yang sudah ada. Tidak membuat toolbar baru.
 
 Sebelum mengklaim implementasi final, tetap wajib:
 - temukan dan dokumentasikan definisi asli `MessagesController.richEditorAllowed()` dari checkout/build source yang sama bila Rich Article akan disentuh;
@@ -1125,3 +1127,31 @@ Sebelum mengklaim implementasi final, tetap wajib:
 
 **Kesimpulan Tahap 3:** audit tidak merekomendasikan "membuka Premium Rich Editor". Rekomendasinya adalah mengimplementasikan Formatting Native Tele-ß pada ordinary composer dengan entity standar. Checklist, block editor, Rich Article, media-rich article, AI tools, dan advanced formatting tetap jalur terpisah.
 
+
+## 21. Koreksi arah produk dan Tahap 3 — 8 November 2026
+
+### 21.1 Tujuan produk
+
+Target Tele-ß adalah menjadikan seluruh capability Telegram Premium dan Telegram Business yang masuk roadmap tersedia sebagai Freemium Tele-ß tanpa mewajibkan langganan Telegram Premium. Implementasi dipilih per capability: membuka gate Premium client yang spesifik, menggunakan kemampuan lokal yang sudah tersedia, atau membangun alternatif native/local/provider Tele-ß untuk fungsi yang dikendalikan server. Entitlement akun Telegram tidak boleh dipalsukan. Jika operasi Telegram native ditolak server, capability belum selesai: harus ada alternatif Tele-ß yang berfungsi atau blocker yang dinyatakan jelas; sekadar membuka tombol tidak dihitung selesai.
+
+### 21.2 Koreksi hasil audit Rich Editor
+
+Pernyataan sebelumnya bahwa toolbar belum ada dan perlu dibuat pada composer biasa adalah salah. Source membuktikan toolbar Rich Editor sudah tersedia dan tombolnya terhubung ke operasi editor. Bold, Italic, Underline, Strikethrough, Spoiler, dan Monospace dibuat tanpa premium decoration; Subscript dan Superscript ditandai premium. Math dan beberapa block controls juga dimasukkan ke daftar premium buttons. Di sisi lain, editor/send flow masih memiliki gate Premium yang terpisah: `updatePremiumButtons()`, `isSendLocked()`, `showConversionSheet()`, `updateSendButtonLocked()`, dan `showSendPreview()`; yang terakhir memeriksa `UserConfig.isPremium()` secara langsung dan menampilkan paywall.
+
+Karena itu Tahap 3 bukan pembuatan fitur formatting baru. Pekerjaan utamanya adalah audit dan penggantian gate Premium lokal dengan capability Freemium Tele-ß pada Rich Editor yang sudah ada, tanpa mengubah identitas Premium akun Telegram.
+
+### 21.3 Batas teknis
+
+Definisi `MessagesController.richEditorAllowed()` belum ditemukan pada source yang berhasil diverifikasi. Jangan mengubahnya secara membabi buta. Telusuri apakah ia merupakan app-config/protocol availability gate atau bagian dari entitlement. Pertahankan `RestrictedRights`, content limits, dan server rejection. `UserConfig.isPremium()`, `TLRPC.User.premium`, native premium identity, dan gift/payment callbacks Telegram tidak boleh dipalsukan. Jika server menolak payload Rich Article untuk akun non-Premium, implementasikan fallback atau alternatif Tele-ß yang berfungsi.
+
+### 21.4 Urutan kerja Tahap 3
+
+1. Audit entry point yang membuka Rich Editor dan gate Premium-nya.
+2. Audit semua `premiumButtons` dan pemetaan tombol/aksi yang sudah ada.
+3. Audit `updatePremiumButtons`, `updateSendButtonLocked`, `isSendLocked`, `showSendPreview`, dan `showConversionSheet`.
+4. Tambahkan capability Rich Editor ke registry Tele-ß yang saat ini belum memilikinya, lalu hubungkan hanya ke gate Premium lokal yang terverifikasi.
+5. Pertahankan app-config/protocol restrictions, limit editor, dan server error handling.
+6. Validasi patch secara lokal, commit ke `master`, lalu lanjutkan bagian berikutnya ketika CI tidak menunjukkan error/merah dan sudah mencapai tahap Build Standalone APK.
+7. Setelah APK tersedia, uji akun non-Premium untuk formatting, send/preview, draft/restart, edit, scheduled, receive/render, dan regresi Rich Article.
+
+**Status koreksi:** arah audit dan implementasi Tahap 3 sudah diluruskan. Belum ada perubahan source aplikasi dalam commit dokumentasi ini.
