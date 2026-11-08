@@ -436,9 +436,6 @@ public class GiveawayResultsMessageCell {
         }
         final int color;
         int colorId = UserObject.getColorId(user);
-        if (colorId < 0) {
-            colorId = 0;
-        }
         if (colorId < 7) {
             color = Theme.getColor(Theme.keys_avatar_nameInMessage[colorId], resourcesProvider);
         } else {
