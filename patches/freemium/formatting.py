@@ -22,9 +22,8 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
     return _replace_once(source, anchor, anchor + import_line, label + " import")
 
 
-def apply_rich_editor_freemium() -> None:
-    # This patch executes before apply_freemium() and only adjusts the
-    # TeleBetaFreemium Java source template in memory for that invocation.
+def patch_freemium_template():
+    """Return an isolated apply_freemium function with RICH_EDITOR added."""
     engine_module = ROOT / "patches/freemium/patch.py"
     engine_source = engine_module.read_text(encoding="utf-8")
     java_start = engine_source.index('    source = """package org.telegram.messenger;')
@@ -32,32 +31,19 @@ def apply_rich_editor_freemium() -> None:
     template = engine_source[java_start:java_end]
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if template.count(old_feature) != 1:
+    if template.count(old_feature) == 1:
+        template = template.replace(old_feature, new_feature, 1)
+    elif template.count(new_feature) != 1:
         raise SystemExit("Rich Editor capability template missing or ambiguous.")
-    template = template.replace(old_feature, new_feature, 1)
     engine_source = engine_source[:java_start] + template + engine_source[java_end:]
-
-    # The imported function itself stays isolated in formatting.py; patch.py is
-    # deliberately not modified on disk. Execute its original generator with a
-    # one-invocation wrapper that supplies the extended source template.
     namespace = {}
     exec(compile(engine_source, str(engine_module), "exec"), namespace)
-    original_apply = namespace["apply_freemium"]
-    def apply_freemium_with_rich_editor():
-        namespace["apply_freemium"] = original_apply
-        # Run the original generator, then extend its generated Java enum.
-        original_apply()
-        engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
-        java = engine_file.read_text(encoding="utf-8")
-        if java.count(new_feature) == 1:
-            return
-        if java.count(old_feature) != 1:
-            raise SystemExit("Generated TeleBetaFreemium feature registry is unknown.")
-        engine_file.write_text(java.replace(old_feature, new_feature, 1), encoding="utf-8")
+    return namespace["apply_freemium"]
 
-    # apply.py calls apply_freemium() before this patch; the template is applied
-    # by setting the generated class directly in the wrapper only in this task.
-    apply_freemium_with_rich_editor()
+
+def apply_rich_editor_freemium() -> None:
+    # This module owns a wrapped generator; patches/freemium/patch.py is read-only.
+    patch_freemium_template()()
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
