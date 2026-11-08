@@ -815,3 +815,40 @@ Fingerprint native juga harus dipisahkan berdasarkan versi toolchain/format cach
 - [ ] Belum ada standalone APK pascaperbaikan.
 
 **Kesimpulan:** jangan rerun CI #148. Ia akan mengulang kegagalan deterministik yang sama. Perbaiki anchor patch dan konfigurasi cache lebih dulu, kemudian jalankan validasi patch dan satu standalone build.
+
+
+---
+
+## 19. Analisis crash Change Name Color pada CI #150 — 8 November 2026
+
+**APK:** `tele-ß_150`  
+**Run:** [42445783528](https://github.com/savie/Telegram-Unofficial/actions/runs/42445783528)  
+**Exception fatal:** `ArrayIndexOutOfBoundsException: length=7; index=-1` pada `onDraw()`.
+
+### 19.1 Diagnosis
+
+Crash bukan berasal dari MIUI hidden API, TurboSchedMonitor, atau ashmem. Penyebab langsung adalah nilai sentinel `-1` dipakai sebagai indeks palette tujuh warna.
+
+Alur yang terkonfirmasi di source:
+1. `UserObject.getColorId(user)` telah diubah agar collectible lokal mengembalikan `-1`.
+2. `PeerColorActivity.PeerColorGrid.getColor()` menggunakan kondisi `selectedColor < 7`; nilai `-1` ikut masuk ke `Theme.keys_avatar_nameInMessage[selectedColor]`.
+3. `UserColorDrawable` memakai kondisi `colorId < 7` dan mengindeks array yang sama.
+4. `PeerColorDrawable.from(currentAccount, colorId)` juga memakai kondisi `colorId < 7`.
+5. Semuanya berada di jalur layar Change Name Color, konsisten dengan reproduksi pengguna saat memilih collectible atau berpindah tab.
+
+### 19.2 Perbaikan pada patcher
+
+- Kondisi palette diubah menjadi rentang eksplisit `0 <= id < Theme.keys_avatar_nameInMessage.length`.
+- Sentinel negatif tidak lagi memasuki palette lookup; jalur fallback/peer color dipakai.
+- Tombol Apply pada Name page lokal dipisahkan dari state resale/gift purchase.
+- Perubahan berada di `patches/freemium/patch.py`; tidak menulis perubahan langsung ke source upstream.
+
+### 19.3 Validasi
+
+- [x] Exception fatal dan sentinel `-1` teridentifikasi.
+- [x] Tiga palette lookup pada `PeerColorActivity` ditelusuri.
+- [ ] Patcher diuji terhadap workspace bersih dan diuji idempotensinya.
+- [ ] Standalone build berikutnya harus lolos.
+- [ ] Uji perangkat: buka Change Name Color, pilih warna biasa 0–6, pilih collectible, tekan Change, berpindah Profile ↔ Name dan scroll gift list.
+
+**Status:** akar crash teridentifikasi dan guard telah ditambahkan ke patcher. Belum dinyatakan selesai sebelum standalone build dan uji perangkat lolos.
