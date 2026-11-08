@@ -23,19 +23,18 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # apply_freemium() creates this class before this patch is invoked.
-    # Extend the generated local registry without changing the old generator.
-    engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
-    if not engine_file.exists():
-        raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
-    engine_java = engine_file.read_text(encoding="utf-8")
+    # Update the existing generator's Java template. This runs before
+    # apply_freemium() writes the generated Java class, so no generated file
+    # needs to exist in the repository checkout.
+    engine_patch = ROOT / "patches/freemium/patch.py"
+    engine_source = engine_patch.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if engine_java.count(old_feature) == 1:
-        engine_java = engine_java.replace(old_feature, new_feature, 1)
-        engine_file.write_text(engine_java, encoding="utf-8")
-    elif engine_java.count(new_feature) != 1:
-        raise SystemExit("Generated TeleBetaFreemium feature registry anchor missing or ambiguous.")
+    if engine_source.count(old_feature) == 1:
+        engine_source = engine_source.replace(old_feature, new_feature, 1)
+        engine_patch.write_text(engine_source, encoding="utf-8")
+    elif engine_source.count(new_feature) != 1:
+        raise SystemExit("Rich Editor feature registry template missing or ambiguous.")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
