@@ -692,6 +692,8 @@ public final class TeleBetaLocalProfileStyle {
     peer_color_activity.write_text(peer_color_source, encoding="utf-8")
 
 
+
+
     profile_activity = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ProfileActivity.java"
     profile_activity_source = profile_activity.read_text(encoding="utf-8")
     profile_style_import = "import org.telegram.messenger.TeleBetaLocalProfileStyle;\n"
