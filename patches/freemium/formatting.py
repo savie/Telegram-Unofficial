@@ -16,12 +16,6 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> str:
-    if import_line in source:
-        return source
-    return _replace_once(source, anchor, anchor + import_line, label + " import")
-
-
 def apply_rich_editor_freemium() -> None:
     # apply_freemium() already generated this class earlier in the orchestrator.
     engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
