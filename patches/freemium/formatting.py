@@ -22,28 +22,19 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
     return _replace_once(source, anchor, anchor + import_line, label + " import")
 
 
-def patch_freemium_template():
-    """Return an isolated apply_freemium function with RICH_EDITOR added."""
-    engine_module = ROOT / "patches/freemium/patch.py"
-    engine_source = engine_module.read_text(encoding="utf-8")
-    java_start = engine_source.index('    source = """package org.telegram.messenger;')
-    java_end = engine_source.index('\n"""', java_start)
-    template = engine_source[java_start:java_end]
+def apply_rich_editor_freemium() -> None:
+    # apply_freemium() already generated this class earlier in the orchestrator.
+    engine_file = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
+    if not engine_file.exists():
+        raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
+    engine_java = engine_file.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if template.count(old_feature) == 1:
-        template = template.replace(old_feature, new_feature, 1)
-    elif template.count(new_feature) != 1:
-        raise SystemExit("Rich Editor capability template missing or ambiguous.")
-    engine_source = engine_source[:java_start] + template + engine_source[java_end:]
-    namespace = {}
-    exec(compile(engine_source, str(engine_module), "exec"), namespace)
-    return namespace["apply_freemium"]
-
-
-def apply_rich_editor_freemium() -> None:
-    # This module owns a wrapped generator; patches/freemium/patch.py is read-only.
-    patch_freemium_template()()
+    if engine_java.count(old_feature) == 1:
+        engine_java = engine_java.replace(old_feature, new_feature, 1)
+        engine_file.write_text(engine_java, encoding="utf-8")
+    elif engine_java.count(new_feature) != 1:
+        raise SystemExit("Generated TeleBetaFreemium feature registry anchor missing or ambiguous.")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
