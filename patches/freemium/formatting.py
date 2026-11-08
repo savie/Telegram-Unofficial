@@ -23,8 +23,8 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 
 
 def apply_rich_editor_freemium() -> None:
-    # Add the capability to the existing Freemium engine source template.
-    # Keep patch.py untouched; use its generated Java class exactly once.
+    # Add the capability to the generated Java source while keeping the
+    # existing Freemium patch file unchanged.
     engine_source = ENGINE_PATCH.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
