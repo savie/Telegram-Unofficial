@@ -4,6 +4,7 @@ Adds a device-local task queue around Telegram FileLoader. It does not change
 Telegram account entitlements, server byte budgets, or network throughput.
 """
 from pathlib import Path
+import re
 
 ROOT = Path(".")
 
