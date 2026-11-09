@@ -636,7 +636,7 @@ public final class TeleBetaLocalDownloadManager {
 
     loader = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java"
     loader_source = loader.read_text(encoding="utf-8")
-    lookup_anchor = "    public boolean isLoadingFile(final String fileName) {\\n"
+    lookup_anchor = "    public boolean isLoadingFile(final String fileName) {\n"
     lookup_add = """    public FileLoadOperation getLoadOperation(final String fileName) {
         return fileName == null ? null : loadOperationPaths.get(fileName);
     }
