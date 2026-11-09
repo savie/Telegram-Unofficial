@@ -534,7 +534,7 @@ public final class TeleBetaLocalDownloadManager {
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
                 .setTitle("Local Download Manager");
         if (labels.length == 0) {
-            builder.setMessage("No managed downloads yet. Use a message menu and choose Add to Local Download Manager.");
+            builder.setMessage("No managed downloads yet. Use a file's Download button in chat or shared media to add it.");
         } else {
             builder.setItems(labels, (dialog, which) -> {
                 if (which < 0 || which >= tasks.size()) return;
@@ -733,22 +733,6 @@ public final class TeleBetaLocalDownloadManager {
             TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);"""
     downloads_source = downloads_source.replace(projection_anchor, projection)
 
-    # Expose the local manager directly from Telegram's Downloads screen.
-    # Preserve the upstream Downloads settings action when the local feature is off.
-    manager_entry_anchor = """                } else if (position == recentFilesHeader) {
-                    graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
-                            view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
-                    );
-                }
-"""
-    manager_entry_new = """                } else if (position == recentFilesHeader) {
-                    graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
-                            view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
-                    );
-                }
-"""
-    if manager_entry_new not in downloads_source:
-        downloads_source = _replace_once(downloads_source, manager_entry_anchor, manager_entry_new, "Downloads local manager entry point")
     downloads_source = _replace_once(
         downloads_source,
         "    int rowCount;\n",
