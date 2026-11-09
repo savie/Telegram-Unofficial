@@ -48,6 +48,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -504,33 +505,65 @@ public final class TeleBetaLocalDownloadManager {
         fragment.showDialog(builder.create());
     }
 
+    private static void styleSettingsInput(EditText input, Theme.ResourcesProvider resourcesProvider) {
+        input.setSingleLine(true);
+        input.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
+        input.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint, resourcesProvider));
+        input.setBackground(Theme.createEditTextDrawable(input.getContext(), true));
+        input.setPadding(AndroidUtilities.dp(4), AndroidUtilities.dp(8),
+                AndroidUtilities.dp(4), AndroidUtilities.dp(8));
+        input.setTextSize(16);
+    }
+
+    private static void addSettingsField(LinearLayout layout, Context context, String label,
+            EditText input, Theme.ResourcesProvider resourcesProvider) {
+        TextView title = new TextView(context);
+        title.setText(label);
+        title.setTextSize(13);
+        title.setTextColor(Theme.getColor(Theme.key_dialogTextGray2, resourcesProvider));
+        layout.addView(title, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams spacer = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, AndroidUtilities.dp(14));
+        layout.addView(new android.view.View(context), spacer);
+    }
+
     private static void showSettings(BaseFragment fragment, TeleBetaLocalDownloadManager manager, Theme.ResourcesProvider resourcesProvider) {
-        EditText wifiOnly = new EditText(fragment.getContext());
-        wifiOnly.setSingleLine(true);
-        wifiOnly.setHint("Wi-Fi only: true / false");
+        Context context = fragment.getContext();
+        EditText wifiOnly = new EditText(context);
+        wifiOnly.setHint("true / false");
         wifiOnly.setText(String.valueOf(manager.isWifiOnly()));
-        EditText parallel = new EditText(fragment.getContext());
-        parallel.setSingleLine(true);
-        parallel.setHint("Maximum parallel downloads (1–4)");
+        styleSettingsInput(wifiOnly, resourcesProvider);
+
+        EditText parallel = new EditText(context);
+        parallel.setHint("1–4");
         parallel.setText(String.valueOf(manager.getMaxParallel()));
-        EditText schedule = new EditText(fragment.getContext());
-        schedule.setSingleLine(true);
-        schedule.setHint("Default schedule delay in minutes (0 = now)");
-        schedule.setText("0");
-        LinearLayout layout = new LinearLayout(fragment.getContext());
+        styleSettingsInput(parallel, resourcesProvider);
+
+        EditText schedule = new EditText(context);
+        schedule.setHint("0 = start immediately");
+        schedule.setText(String.valueOf(manager.getDefaultScheduleDelayMinutes()));
+        styleSettingsInput(schedule, resourcesProvider);
+
+        LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);
         int pad = AndroidUtilities.dp(20);
         layout.setPadding(pad, pad, pad, 0);
-        layout.addView(wifiOnly);
-        layout.addView(parallel);
-        layout.addView(schedule);
-        AlertDialog dialog = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
+        addSettingsField(layout, context, "Wi-Fi only", wifiOnly, resourcesProvider);
+        addSettingsField(layout, context, "Maximum parallel downloads", parallel, resourcesProvider);
+        addSettingsField(layout, context, "Default schedule delay (minutes)", schedule, resourcesProvider);
+
+        AlertDialog dialog = new AlertDialog.Builder(context, resourcesProvider)
                 .setTitle("Download settings")
                 .setView(layout)
                 .setPositiveButton("Save", (d, w) -> {
                     manager.setWifiOnly(Boolean.parseBoolean(wifiOnly.getText().toString().trim()));
-                    try { manager.setMaxParallel(Integer.parseInt(parallel.getText().toString().trim())); }
-                    catch (NumberFormatException ignored) {}
+                    try {
+                        int count = Integer.parseInt(parallel.getText().toString().trim());
+                        manager.setMaxParallel(count);
+                    } catch (NumberFormatException ignored) {}
                     try {
                         long delay = Math.max(0, Long.parseLong(schedule.getText().toString().trim()));
                         manager.setDefaultScheduleDelayMinutes(delay);
