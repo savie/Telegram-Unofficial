@@ -4,6 +4,7 @@ Creates on-device reply templates and inserts their text into the chat composer.
 Does not use Telegram Business Quick Replies RPC.
 """
 from pathlib import Path
+import re
 
 ROOT = Path(".")
 
@@ -20,13 +21,15 @@ def apply_local_quick_replies() -> None:
     if not engine.exists():
         raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_source = engine.read_text(encoding="utf-8")
-    old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
-    new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, LOCAL_QUICK_REPLIES }"
-    if old_feature in engine_source:
-        engine_source = _replace_once(engine_source, old_feature, new_feature, "Freemium feature registry")
+    enum_match = re.search(r"public\\s+enum\\s+Feature\\s*\\{([^}]*)\\}", engine_source)
+    if enum_match is None:
+        raise SystemExit("Could not locate the Freemium Feature enum.")
+    feature_names = [name.strip() for name in enum_match.group(1).split(",") if name.strip()]
+    if "LOCAL_QUICK_REPLIES" not in feature_names:
+        feature_names.append("LOCAL_QUICK_REPLIES")
+        replacement = "public enum Feature { " + ", ".join(feature_names) + " }"
+        engine_source = engine_source[:enum_match.start()] + replacement + engine_source[enum_match.end():]
         engine.write_text(engine_source, encoding="utf-8")
-    elif engine_source.count(new_feature) != 1:
-        raise SystemExit("LOCAL_QUICK_REPLIES registry state is unknown.")
 
     helper = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaLocalQuickReplies.java"
     if helper.exists():
