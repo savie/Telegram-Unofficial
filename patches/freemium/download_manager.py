@@ -248,7 +248,7 @@ public final class TeleBetaLocalDownloadManager {
         if (task == null || task.status == STATUS_COMPLETED) return;
         task.status = STATUS_PAUSED;
         persist();
-        FileLoadOperation operation = findOperation(fileName);
+        FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(fileName);
         if (operation != null) {
             FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(operation::pause);
         }
@@ -275,10 +275,7 @@ public final class TeleBetaLocalDownloadManager {
         if (task == null) return;
         task.priority = Math.max(0, Math.min(3, priority));
         persist();
-        FileLoadOperation operation = findOperation(fileName);
-        if (operation != null) {
-            FileLoader.getInstance(account).changePriority(priorityToLoader(task.priority), task.toDocument(), null, null, null, null, null);
-        }
+        FileLoader.getInstance(account).changePriority(priorityToLoader(task.priority), task.toDocument(), null, null, null, null, null);
     }
 
     public synchronized void setSchedule(String fileName, long timestamp) {
@@ -318,12 +315,6 @@ public final class TeleBetaLocalDownloadManager {
 
     private synchronized Task find(String fileName) {
         for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
-        return null;
-    }
-
-    private FileLoadOperation findOperation(String fileName) {
-        // FileLoader exposes active file operations through its cancellation /
-        // priority API, but does not expose a stable lookup method for callers.
         return null;
     }
 
@@ -367,6 +358,11 @@ public final class TeleBetaLocalDownloadManager {
         }
         TLRPC.TL_message message = new TLRPC.TL_message();
         message.id = 0;
+        message.date = (int) (System.currentTimeMillis() / 1000L);
+        message.peer_id = new TLRPC.TL_peerUser();
+        message.peer_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.from_id = new TLRPC.TL_peerUser();
+        message.from_id.user_id = UserConfig.getInstance(account).getClientUserId();
         message.media = new TLRPC.TL_messageMediaDocument();
         message.media.document = task.toDocument();
         MessageObject parent = new MessageObject(account, message, false, false);
