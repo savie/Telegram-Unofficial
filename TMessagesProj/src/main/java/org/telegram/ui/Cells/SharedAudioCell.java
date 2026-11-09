@@ -33,8 +33,6 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.TeleBetaFreemium;
-import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.audioinfo.AudioInfo;
 import org.telegram.tgnet.TLRPC;
@@ -55,7 +53,22 @@ import org.telegram.ui.FilteredSearchView;
 
 import java.io.File;
 
-public class SharedAudioCell extends FrameLayout implements DownloadController.FileDownloadProgressListener, NotificationCenter.NotificationCenterDelegate {
+public class SharedAudioCell extends FrameLayout implements DownloadController.FileDownloadProgressListener, NotificationCenter.NotificationCenterDelegate, Theme.Colorable {
+
+    @Override
+    public void updateColors() {
+        try {
+            if (titlePaint != null) {
+                titlePaint.setColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
+            }
+            if (radialProgress != null && hasMiniProgress != 0 && currentMessageObject != null) {
+                radialProgress.setMiniProgressBackgroundColor(getThemedColor(currentMessageObject.isOutOwner() ? Theme.key_chat_outLoader : Theme.key_chat_inLoader));
+            }
+            invalidate();
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+    }
 
     private SpannableStringBuilder dotSpan;
     private CheckBox2 checkBox;
@@ -300,9 +313,9 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
         super.onAttachedToWindow();
         radialProgress.onAttachedToWindow();
         updateButtonState(false, false);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messagePlayingDidReset);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messagePlayingPlayStateChanged);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.messagePlayingDidStart);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.messagePlayingDidReset);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.messagePlayingPlayStateChanged);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.messagePlayingDidStart);
 
         titleLayoutEmojis = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, titleLayoutEmojis, titleLayout);
         descriptionLayoutEmojis = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_MESSAGES, this, descriptionLayoutEmojis, descriptionLayout);
@@ -425,14 +438,8 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
     public void didPressedButton() {
         if (buttonState == 0) {
             if (miniButtonState == 0) {
-                if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)
-                        && TeleBetaLocalDownloadManager.getInstance(currentAccount).enqueue(currentMessageObject.getDocument(),
-                        FileLoader.getDocumentFileName(currentMessageObject.getDocument()), 0, 1, currentMessageObject)) {
-                    // Queue is local; Telegram FileLoader remains the transfer engine.
-                } else {
-                    currentMessageObject.putInDownloadsStore = true;
-                    FileLoader.getInstance(currentAccount).loadFile(currentMessageObject.getDocument(), currentMessageObject, FileLoader.PRIORITY_NORMAL, 0);
-                }
+                currentMessageObject.putInDownloadsStore = true;
+                FileLoader.getInstance(currentAccount).loadFile(currentMessageObject.getDocument(), currentMessageObject, FileLoader.PRIORITY_NORMAL, 0);
             }
             if (needPlayMessage(currentMessageObject)) {
                 if (hasMiniProgress == 2 && miniButtonState != 1) {

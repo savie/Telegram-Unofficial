@@ -31,13 +31,12 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
-import org.telegram.messenger.TeleBetaFreemium;
-import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.ActionBar.ThemeBind;
 import org.telegram.ui.Cells.GraySectionCell;
 import org.telegram.ui.Cells.SharedAudioCell;
 import org.telegram.ui.Cells.SharedDocumentCell;
@@ -172,11 +171,7 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
                     cell.updateFileExistIcon(true);
                     DownloadController.getInstance(currentAccount).updateFilesLoadingPriority();
                 } else {
-                    if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
-                        TeleBetaLocalDownloadManager.getInstance(currentAccount).cancel(FileLoader.getAttachFileName(document));
-                    } else {
-                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(document);
-                    }
+                    AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(document);
                     cell.updateFileExistIcon(true);
                 }
                 update(true);
@@ -299,7 +294,6 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
             }
             FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);
-            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);
 
             for (int i = 0; i < currentLoadingFiles.size(); i++) {
                 currentLoadingFiles.get(i).setQuery(null);
@@ -323,7 +317,6 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
 
             FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);
-            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);
 
             String q = searchQuery.toLowerCase();
             final boolean sameQuery = q.equals(lastQueryString);
@@ -380,9 +373,7 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
     }
 
     private boolean isEmptyDownloads() {
-        return DownloadController.getInstance(currentAccount).downloadingFiles.isEmpty()
-                && DownloadController.getInstance(currentAccount).recentDownloadingFiles.isEmpty()
-                && TeleBetaLocalDownloadManager.getInstance(currentAccount).getTasks().isEmpty();
+        return DownloadController.getInstance(currentAccount).downloadingFiles.isEmpty() && DownloadController.getInstance(currentAccount).recentDownloadingFiles.isEmpty();
     }
 
     private void updateListInternal(boolean animated, ArrayList<MessageObject> currentLoadingFilesTmp, ArrayList<MessageObject> recentLoadingFilesTmp) {
@@ -563,17 +554,9 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
                                 for (int i = 0; i < currentLoadingFiles.size(); i++) {
                                     MessageObject messageObject = currentLoadingFiles.get(i);
                                     if (hasCurrentDownload) {
-                                        if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
-                                            TeleBetaLocalDownloadManager.getInstance(currentAccount).pause(FileLoader.getAttachFileName(messageObject.getDocument()));
-                                        } else {
-                                            AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(messageObject.getDocument());
-                                        }
+                                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(messageObject.getDocument());
                                     } else {
-                                        if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
-                                            TeleBetaLocalDownloadManager.getInstance(currentAccount).resume(FileLoader.getAttachFileName(messageObject.getDocument()));
-                                        } else {
-                                            AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(messageObject.getDocument(), messageObject, FileLoader.PRIORITY_LOW, 0);
-                                        }
+                                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(messageObject.getDocument(), messageObject, FileLoader.PRIORITY_LOW, 0);
                                         DownloadController.getInstance(currentAccount).updateFilesLoadingPriority();
                                     }
                                 }
@@ -592,7 +575,7 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
                     boolean showReorder = uiCallback.actionModeShowing() && position >= downloadingFilesStartRow && position < downloadingFilesEndRow;
                     if (type == 1) {
                         Cell view = (Cell) holder.itemView;
-                        view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                        ThemeBind.backgroundColor(view, Theme.key_windowBackgroundWhite);
                         int oldId = view.sharedDocumentCell.getMessage() == null ? 0 : view.sharedDocumentCell.getMessage().getId();
                         view.sharedDocumentCell.setDocument(messageObject, true);
                         messageHashIdTmp.set(view.sharedDocumentCell.getMessage().getId(), view.sharedDocumentCell.getMessage().getDialogId());
@@ -648,8 +631,8 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.onDownloadingFilesChanged);
-        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.premiumFloodWaitReceived);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.onDownloadingFilesChanged);
+        NotificationCenter.getInstance(currentAccount).addWeakObserver(this, NotificationCenter.premiumFloodWaitReceived);
         if (getVisibility() == View.VISIBLE) {
             DownloadController.getInstance(currentAccount).clearUnviewedDownloads();
         }

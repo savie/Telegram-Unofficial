@@ -119,7 +119,7 @@ public class FileLoader extends BaseController {
         }
     }
 
-    public DispatchQueue getFileLoaderQueue() {
+    public DispatchQueue2 getFileLoaderQueue() {
         return fileLoaderQueue;
     }
 
@@ -203,7 +203,7 @@ public class FileLoader extends BaseController {
 
     public final static int PRELOAD_CACHE_TYPE = 11;
 
-    private volatile static DispatchQueue fileLoaderQueue = new DispatchQueue("fileUploadQueue");
+    private volatile static DispatchQueue2 fileLoaderQueue = new DispatchQueue2("fileUploadQueue");
     private final FilePathDatabase filePathDatabase;
 
     private final LinkedList<FileUploadOperation> uploadOperationQueue = new LinkedList<>();
@@ -739,10 +739,6 @@ public class FileLoader extends BaseController {
             return true;
         }
         return false;
-    }
-
-    public FileLoadOperation getLoadOperation(final String fileName) {
-        return fileName == null ? null : loadOperationPaths.get(fileName);
     }
 
     public boolean isLoadingFile(final String fileName) {
