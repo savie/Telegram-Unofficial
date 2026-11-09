@@ -742,19 +742,37 @@ public final class TeleBetaLocalDownloadManager {
                 }
 """
     manager_entry_new = """                } else if (position == recentFilesHeader) {
-                    if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
-                        graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), "Local Manager",
-                                view -> TeleBetaLocalDownloadManager.showManager(parentFragment, currentAccount, null)
-                        );
-                    } else {
-                        graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
-                                view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
-                        );
-                    }
+                    graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
+                            view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
+                    );
                 }
 """
     if manager_entry_new not in downloads_source:
         downloads_source = _replace_once(downloads_source, manager_entry_anchor, manager_entry_new, "Downloads local manager entry point")
+    downloads_source = _replace_once(
+        downloads_source,
+        "    int rowCount;\n",
+        "    int rowCount;\n    int localManagerRow = -1;\n",
+        "Downloads local manager row field"
+    )
+    downloads_source = _replace_once(
+        downloads_source,
+        "        rowCount = 0;\n        downloadingFilesHeader = -1;",
+        "        rowCount = 0;\n        localManagerRow = TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER) ? rowCount++ : -1;\n        downloadingFilesHeader = -1;",
+        "Downloads local manager row allocation"
+    )
+    downloads_source = _replace_once(
+        downloads_source,
+        "            if (type == 0) {\n                GraySectionCell graySectionCell = (GraySectionCell) holder.itemView;\n                if (position == downloadingFilesHeader) {",
+        "            if (type == 0) {\n                GraySectionCell graySectionCell = (GraySectionCell) holder.itemView;\n                if (position == localManagerRow) {\n                    graySectionCell.setText(\"Local Download Manager\", \"Manage\", view -> TeleBetaLocalDownloadManager.showManager(parentFragment, currentAccount, null));\n                } else if (position == downloadingFilesHeader) {",
+        "Downloads local manager row binding"
+    )
+    downloads_source = _replace_once(
+        downloads_source,
+        "            if (position == downloadingFilesHeader || position == recentFilesHeader) {",
+        "            if (position == localManagerRow || position == downloadingFilesHeader || position == recentFilesHeader) {",
+        "Downloads local manager row view type"
+    )
     downloads.write_text(downloads_source, encoding="utf-8")
 
     # Do not add a manager-only item to the chat overflow menu. Manual file
