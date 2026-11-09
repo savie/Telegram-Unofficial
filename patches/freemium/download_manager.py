@@ -630,6 +630,44 @@ public final class TeleBetaLocalDownloadManager {
     }
 }
 """
+    # Project managed local tasks into Telegram's native Downloads list.
+    helper_source = _replace_once(
+        helper_source,
+        """    private synchronized Task find(String fileName) {
+        for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
+        return null;
+    }""",
+        """    public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
+        if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
+        for (Task task : tasks) {
+            if (task.status == STATUS_CANCELLED || task.status == STATUS_FAILED || task.status == STATUS_COMPLETED) continue;
+            MessageObject row = createTelegramDownloadsRow(task);
+            if (task.status == STATUS_DOWNLOADING) active.add(0, row); else recent.add(0, row);
+        }
+    }
+
+    private MessageObject createTelegramDownloadsRow(Task task) {
+        TLRPC.TL_message message = new TLRPC.TL_message();
+        message.id = (int) -Math.max(1L, task.createdAt);
+        message.date = (int) (task.createdAt / 1000L);
+        message.peer_id = new TLRPC.TL_peerUser();
+        message.peer_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.from_id = new TLRPC.TL_peerUser();
+        message.from_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.media = new TLRPC.TL_messageMediaDocument();
+        message.media.document = task.toDocument();
+        MessageObject row = new MessageObject(account, message, false, false);
+        row.isDownloadingFile = true;
+        return row;
+    }
+
+    private synchronized Task find(String fileName) {
+        for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
+        return null;
+    }""",
+        "Local Download Manager native Downloads projection"
+    )
+
     helper.parent.mkdir(parents=True, exist_ok=True)
     helper.write_text(helper_source, encoding="utf-8")
 
