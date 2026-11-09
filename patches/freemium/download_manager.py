@@ -315,6 +315,7 @@ public final class TeleBetaLocalDownloadManager {
         if (task == null || task.status == STATUS_COMPLETED) return;
         task.status = STATUS_QUEUED;
         persist();
+        notifyQueueChanged(account);
         pump();
     }
 
@@ -323,6 +324,7 @@ public final class TeleBetaLocalDownloadManager {
         if (task == null) return;
         task.status = STATUS_CANCELLED;
         persist();
+        notifyQueueChanged(account);
         FileLoader.getInstance(account).cancelLoadFile(fileName);
         pump();
     }
@@ -332,6 +334,7 @@ public final class TeleBetaLocalDownloadManager {
         if (task == null) return;
         task.priority = Math.max(0, Math.min(3, priority));
         persist();
+        notifyQueueChanged(account);
         FileLoader.getInstance(account).changePriority(priorityToLoader(task.priority), task.toDocument(), null, null, null, null, null);
     }
 
@@ -341,6 +344,7 @@ public final class TeleBetaLocalDownloadManager {
         task.scheduleAt = Math.max(0, timestamp);
         task.status = STATUS_QUEUED;
         persist();
+        notifyQueueChanged(account);
         pump();
     }
 
