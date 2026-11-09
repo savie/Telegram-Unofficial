@@ -33,6 +33,8 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.TeleBetaFreemium;
+import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.audioinfo.AudioInfo;
 import org.telegram.tgnet.TLRPC;
@@ -423,8 +425,14 @@ public class SharedAudioCell extends FrameLayout implements DownloadController.F
     public void didPressedButton() {
         if (buttonState == 0) {
             if (miniButtonState == 0) {
-                currentMessageObject.putInDownloadsStore = true;
-                FileLoader.getInstance(currentAccount).loadFile(currentMessageObject.getDocument(), currentMessageObject, FileLoader.PRIORITY_NORMAL, 0);
+                if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)
+                        && TeleBetaLocalDownloadManager.getInstance(currentAccount).enqueue(currentMessageObject.getDocument(),
+                        FileLoader.getDocumentFileName(currentMessageObject.getDocument()), 0, 1, currentMessageObject)) {
+                    // Queue is local; Telegram FileLoader remains the transfer engine.
+                } else {
+                    currentMessageObject.putInDownloadsStore = true;
+                    FileLoader.getInstance(currentAccount).loadFile(currentMessageObject.getDocument(), currentMessageObject, FileLoader.PRIORITY_NORMAL, 0);
+                }
             }
             if (needPlayMessage(currentMessageObject)) {
                 if (hasMiniProgress == 2 && miniButtonState != 1) {
