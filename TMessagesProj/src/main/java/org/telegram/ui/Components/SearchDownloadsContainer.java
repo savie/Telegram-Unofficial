@@ -31,6 +31,8 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.TeleBetaFreemium;
+import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
@@ -293,6 +295,7 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
             }
             FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);
+            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);
 
             for (int i = 0; i < currentLoadingFiles.size(); i++) {
                 currentLoadingFiles.get(i).setQuery(null);
@@ -316,6 +319,7 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
 
             FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);
+            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);
 
             String q = searchQuery.toLowerCase();
             final boolean sameQuery = q.equals(lastQueryString);
@@ -372,7 +376,9 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
     }
 
     private boolean isEmptyDownloads() {
-        return DownloadController.getInstance(currentAccount).downloadingFiles.isEmpty() && DownloadController.getInstance(currentAccount).recentDownloadingFiles.isEmpty();
+        return DownloadController.getInstance(currentAccount).downloadingFiles.isEmpty()
+                && DownloadController.getInstance(currentAccount).recentDownloadingFiles.isEmpty()
+                && TeleBetaLocalDownloadManager.getInstance(currentAccount).getTasks().isEmpty();
     }
 
     private void updateListInternal(boolean animated, ArrayList<MessageObject> currentLoadingFilesTmp, ArrayList<MessageObject> recentLoadingFilesTmp) {
