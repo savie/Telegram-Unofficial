@@ -413,6 +413,21 @@ public final class TeleBetaLocalDownloadManager {
         return null;
     }
 
+    private MessageObject createTelegramDownloadsRow(Task task) {
+        TLRPC.TL_message message = new TLRPC.TL_message();
+        message.id = (int) -Math.max(1L, task.createdAt);
+        message.date = (int) (task.createdAt / 1000L);
+        message.peer_id = new TLRPC.TL_peerUser();
+        message.peer_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.from_id = new TLRPC.TL_peerUser();
+        message.from_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.media = new TLRPC.TL_messageMediaDocument();
+        message.media.document = task.toDocument();
+        MessageObject row = new MessageObject(account, message, false, false);
+        row.isDownloadingFile = true;
+        return row;
+    }
+
     private void pump() {
         synchronized (this) {
             if (workerRunning) return;
