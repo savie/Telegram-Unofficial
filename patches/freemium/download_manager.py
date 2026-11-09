@@ -748,10 +748,20 @@ public final class TeleBetaLocalDownloadManager {
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
     second_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
-    if downloads_source.count(first_anchor) != 2:
-        raise SystemExit("Downloads list refresh anchors changed; refusing unsafe edit.")
-    downloads_source = downloads_source.replace(first_anchor, first_anchor + """
-            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);""")
+    # Upstream uses two separate refresh blocks (search results and empty-query
+    # state). Match only the concrete temporary-list calls; the two anchors
+    # must be present exactly once each. This also avoids accidentally editing
+    # constructor initialization or the primary backing lists.
+    projection_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
+            FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
+    if downloads_source.count(projection_anchor) != 2:
+        raise SystemExit(
+            "Downloads list refresh anchors changed; expected two temporary-list "
+            f"projections, found {downloads_source.count(projection_anchor)}"
+        )
+    projection = projection_anchor + """
+            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);"""
+    downloads_source = downloads_source.replace(projection_anchor, projection)
     downloads.write_text(downloads_source, encoding="utf-8")
 
     # Do not add a manager-only item to the chat overflow menu. Manual file
