@@ -253,7 +253,7 @@ public final class TeleBetaLocalDownloadManager {
         task.mimeType = document.mime_type;
         task.displayName = TextUtils.isEmpty(displayName) ? FileLoader.getDocumentFileName(document) : displayName;
         task.size = document.size;
-        task.scheduleAt = Math.max(0, scheduleAt);
+        task.scheduleAt = Math.max(0, scheduleAt > 0 ? scheduleAt : (defaultScheduleDelayMinutes > 0 ? System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(defaultScheduleDelayMinutes) : 0));
         task.priority = priority;
         task.status = STATUS_QUEUED;
         task.account = account;
