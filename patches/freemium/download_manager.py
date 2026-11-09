@@ -288,6 +288,7 @@ public final class TeleBetaLocalDownloadManager {
         task.status = STATUS_CANCELLED;
         persist();
         FileLoader.getInstance(account).cancelLoadFile(fileName);
+        pump();
     }
 
     public synchronized void setPriority(String fileName, int priority) {
