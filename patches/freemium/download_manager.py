@@ -765,10 +765,10 @@ public final class TeleBetaLocalDownloadManager {
 
     downloads = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/SearchDownloadsContainer.java"
     downloads_source = downloads.read_text(encoding="utf-8")
-    manager_import = "import org.telegram.messenger.TeleBetaLocalDownloadManager;\\n"
-    freemium_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    manager_import = "import org.telegram.messenger.TeleBetaLocalDownloadManager;\n"
+    freemium_import = "import org.telegram.messenger.TeleBetaFreemium;\n"
     if manager_import not in downloads_source:
-        import_anchor = "import org.telegram.messenger.UserConfig;\\n"
+        import_anchor = "import org.telegram.messenger.UserConfig;\n"
         downloads_source = _replace_once(downloads_source, import_anchor, import_anchor + freemium_import + manager_import, "Downloads container imports")
     list_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
