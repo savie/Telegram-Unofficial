@@ -255,6 +255,8 @@ public final class TeleBetaLocalDownloadManager {
     public synchronized boolean enqueue(TLRPC.Document document, String displayName, long scheduleAt, int priority, MessageObject parent) {
         if (document == null || document.id == 0 || document.dc_id == 0 || document.key != null) return false;
         String fileName = FileLoader.getAttachFileName(document);
+        File localFile = FileLoader.getInstance(account).getPathToAttach(document);
+        if (localFile != null && localFile.exists()) return false;
         for (Task existing : tasks) {
             if (existing.fileName.equals(fileName) && existing.status != STATUS_CANCELLED && existing.status != STATUS_FAILED) {
                 return true;
