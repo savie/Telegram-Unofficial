@@ -389,7 +389,9 @@ public final class TeleBetaLocalDownloadManager {
                     }
                     Task selected = next;
                     MAIN.post(() -> start(selected));
-                    break;
+                    synchronized (this) { workerRunning = false; }
+                    pump();
+                    return;
                 }
             } finally {
                 synchronized (this) { workerRunning = false; }
