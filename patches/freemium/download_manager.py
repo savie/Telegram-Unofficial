@@ -705,6 +705,26 @@ public final class TeleBetaLocalDownloadManager {
     failure_add = failure_anchor + """                TeleBetaLocalDownloadManager.notifyFailed(currentAccount, fileName);
 """
     loader_source = _replace_once(loader_source, failure_anchor, failure_add, "FileLoader managed failure callback")
+
+    # Route explicit user-requested chat downloads into the local queue. This
+    # flag is set by Telegram's chat download button; automatic downloads do
+    # not set it and therefore retain their upstream behavior.
+    download_store_anchor = """        if (document != null && parentObject instanceof MessageObject && ((MessageObject) parentObject).putInDownloadsStore && !((MessageObject) parentObject).isAnyKindOfSticker()) {
+            getDownloadController().startDownloadFile(document, (MessageObject) parentObject);
+        }
+"""
+    download_store_new = """        if (document != null && parentObject instanceof MessageObject && ((MessageObject) parentObject).putInDownloadsStore && !((MessageObject) parentObject).isAnyKindOfSticker()) {
+            MessageObject downloadParent = (MessageObject) parentObject;
+            if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)
+                    && TeleBetaLocalDownloadManager.getInstance(currentAccount).enqueue(document,
+                    FileLoader.getDocumentFileName(document), 0, 1, downloadParent)) {
+                downloadParent.putInDownloadsStore = false;
+            } else {
+                getDownloadController().startDownloadFile(document, downloadParent);
+            }
+        }
+"""
+    loader_source = _replace_once(loader_source, download_store_anchor, download_store_new, "Chat download button Local Download Manager routing")
     loader.write_text(loader_source, encoding="utf-8")
 
     downloads = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/SearchDownloadsContainer.java"
