@@ -112,7 +112,7 @@ public final class TeleBetaFreemium {
     button_signature = "public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {"
     button_end = "\n    private void measureGradient"
     button_method = """public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {
-        return "Aktifkan Freemium";
+        return "Activate Freemium";
     }
 
 """
