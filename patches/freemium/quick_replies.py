@@ -21,7 +21,7 @@ def apply_local_quick_replies() -> None:
     if not engine.exists():
         raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_source = engine.read_text(encoding="utf-8")
-    enum_match = re.search(r"public\\s+enum\\s+Feature\\s*\\{([^}]*)\\}", engine_source)
+    enum_match = re.search(r"public\s+enum\s+Feature\s*\{([^}]*)\}", engine_source)
     if enum_match is None:
         raise SystemExit("Could not locate the Freemium Feature enum.")
     feature_names = [name.strip() for name in enum_match.group(1).split(",") if name.strip()]
