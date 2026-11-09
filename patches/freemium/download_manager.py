@@ -266,6 +266,11 @@ public final class TeleBetaLocalDownloadManager {
     public synchronized void pause(String fileName) {
         Task task = find(fileName);
         if (task == null || task.status == STATUS_COMPLETED) return;
+        if (task.status == STATUS_QUEUED) {
+            task.status = STATUS_PAUSED;
+            persist();
+            return;
+        }
         task.status = STATUS_PAUSED;
         persist();
         FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(fileName);
