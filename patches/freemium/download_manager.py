@@ -244,6 +244,7 @@ public final class TeleBetaLocalDownloadManager {
         task.status = status;
         if (status == STATUS_COMPLETED || status == STATUS_FAILED) parents.remove(fileName);
         persist();
+        notifyQueueChanged(account);
         pump();
     }
 
@@ -277,6 +278,7 @@ public final class TeleBetaLocalDownloadManager {
         tasks.add(task);
         if (parent != null) parents.put(fileName, parent);
         persist();
+        notifyQueueChanged(account);
         pump();
         return true;
     }
@@ -287,10 +289,12 @@ public final class TeleBetaLocalDownloadManager {
         if (task.status == STATUS_QUEUED) {
             task.status = STATUS_PAUSED;
             persist();
+            notifyQueueChanged(account);
             return;
         }
         task.status = STATUS_PAUSED;
         persist();
+        notifyQueueChanged(account);
         FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(fileName);
         if (operation != null) {
             FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(() -> {
@@ -393,6 +397,14 @@ public final class TeleBetaLocalDownloadManager {
             MessageObject row = new MessageObject(account, message, false, false);
             row.isDownloadingFile = true;
             if (task.status == STATUS_DOWNLOADING) active.add(0, row); else recent.add(0, row);
+        }
+    }
+
+    public static void notifyQueueChanged(int account) {
+        if (account < 0 || account >= CALLBACKS.length) return;
+        TeleBetaLocalDownloadManager manager = CALLBACKS[account];
+        if (manager != null) {
+            MAIN.post(() -> NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.onDownloadingFilesChanged));
         }
     }
 
