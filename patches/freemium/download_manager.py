@@ -554,7 +554,10 @@ public final class TeleBetaLocalDownloadManager {
 
     public boolean isLoadingFile(final String fileName) {
 """
-    loader_source = _replace_once(loader_source, lookup_anchor, lookup_add, "FileLoader operation lookup")
+    if "getLoadOperation(final String fileName)" not in loader_source:
+        loader_source = _replace_once(loader_source, lookup_anchor, lookup_add, "FileLoader operation lookup")
+    elif loader_source.count("getLoadOperation(final String fileName)") != 1:
+        raise SystemExit("FileLoader operation lookup is ambiguous.")
 
     finish_anchor = """            public void didFinishLoadingFile(FileLoadOperation operation, File finalFile) {
 """
