@@ -158,6 +158,8 @@ public final class TeleBetaLocalDownloadManager {
     private final int account;
     private static final TeleBetaLocalDownloadManager[] CALLBACKS = new TeleBetaLocalDownloadManager[UserConfig.MAX_ACCOUNT_COUNT];
     private final SharedPreferences prefs;
+    private volatile boolean wifiOnlyOverride;
+
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final List<Task> tasks = new ArrayList<>();
@@ -181,6 +183,8 @@ public final class TeleBetaLocalDownloadManager {
         this.account = account;
         CALLBACKS[account] = this;
         prefs = ApplicationLoader.applicationContext.getSharedPreferences(PREFS + "_" + account, Context.MODE_PRIVATE);
+        wifiOnlyOverride = prefs.getBoolean(KEY_WIFI_ONLY, false);
+        defaultScheduleDelayMinutes = prefs.getLong("schedule_delay_minutes", 0);
         load();
         scheduler.scheduleWithFixedDelay(this::pump, 2, 2, TimeUnit.SECONDS);
     }
@@ -324,6 +328,7 @@ public final class TeleBetaLocalDownloadManager {
     }
 
     public void setWifiOnly(boolean enabled) {
+        wifiOnlyOverride = enabled;
         prefs.edit().putBoolean(KEY_WIFI_ONLY, enabled).commit();
         pump();
     }
@@ -343,6 +348,7 @@ public final class TeleBetaLocalDownloadManager {
 
     public void setDefaultScheduleDelayMinutes(long minutes) {
         defaultScheduleDelayMinutes = Math.max(0, Math.min(minutes, 60L * 24L * 30L));
+        prefs.edit().putLong("schedule_delay_minutes", defaultScheduleDelayMinutes).commit();
     }
 
     public long getDefaultScheduleDelayMinutes() {
