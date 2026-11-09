@@ -172,7 +172,11 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
                     cell.updateFileExistIcon(true);
                     DownloadController.getInstance(currentAccount).updateFilesLoadingPriority();
                 } else {
-                    AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(document);
+                    if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
+                        TeleBetaLocalDownloadManager.getInstance(currentAccount).cancel(FileLoader.getAttachFileName(document));
+                    } else {
+                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(document);
+                    }
                     cell.updateFileExistIcon(true);
                 }
                 update(true);
