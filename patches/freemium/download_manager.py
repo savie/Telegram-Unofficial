@@ -270,7 +270,16 @@ public final class TeleBetaLocalDownloadManager {
         persist();
         FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(fileName);
         if (operation != null) {
-            FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(operation::pause);
+            FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(() -> {
+                operation.pause();
+                MAIN.post(() -> {
+                    synchronized (TeleBetaLocalDownloadManager.this) {
+                        Task current = find(fileName);
+                        if (current != null && current.status == STATUS_PAUSED) persist();
+                    }
+                    pump();
+                });
+            });
         }
     }
 
@@ -350,7 +359,22 @@ public final class TeleBetaLocalDownloadManager {
                     Task next;
                     synchronized (this) {
                         int active = 0;
-                        for (Task task : tasks) if (task.status == STATUS_DOWNLOADING) active++;
+                        for (Task task : tasks) {
+                            if (task.status == STATUS_DOWNLOADING) {
+                                FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(task.fileName);
+                                if (operation == null) {
+                                    File file = FileLoader.getInstance(account).getPathToAttach(task.toDocument(), true);
+                                    if (file != null && file.exists() && task.size > 0 && file.length() >= task.size) {
+                                        task.status = STATUS_COMPLETED;
+                                    } else {
+                                        task.status = STATUS_QUEUED;
+                                    }
+                                    persist();
+                                } else {
+                                    active++;
+                                }
+                            }
+                        }
                         if (active >= getMaxParallel() || isWifiOnly() && !isWifiConnected()) break;
                         next = null;
                         long now = System.currentTimeMillis();
@@ -376,6 +400,11 @@ public final class TeleBetaLocalDownloadManager {
     private void start(Task task) {
         synchronized (this) {
             if (task.status != STATUS_DOWNLOADING) return;
+            FileLoadOperation existing = FileLoader.getInstance(account).getLoadOperation(task.fileName);
+            if (existing != null) {
+                if (existing.isPaused()) FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(existing::start);
+                return;
+            }
         }
         TLRPC.TL_message message = new TLRPC.TL_message();
         message.id = 0;
