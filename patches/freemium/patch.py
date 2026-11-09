@@ -19,7 +19,7 @@ import java.util.Set;
 /** Client-local Tele-beta entitlements, independent from Telegram Premium. */
 public final class TeleBetaFreemium {
     public enum Tier { FREE, FREEMIUM }
-    public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }
+    public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, LOCAL_DOWNLOAD_MANAGER }
 
     private static final String PREFS = "telebeta_freemium";
     private static final String KEY_TIER = "tier";
