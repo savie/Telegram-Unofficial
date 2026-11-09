@@ -1,7 +1,7 @@
-"""Patch terpisah untuk Local Quick Replies Tele-ß.
+"""Standalone patch for Tele-ß Local Quick Replies.
 
-Membuat template balasan yang disimpan di perangkat dan dimasukkan ke composer
-sebagai teks biasa. Tidak memakai Telegram Business Quick Replies RPC.
+Creates on-device reply templates and inserts their text into the chat composer.
+Does not use Telegram Business Quick Replies RPC.
 """
 from pathlib import Path
 
@@ -112,7 +112,7 @@ public final class TeleBetaLocalQuickReplies {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider)
             .setTitle("Local Quick Replies");
         if (labels.length == 0) {
-            builder.setMessage("Belum ada template balasan lokal.");
+            builder.setMessage("No quick replies yet.");
         } else {
             builder.setItems(labels, (dialog, which) -> {
                 if (which < 0 || which >= items.length()) return;
@@ -122,9 +122,9 @@ public final class TeleBetaLocalQuickReplies {
                 composer.setFieldText(combined);
             });
         }
-        builder.setPositiveButton("Tambah", (dialog, which) -> showEditor(fragment, account, resourcesProvider, -1));
-        builder.setNegativeButton("Kelola", (dialog, which) -> showManager(fragment, account, resourcesProvider));
-        builder.setNeutralButton("Tutup", null);
+        builder .setPositiveButton("Add", (dialog, which) -> showEditor(fragment, account, resourcesProvider, -1));
+        builder .setNegativeButton("Manage", (dialog, which) -> showManager(fragment, account, resourcesProvider));
+        builder.setNeutralButton("Close", null);
         fragment.showDialog(builder.create());
     }
 
@@ -137,7 +137,7 @@ public final class TeleBetaLocalQuickReplies {
         CharSequence[] labels = new CharSequence[items.length()];
         for (int i = 0; i < items.length(); i++) labels[i] = titleAt(items, i);
         AlertDialog dialog = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
-            .setTitle("Kelola Local Quick Replies")
+            .setTitle("Manage Quick Replies")
             .setItems(labels, (d, which) -> showEditor(fragment, account, resourcesProvider, which))
             .setPositiveButton("Tambah", (d, which) -> showEditor(fragment, account, resourcesProvider, -1))
             .setNegativeButton("Tutup", null)
@@ -151,12 +151,16 @@ public final class TeleBetaLocalQuickReplies {
         boolean editing = editIndex >= 0 && editIndex < items.length();
         EditText title = new EditText(context);
         title.setSingleLine(true);
-        title.setHint("Nama template");
+        title.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
+        title.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint, resourcesProvider));
+        title.setHint("Shortcut name");
         title.setText(editing ? titleAt(items, editIndex) : "");
         title.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
 
         EditText body = new EditText(context);
-        body.setHint("Isi balasan");
+        body.setHint("Reply message");
+        body.setTextColor(Theme.getColor(Theme.key_dialogTextBlack, resourcesProvider));
+        body.setHintTextColor(Theme.getColor(Theme.key_dialogTextHint, resourcesProvider));
         body.setGravity(Gravity.TOP | Gravity.START);
         body.setMinLines(4);
         body.setMaxLines(10);
@@ -171,9 +175,9 @@ public final class TeleBetaLocalQuickReplies {
         form.addView(body, new LinearLayout.LayoutParams(-1, AndroidUtilities.dp(140)));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider)
-            .setTitle(editing ? "Edit template" : "Template baru")
+            .setTitle(editing ? "Edit Quick Reply" : "New Quick Reply")
             .setView(form)
-            .setPositiveButton("Simpan", (dialog, which) -> {
+            .setPositiveButton("Save", (dialog, which) -> {
                 String name = title.getText().toString().trim();
                 String text = body.getText().toString();
                 if (name.isEmpty() || text.trim().isEmpty()) {
@@ -199,9 +203,9 @@ public final class TeleBetaLocalQuickReplies {
                     FileLog.e("Unable to serialize local quick replies");
                 }
             })
-            .setNegativeButton("Batal", null);
+            .setNegativeButton("Cancel", null);
         if (editing) {
-            builder.setNeutralButton("Hapus", (dialog, which) -> {
+            builder.setNeutralButton("Delete", (dialog, which) -> {
                 JSONArray current = readItems(account);
                 JSONArray updated = new JSONArray();
                 for (int i = 0; i < current.length(); i++) {
