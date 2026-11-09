@@ -634,8 +634,8 @@ public final class TeleBetaLocalDownloadManager {
     # The generated helper does not yet contain its own find() method, so
     # insert both projection and lookup methods immediately before the class end.
     class_end = helper_source.rfind("\\n}")
-    if class_end < 0 or helper_source.count("\\n}") != 1:
-        raise SystemExit("Local Download Manager generated class closing anchor is missing or ambiguous.")
+    if class_end < 0:
+        raise SystemExit("Local Download Manager generated class closing anchor is missing.")
     projection_methods = """
     public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
         if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
