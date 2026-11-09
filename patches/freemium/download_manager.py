@@ -162,6 +162,7 @@ public final class TeleBetaLocalDownloadManager {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final List<Task> tasks = new ArrayList<>();
     private boolean workerRunning;
+    private volatile long defaultScheduleDelayMinutes;
 
     public static TeleBetaLocalDownloadManager getInstance(int account) {
         TeleBetaLocalDownloadManager value = instances[account];
@@ -340,6 +341,14 @@ public final class TeleBetaLocalDownloadManager {
         return prefs.getInt(KEY_MAX_PARALLEL, 2);
     }
 
+    public void setDefaultScheduleDelayMinutes(long minutes) {
+        defaultScheduleDelayMinutes = Math.max(0, Math.min(minutes, 60L * 24L * 30L));
+    }
+
+    public long getDefaultScheduleDelayMinutes() {
+        return defaultScheduleDelayMinutes;
+    }
+
     public void setSaveTreeUri(String uri) {
         prefs.edit().putString(KEY_SAVE_TREE, uri == null ? "" : uri).commit();
     }
@@ -496,12 +505,17 @@ public final class TeleBetaLocalDownloadManager {
         parallel.setSingleLine(true);
         parallel.setHint("Maximum parallel downloads (1–4)");
         parallel.setText(String.valueOf(manager.getMaxParallel()));
+        EditText schedule = new EditText(fragment.getContext());
+        schedule.setSingleLine(true);
+        schedule.setHint("Default schedule delay in minutes (0 = now)");
+        schedule.setText("0");
         LinearLayout layout = new LinearLayout(fragment.getContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         int pad = AndroidUtilities.dp(20);
         layout.setPadding(pad, pad, pad, 0);
         layout.addView(wifiOnly);
         layout.addView(parallel);
+        layout.addView(schedule);
         AlertDialog dialog = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
                 .setTitle("Download settings")
                 .setView(layout)
@@ -509,6 +523,10 @@ public final class TeleBetaLocalDownloadManager {
                     manager.setWifiOnly(Boolean.parseBoolean(wifiOnly.getText().toString().trim()));
                     try { manager.setMaxParallel(Integer.parseInt(parallel.getText().toString().trim())); }
                     catch (NumberFormatException ignored) {}
+                    try {
+                        long delay = Math.max(0, Long.parseLong(schedule.getText().toString().trim()));
+                        manager.setDefaultScheduleDelayMinutes(delay);
+                    } catch (NumberFormatException ignored) {}
                 })
                 .setNegativeButton("Cancel", null)
                 .create();
