@@ -509,6 +509,7 @@ public final class TeleBetaLocalDownloadManager {
         MessageObject sourceParent;
         synchronized (this) { sourceParent = parents.get(task.fileName); }
         FileLoader.getInstance(account).loadFile(task.toDocument(), sourceParent != null ? sourceParent : parent, priorityToLoader(task.priority), 0);
+        notifyQueueChanged(account);
     }
 
     private static int priorityToLoader(int priority) {
