@@ -633,7 +633,7 @@ public final class TeleBetaLocalDownloadManager {
     # Project managed local tasks into Telegram's native Downloads list.
     # The generated helper does not yet contain its own find() method, so
     # insert both projection and lookup methods immediately before the class end.
-    class_end = helper_source.rfind("\\n}")
+    class_end = helper_source.rfind("\n}")
     if class_end < 0:
         raise SystemExit("Local Download Manager generated class closing anchor is missing.")
     projection_methods = """
