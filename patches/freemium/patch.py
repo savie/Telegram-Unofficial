@@ -779,12 +779,12 @@ public final class TeleBetaLocalProfileStyle {
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/Forum/MessageTopicButton.java",
             """            if (colorId < 7) {
-                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+                topicNameColor = getThemedColor(userNameColorKey = Theme.keys_avatar_nameInMessage[colorId]);""",
             """            if (colorId < 0) {
                 colorId = 0;
             }
             if (colorId < 7) {
-                topicNameColor = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+                topicNameColor = getThemedColor(userNameColorKey = Theme.keys_avatar_nameInMessage[colorId]);""",
         ),
         (
             ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/ReplyMessageLine.java",
