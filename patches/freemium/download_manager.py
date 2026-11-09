@@ -492,6 +492,17 @@ public final class TeleBetaLocalDownloadManager {
     public boolean isLoadingFile(final String fileName) {
 """
     loader_source = _replace_once(loader_source, lookup_anchor, lookup_add, "FileLoader operation lookup")
+
+    finish_anchor = """            public void didFinishLoadingFile(FileLoadOperation operation, File finalFile) {
+"""
+    finish_add = finish_anchor + """                TeleBetaLocalDownloadManager.notifyCompleted(currentAccount, fileName);
+"""
+    loader_source = _replace_once(loader_source, finish_anchor, finish_add, "FileLoader managed completion callback")
+    failure_anchor = """            public void didFailedLoadingFile(FileLoadOperation operation, int reason) {
+"""
+    failure_add = failure_anchor + """                TeleBetaLocalDownloadManager.notifyFailed(currentAccount, fileName);
+"""
+    loader_source = _replace_once(loader_source, failure_anchor, failure_add, "FileLoader managed failure callback")
     loader.write_text(loader_source, encoding="utf-8")
 
     chat = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java"
