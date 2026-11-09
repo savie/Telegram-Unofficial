@@ -376,6 +376,26 @@ public final class TeleBetaLocalDownloadManager {
         return prefs.getString(KEY_SAVE_TREE, "");
     }
 
+    /** Add local tasks to Telegram's native Downloads row lists. */
+    public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
+        if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
+        for (Task task : tasks) {
+            if (task.status == STATUS_CANCELLED || task.status == STATUS_FAILED || task.status == STATUS_COMPLETED) continue;
+            TLRPC.TL_message message = new TLRPC.TL_message();
+            message.id = (int) -Math.max(1L, task.createdAt);
+            message.date = (int) (task.createdAt / 1000L);
+            message.peer_id = new TLRPC.TL_peerUser();
+            message.peer_id.user_id = UserConfig.getInstance(account).getClientUserId();
+            message.from_id = new TLRPC.TL_peerUser();
+            message.from_id.user_id = UserConfig.getInstance(account).getClientUserId();
+            message.media = new TLRPC.TL_messageMediaDocument();
+            message.media.document = task.toDocument();
+            MessageObject row = new MessageObject(account, message, false, false);
+            row.isDownloadingFile = true;
+            if (task.status == STATUS_DOWNLOADING) active.add(0, row); else recent.add(0, row);
+        }
+    }
+
     private synchronized Task find(String fileName) {
         for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
         return null;
