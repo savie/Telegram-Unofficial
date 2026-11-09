@@ -139,8 +139,8 @@ public final class TeleBetaLocalQuickReplies {
         AlertDialog dialog = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
             .setTitle("Manage Quick Replies")
             .setItems(labels, (d, which) -> showEditor(fragment, account, resourcesProvider, which))
-            .setPositiveButton("Tambah", (d, which) -> showEditor(fragment, account, resourcesProvider, -1))
-            .setNegativeButton("Tutup", null)
+            .setPositiveButton("Add", (d, which) -> showEditor(fragment, account, resourcesProvider, -1))
+            .setNegativeButton("Close", null)
             .create();
         fragment.showDialog(dialog);
     }
