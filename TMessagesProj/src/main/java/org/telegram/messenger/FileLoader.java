@@ -741,6 +741,10 @@ public class FileLoader extends BaseController {
         return false;
     }
 
+    public FileLoadOperation getLoadOperation(final String fileName) {
+        return fileName == null ? null : loadOperationPaths.get(fileName);
+    }
+
     public boolean isLoadingFile(final String fileName) {
         return fileName != null && loadOperationPathsUI.containsKey(fileName);
     }
