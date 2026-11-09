@@ -560,9 +560,17 @@ public class SearchDownloadsContainer extends FrameLayout implements Notificatio
                                 for (int i = 0; i < currentLoadingFiles.size(); i++) {
                                     MessageObject messageObject = currentLoadingFiles.get(i);
                                     if (hasCurrentDownload) {
-                                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(messageObject.getDocument());
+                                        if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
+                                            TeleBetaLocalDownloadManager.getInstance(currentAccount).pause(FileLoader.getAttachFileName(messageObject.getDocument()));
+                                        } else {
+                                            AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(messageObject.getDocument());
+                                        }
                                     } else {
-                                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(messageObject.getDocument(), messageObject, FileLoader.PRIORITY_LOW, 0);
+                                        if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
+                                            TeleBetaLocalDownloadManager.getInstance(currentAccount).resume(FileLoader.getAttachFileName(messageObject.getDocument()));
+                                        } else {
+                                            AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(messageObject.getDocument(), messageObject, FileLoader.PRIORITY_LOW, 0);
+                                        }
                                         DownloadController.getInstance(currentAccount).updateFilesLoadingPriority();
                                     }
                                 }
