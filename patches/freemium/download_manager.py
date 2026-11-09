@@ -383,22 +383,21 @@ public final class TeleBetaLocalDownloadManager {
                     synchronized (this) {
                         int active = 0;
                         for (Task task : tasks) {
-                            if (task.status == STATUS_DOWNLOADING) {
-                                FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(task.fileName);
-                                if (operation == null) {
-                                    File file = FileLoader.getInstance(account).getPathToAttach(task.toDocument(), false);
-                                    if (file != null && file.exists() && task.size > 0 && file.length() >= task.size) {
-                                        task.status = STATUS_COMPLETED;
-                                    } else {
-                                        task.status = STATUS_QUEUED;
-                                    }
-                                    persist();
-                                } else {
-                                    active++;
-                                }
-                            }
+                            if (task.status == STATUS_DOWNLOADING) active++;
                         }
-                        if (active >= getMaxParallel() || isWifiOnly() && !isWifiConnected()) break;
+                        if (isWifiOnly() && !isWifiConnected()) {
+                            for (Task task : tasks) {
+                                if (task.status != STATUS_DOWNLOADING) continue;
+                                FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(task.fileName);
+                                if (operation != null && !operation.isPaused()) {
+                                    FileLoader.getInstance(account).getFileLoaderQueue().postRunnable(operation::pause);
+                                }
+                                task.status = STATUS_QUEUED;
+                            }
+                            persist();
+                            break;
+                        }
+                        if (active >= getMaxParallel()) break;
                         next = null;
                         long now = System.currentTimeMillis();
                         for (Task task : tasks) {
