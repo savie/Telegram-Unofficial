@@ -38,6 +38,7 @@ def apply_local_download_manager() -> None:
     helper_source = r"""package org.telegram.messenger;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -45,10 +46,10 @@ import android.net.NetworkCapabilities;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.view.Gravity;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -88,6 +89,7 @@ public final class TeleBetaLocalDownloadManager {
     private static final String KEY_WIFI_ONLY = "wifi_only";
     private static final String KEY_MAX_PARALLEL = "max_parallel";
     private static final String KEY_SAVE_TREE = "save_tree";
+    public static final int REQUEST_ADD_DOWNLOAD = 987656;
     private static final int MAX_TASKS = 500;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -169,6 +171,7 @@ public final class TeleBetaLocalDownloadManager {
     private final List<Task> tasks = new ArrayList<>();
     private boolean workerRunning;
     private volatile long defaultScheduleDelayMinutes;
+    private volatile java.util.WeakHashMap<String, MessageObject> parents = new java.util.WeakHashMap<>();
 
     public static TeleBetaLocalDownloadManager getInstance(int account) {
         TeleBetaLocalDownloadManager value = instances[account];
@@ -239,11 +242,16 @@ public final class TeleBetaLocalDownloadManager {
         Task task = find(fileName);
         if (task == null || task.status == STATUS_CANCELLED) return;
         task.status = status;
+        if (status == STATUS_COMPLETED || status == STATUS_FAILED) parents.remove(fileName);
         persist();
         pump();
     }
 
     public synchronized boolean enqueue(TLRPC.Document document, String displayName, long scheduleAt, int priority) {
+        return enqueue(document, displayName, scheduleAt, priority, null);
+    }
+
+    public synchronized boolean enqueue(TLRPC.Document document, String displayName, long scheduleAt, int priority, MessageObject parent) {
         if (document == null || document.id == 0 || document.dc_id == 0 || document.key != null) return false;
         String fileName = FileLoader.getAttachFileName(document);
         for (Task existing : tasks) {
@@ -267,6 +275,7 @@ public final class TeleBetaLocalDownloadManager {
         task.account = account;
         task.createdAt = System.currentTimeMillis();
         tasks.add(task);
+        if (parent != null) parents.put(fileName, parent);
         persist();
         pump();
         return true;
@@ -441,7 +450,9 @@ public final class TeleBetaLocalDownloadManager {
         message.media = new TLRPC.TL_messageMediaDocument();
         message.media.document = task.toDocument();
         MessageObject parent = new MessageObject(account, message, false, false);
-        FileLoader.getInstance(account).loadFile(task.toDocument(), parent, priorityToLoader(task.priority), 0);
+        MessageObject sourceParent;
+        synchronized (this) { sourceParent = parents.get(task.fileName); }
+        FileLoader.getInstance(account).loadFile(task.toDocument(), sourceParent != null ? sourceParent : parent, priorityToLoader(task.priority), 0);
     }
 
     private static int priorityToLoader(int priority) {
@@ -491,7 +502,7 @@ public final class TeleBetaLocalDownloadManager {
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
                 .setTitle("Local Download Manager");
         if (labels.length == 0) {
-            builder.setMessage("No managed downloads yet. Add a document from a chat using its message menu.");
+            builder.setMessage("No managed downloads yet. Use a message menu and choose Add to Local Download Manager.");
         } else {
             builder.setItems(labels, (dialog, which) -> {
                 if (which < 0 || which >= tasks.size()) return;
@@ -503,6 +514,18 @@ public final class TeleBetaLocalDownloadManager {
         builder.setPositiveButton("Settings", (dialog, which) -> showSettings(fragment, manager, resourcesProvider));
         builder.setNegativeButton("Close", null);
         fragment.showDialog(builder.create());
+    }
+
+    public static void addFromMessage(BaseFragment fragment, MessageObject messageObject, int account, Theme.ResourcesProvider resourcesProvider) {
+        if (fragment == null || messageObject == null || messageObject.getDocument() == null) return;
+        if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
+        TLRPC.Document document = messageObject.getDocument();
+        TeleBetaLocalDownloadManager manager = getInstance(account);
+        if (manager.enqueue(document, FileLoader.getDocumentFileName(document), 0, 1, messageObject)) {
+            Toast.makeText(fragment.getContext(), "Added to Local Download Manager", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(fragment.getContext(), "This file cannot be managed", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private static void styleSettingsInput(EditText input, Theme.ResourcesProvider resourcesProvider) {
