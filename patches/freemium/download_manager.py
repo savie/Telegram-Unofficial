@@ -383,7 +383,7 @@ public final class TeleBetaLocalDownloadManager {
                             if (task.status == STATUS_DOWNLOADING) {
                                 FileLoadOperation operation = FileLoader.getInstance(account).getLoadOperation(task.fileName);
                                 if (operation == null) {
-                                    File file = FileLoader.getInstance(account).getPathToAttach(task.toDocument(), true);
+                                    File file = FileLoader.getInstance(account).getPathToAttach(task.toDocument(), false);
                                     if (file != null && file.exists() && task.size > 0 && file.length() >= task.size) {
                                         task.status = STATUS_COMPLETED;
                                     } else {
