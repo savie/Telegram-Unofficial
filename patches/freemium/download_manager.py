@@ -685,6 +685,29 @@ public final class TeleBetaLocalDownloadManager {
     projection = projection_anchor + """
             TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);"""
     downloads_source = downloads_source.replace(projection_anchor, projection)
+
+    # Expose the local manager directly from Telegram's Downloads screen.
+    # Preserve the upstream Downloads settings action when the local feature is off.
+    manager_entry_anchor = """                } else if (position == recentFilesHeader) {
+                    graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
+                            view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
+                    );
+                }
+"""
+    manager_entry_new = """                } else if (position == recentFilesHeader) {
+                    if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) {
+                        graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), "Local Manager",
+                                view -> TeleBetaLocalDownloadManager.showManager(parentFragment, currentAccount, null)
+                        );
+                    } else {
+                        graySectionCell.setText(LocaleController.getString(R.string.RecentlyDownloaded), LocaleController.getString(R.string.Settings),
+                                view -> DownloadsInfoBottomSheet.show(parentActivity, parentFragment)
+                        );
+                    }
+                }
+"""
+    if manager_entry_new not in downloads_source:
+        downloads_source = _replace_once(downloads_source, manager_entry_anchor, manager_entry_new, "Downloads local manager entry point")
     downloads.write_text(downloads_source, encoding="utf-8")
 
     # Do not add a manager-only item to the chat overflow menu. Manual file
