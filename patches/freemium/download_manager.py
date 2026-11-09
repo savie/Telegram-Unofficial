@@ -156,6 +156,7 @@ public final class TeleBetaLocalDownloadManager {
     }
 
     private final int account;
+    private static final TeleBetaLocalDownloadManager[] CALLBACKS = new TeleBetaLocalDownloadManager[UserConfig.MAX_ACCOUNT_COUNT];
     private final SharedPreferences prefs;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -177,6 +178,7 @@ public final class TeleBetaLocalDownloadManager {
 
     private TeleBetaLocalDownloadManager(int account) {
         this.account = account;
+        CALLBACKS[account] = this;
         prefs = ApplicationLoader.applicationContext.getSharedPreferences(PREFS + "_" + account, Context.MODE_PRIVATE);
         load();
         scheduler.scheduleWithFixedDelay(this::pump, 2, 2, TimeUnit.SECONDS);
@@ -212,6 +214,24 @@ public final class TeleBetaLocalDownloadManager {
 
     public synchronized List<Task> getTasks() {
         return new ArrayList<>(tasks);
+    }
+
+    public static void notifyCompleted(int account, String fileName) {
+        TeleBetaLocalDownloadManager manager = account >= 0 && account < CALLBACKS.length ? CALLBACKS[account] : null;
+        if (manager != null) manager.updateStatus(fileName, STATUS_COMPLETED);
+    }
+
+    public static void notifyFailed(int account, String fileName) {
+        TeleBetaLocalDownloadManager manager = account >= 0 && account < CALLBACKS.length ? CALLBACKS[account] : null;
+        if (manager != null) manager.updateStatus(fileName, STATUS_FAILED);
+    }
+
+    private synchronized void updateStatus(String fileName, int status) {
+        Task task = find(fileName);
+        if (task == null || task.status == STATUS_CANCELLED) return;
+        task.status = status;
+        persist();
+        pump();
     }
 
     public synchronized boolean enqueue(TLRPC.Document document, String displayName, long scheduleAt, int priority) {
