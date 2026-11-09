@@ -630,8 +630,7 @@ public final class TeleBetaLocalDownloadManager {
     chat_source = _replace_once(chat_source, click_anchor, click_new, "ChatActivity download manager click")
     chat.write_text(chat_source, encoding="utf-8")
 
-    # The Freemium grant patch registers LOCAL_DOWNLOAD_MANAGER alongside the
-    # existing local feature keys; no Telegram account Premium flag is modified.
+    # Keep the Freemium feature registry aligned with this manager.
     freemium_patch = ROOT / "patches/freemium/patch.py"
     freemium_source = freemium_patch.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
@@ -641,6 +640,5 @@ public final class TeleBetaLocalDownloadManager {
             raise SystemExit("Freemium feature enum anchor changed; refusing unsafe edit.")
         freemium_source = freemium_source.replace(old_feature, new_feature, 1)
         freemium_patch.write_text(freemium_source, encoding="utf-8")
-
     if "LOCAL_DOWNLOAD_MANAGER" not in engine.read_text(encoding="utf-8"):
         raise SystemExit("Feature registry validation failed.")
