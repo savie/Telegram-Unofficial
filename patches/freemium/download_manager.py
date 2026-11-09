@@ -634,6 +634,32 @@ public final class TeleBetaLocalDownloadManager {
     helper.parent.mkdir(parents=True, exist_ok=True)
     helper.write_text(helper_source, encoding="utf-8")
 
+    loader = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/FileLoader.java"
+    loader_source = loader.read_text(encoding="utf-8")
+    lookup_anchor = "    public boolean isLoadingFile(final String fileName) {\\n"
+    lookup_add = """    public FileLoadOperation getLoadOperation(final String fileName) {
+        return fileName == null ? null : loadOperationPaths.get(fileName);
+    }
+
+    public boolean isLoadingFile(final String fileName) {
+"""
+    if "getLoadOperation(final String fileName)" not in loader_source:
+        loader_source = _replace_once(loader_source, lookup_anchor, lookup_add, "FileLoader operation lookup")
+    elif loader_source.count("getLoadOperation(final String fileName)") != 1:
+        raise SystemExit("FileLoader operation lookup is ambiguous.")
+
+    finish_anchor = """            public void didFinishLoadingFile(FileLoadOperation operation, File finalFile) {
+"""
+    finish_add = finish_anchor + """                TeleBetaLocalDownloadManager.notifyCompleted(currentAccount, fileName);
+"""
+    loader_source = _replace_once(loader_source, finish_anchor, finish_add, "FileLoader managed completion callback")
+    failure_anchor = """            public void didFailedLoadingFile(FileLoadOperation operation, int reason) {
+"""
+    failure_add = failure_anchor + """                TeleBetaLocalDownloadManager.notifyFailed(currentAccount, fileName);
+"""
+    loader_source = _replace_once(loader_source, failure_anchor, failure_add, "FileLoader managed failure callback")
+    loader.write_text(loader_source, encoding="utf-8")
+
     downloads = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/SearchDownloadsContainer.java"
     downloads_source = downloads.read_text(encoding="utf-8")
     manager_import = "import org.telegram.messenger.TeleBetaLocalDownloadManager;\n"
