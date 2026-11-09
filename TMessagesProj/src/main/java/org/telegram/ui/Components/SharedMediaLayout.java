@@ -92,6 +92,8 @@ import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SavedMessagesController;
+import org.telegram.messenger.TeleBetaFreemium;
+import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
@@ -7864,9 +7866,15 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
                         AndroidUtilities.openDocument(message, profileActivity.getParentActivity(), profileActivity);
                     } else if (!cell.isLoading()) {
                         MessageObject messageObject = cell.getMessage();
-                        messageObject.putInDownloadsStore = true;
-                        profileActivity.getFileLoader().loadFile(document, messageObject, FileLoader.PRIORITY_LOW, 0);
-                        cell.updateFileExistIcon(true);
+                        if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)
+                                && TeleBetaLocalDownloadManager.getInstance(messageObject.currentAccount).enqueue(document,
+                                FileLoader.getDocumentFileName(document), 0, 1, messageObject)) {
+                            cell.updateFileExistIcon(true);
+                        } else {
+                            messageObject.putInDownloadsStore = true;
+                            profileActivity.getFileLoader().loadFile(document, messageObject, FileLoader.PRIORITY_LOW, 0);
+                            cell.updateFileExistIcon(true);
+                        }
                     } else {
                         profileActivity.getFileLoader().cancelLoadFile(document);
                         cell.updateFileExistIcon(true);
