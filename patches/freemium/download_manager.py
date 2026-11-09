@@ -567,10 +567,15 @@ public final class TeleBetaLocalDownloadManager {
                         if (task.status == STATUS_PAUSED || task.status == STATUS_FAILED) manager.resume(task.fileName);
                         else if (task.status == STATUS_DOWNLOADING || task.status == STATUS_QUEUED) manager.pause(task.fileName);
                     } else if (which == 1) {
-                        String[] priorities = new String[] { "Low", "Normal", "High", "Urgent" };
+                        String[] priorityNames = new String[] { "Low", "Normal", "High", "Urgent" };
+                        int currentPriority = Math.max(0, Math.min(3, task.priority));
+                        CharSequence[] priorities = new CharSequence[priorityNames.length];
+                        for (int i = 0; i < priorityNames.length; i++) {
+                            priorities[i] = (i == currentPriority ? "✓ " : "") + priorityNames[i];
+                        }
                         new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
                                 .setTitle("Download priority")
-                                .setSingleChoiceItems(priorities, Math.max(0, Math.min(3, task.priority)), (priorityDialog, selected) -> {
+                                .setItems(priorities, (priorityDialog, selected) -> {
                                     manager.setPriority(task.fileName, selected);
                                     priorityDialog.dismiss();
                                 })
