@@ -20,13 +20,15 @@ def apply_local_download_manager() -> None:
     if not engine.exists():
         raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_source = engine.read_text(encoding="utf-8")
-    old = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
-    new = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, LOCAL_DOWNLOAD_MANAGER }"
-    if old in engine_source:
-        engine_source = _replace_once(engine_source, old, new, "Freemium feature registry")
+    enum_match = re.search(r"public\\s+enum\\s+Feature\\s*\\{([^}]*)\\}", engine_source)
+    if enum_match is None:
+        raise SystemExit("Could not locate the Freemium Feature enum.")
+    feature_names = [name.strip() for name in enum_match.group(1).split(",") if name.strip()]
+    if "LOCAL_DOWNLOAD_MANAGER" not in feature_names:
+        feature_names.append("LOCAL_DOWNLOAD_MANAGER")
+        replacement = "public enum Feature { " + ", ".join(feature_names) + " }"
+        engine_source = engine_source[:enum_match.start()] + replacement + engine_source[enum_match.end():]
         engine.write_text(engine_source, encoding="utf-8")
-    elif engine_source.count(new) != 1:
-        raise SystemExit("LOCAL_DOWNLOAD_MANAGER registry state is unknown.")
 
     helper = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaLocalDownloadManager.java"
     if helper.exists():
