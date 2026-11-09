@@ -723,6 +723,62 @@ public final class TeleBetaLocalDownloadManager {
     chat_source = _replace_once(chat_source, click_anchor, click_new, "ChatActivity download manager click")
     chat.write_text(chat_source, encoding="utf-8")
 
+    manager_path = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaLocalDownloadManager.java"
+    manager_source = manager_path.read_text(encoding="utf-8")
+    manager_source = _replace_once(
+        manager_source,
+        """    private synchronized Task find(String fileName) {
+        for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
+        return null;
+    }""",
+        """    public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
+        if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
+        for (Task task : tasks) {
+            if (task.status == STATUS_CANCELLED || task.status == STATUS_FAILED || task.status == STATUS_COMPLETED) continue;
+            MessageObject row = createTelegramDownloadsRow(task);
+            if (task.status == STATUS_DOWNLOADING) active.add(0, row); else recent.add(0, row);
+        }
+    }
+
+    private MessageObject createTelegramDownloadsRow(Task task) {
+        TLRPC.TL_message message = new TLRPC.TL_message();
+        message.id = (int) -Math.max(1L, task.createdAt);
+        message.date = (int) (task.createdAt / 1000L);
+        message.peer_id = new TLRPC.TL_peerUser();
+        message.peer_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.from_id = new TLRPC.TL_peerUser();
+        message.from_id.user_id = UserConfig.getInstance(account).getClientUserId();
+        message.media = new TLRPC.TL_messageMediaDocument();
+        message.media.document = task.toDocument();
+        MessageObject row = new MessageObject(account, message, false, false);
+        row.isDownloadingFile = true;
+        return row;
+    }
+
+    private synchronized Task find(String fileName) {
+        for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
+        return null;
+    }""",
+        "Local Download Manager native Downloads projection"
+    )
+    manager_path.write_text(manager_source, encoding="utf-8")
+
+    downloads = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/Components/SearchDownloadsContainer.java"
+    downloads_source = downloads.read_text(encoding="utf-8")
+    manager_import = "import org.telegram.messenger.TeleBetaLocalDownloadManager;\\n"
+    freemium_import = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    if manager_import not in downloads_source:
+        import_anchor = "import org.telegram.messenger.UserConfig;\\n"
+        downloads_source = _replace_once(downloads_source, import_anchor, import_anchor + freemium_import + manager_import, "Downloads container imports")
+    list_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
+            FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
+    list_replacement = list_anchor + """
+            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);"""
+    if downloads_source.count(list_anchor) != 2:
+        raise SystemExit("Downloads list refresh anchors changed; refusing unsafe edit.")
+    downloads_source = downloads_source.replace(list_anchor, list_replacement)
+    downloads.write_text(downloads_source, encoding="utf-8")
+
     # Keep the Freemium feature registry aligned with this manager.
     freemium_patch = ROOT / "patches/freemium/patch.py"
     freemium_source = freemium_patch.read_text(encoding="utf-8")
