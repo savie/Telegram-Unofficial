@@ -744,13 +744,14 @@ public final class TeleBetaLocalDownloadManager {
     if manager_import not in downloads_source:
         import_anchor = "import org.telegram.messenger.UserConfig;\\n"
         downloads_source = _replace_once(downloads_source, import_anchor, import_anchor + freemium_import + manager_import, "Downloads container imports")
-    list_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
+    first_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
             FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
-    list_replacement = list_anchor + """ 
-            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);"""
-    if downloads_source.count(list_anchor) != 2:
+    second_anchor = """            FileLoader.getInstance(currentAccount).getCurrentLoadingFiles(currentLoadingFilesTmp);
+            FileLoader.getInstance(currentAccount).getRecentLoadingFiles(recentLoadingFilesTmp);"""
+    if downloads_source.count(first_anchor) != 2:
         raise SystemExit("Downloads list refresh anchors changed; refusing unsafe edit.")
-    downloads_source = downloads_source.replace(list_anchor, list_replacement)
+    downloads_source = downloads_source.replace(first_anchor, first_anchor + """
+            TeleBetaLocalDownloadManager.getInstance(currentAccount).appendTelegramDownloadLists(currentLoadingFilesTmp, recentLoadingFilesTmp);""")
     downloads.write_text(downloads_source, encoding="utf-8")
 
     # Do not add a manager-only item to the chat overflow menu. Manual file
