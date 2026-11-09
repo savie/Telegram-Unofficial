@@ -114,6 +114,7 @@ jobs:
             --exclude='/.migration/' \
             --exclude='/README.md' \
             --exclude='/patches/' \
+            --exclude='/docs/' \
             --exclude='/UPSTREAM_TELEGRAM_COMMIT' \
             /tmp/telegram-upstream/ ./
 
