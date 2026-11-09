@@ -401,6 +401,7 @@ public final class TeleBetaLocalDownloadManager {
 
     public static void showManager(BaseFragment fragment, int account, Theme.ResourcesProvider resourcesProvider) {
         if (fragment == null || fragment.getContext() == null) return;
+        if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
         TeleBetaLocalDownloadManager manager = getInstance(account);
         List<Task> tasks = manager.getTasks();
         CharSequence[] labels = new CharSequence[tasks.size()];
