@@ -631,13 +631,13 @@ public final class TeleBetaLocalDownloadManager {
 }
 """
     # Project managed local tasks into Telegram's native Downloads list.
-    helper_source = _replace_once(
-        helper_source,
-        """    private synchronized Task find(String fileName) {
-        for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
-        return null;
-    }""",
-        """    public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
+    # The generated helper does not yet contain its own find() method, so
+    # insert both projection and lookup methods immediately before the class end.
+    class_end = helper_source.rfind("\\n}")
+    if class_end < 0 or helper_source.count("\\n}") != 1:
+        raise SystemExit("Local Download Manager generated class closing anchor is missing or ambiguous.")
+    projection_methods = """
+    public synchronized void appendTelegramDownloadLists(ArrayList<MessageObject> active, ArrayList<MessageObject> recent) {
         if (!TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)) return;
         for (Task task : tasks) {
             if (task.status == STATUS_CANCELLED || task.status == STATUS_FAILED || task.status == STATUS_COMPLETED) continue;
@@ -664,9 +664,9 @@ public final class TeleBetaLocalDownloadManager {
     private synchronized Task find(String fileName) {
         for (Task task : tasks) if (task.fileName.equals(fileName)) return task;
         return null;
-    }""",
-        "Local Download Manager native Downloads projection"
-    )
+    }
+"""
+    helper_source = helper_source[:class_end] + projection_methods + helper_source[class_end:]
 
     helper.parent.mkdir(parents=True, exist_ok=True)
     helper.write_text(helper_source, encoding="utf-8")
