@@ -50,6 +50,8 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.TeleBetaFreemium;
+import org.telegram.messenger.TeleBetaLocalDownloadManager;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLMethod;
@@ -1160,9 +1162,15 @@ public class FilteredSearchView extends FrameLayout implements NotificationCente
                     AndroidUtilities.openDocument(message, parentActivity, parentFragment);
                 } else if (!cell.isLoading()) {
                     MessageObject messageObject = cell.getMessage();
-                    messageObject.putInDownloadsStore = true;
-                    AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(document, messageObject, FileLoader.PRIORITY_LOW, 0);
-                    cell.updateFileExistIcon(true);
+                    if (TeleBetaFreemium.getInstance().isFeatureEnabled(TeleBetaFreemium.Feature.LOCAL_DOWNLOAD_MANAGER)
+                            && TeleBetaLocalDownloadManager.getInstance(messageObject.currentAccount).enqueue(document,
+                            FileLoader.getDocumentFileName(document), 0, 1, messageObject)) {
+                        cell.updateFileExistIcon(true);
+                    } else {
+                        messageObject.putInDownloadsStore = true;
+                        AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().loadFile(document, messageObject, FileLoader.PRIORITY_LOW, 0);
+                        cell.updateFileExistIcon(true);
+                    }
                 } else {
                     AccountInstance.getInstance(UserConfig.selectedAccount).getFileLoader().cancelLoadFile(document);
                     cell.updateFileExistIcon(true);
