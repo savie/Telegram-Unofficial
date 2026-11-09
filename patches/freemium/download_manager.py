@@ -538,9 +538,7 @@ public final class TeleBetaLocalDownloadManager {
         } else {
             builder.setItems(labels, (dialog, which) -> {
                 if (which < 0 || which >= tasks.size()) return;
-                Task task = tasks.get(which);
-                if (task.status == STATUS_PAUSED) manager.resume(task.fileName);
-                else if (task.status == STATUS_DOWNLOADING || task.status == STATUS_QUEUED) manager.pause(task.fileName);
+                showTaskActions(fragment, manager, tasks.get(which), resourcesProvider);
             });
         }
         builder.setPositiveButton("Settings", (dialog, which) -> showSettings(fragment, manager, resourcesProvider));
@@ -558,6 +556,55 @@ public final class TeleBetaLocalDownloadManager {
         } else {
             Toast.makeText(fragment.getContext(), "This file cannot be managed", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private static void showTaskActions(BaseFragment fragment, TeleBetaLocalDownloadManager manager, Task task, Theme.ResourcesProvider resourcesProvider) {
+        String[] actions = new String[] { "Pause / Resume", "Set priority", "Schedule", "Cancel download" };
+        AlertDialog dialog = new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
+                .setTitle(task.displayName)
+                .setItems(actions, (d, which) -> {
+                    if (which == 0) {
+                        if (task.status == STATUS_PAUSED || task.status == STATUS_FAILED) manager.resume(task.fileName);
+                        else if (task.status == STATUS_DOWNLOADING || task.status == STATUS_QUEUED) manager.pause(task.fileName);
+                    } else if (which == 1) {
+                        String[] priorities = new String[] { "Low", "Normal", "High", "Urgent" };
+                        new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
+                                .setTitle("Download priority")
+                                .setSingleChoiceItems(priorities, Math.max(0, Math.min(3, task.priority)), (priorityDialog, selected) -> {
+                                    manager.setPriority(task.fileName, selected);
+                                    priorityDialog.dismiss();
+                                })
+                                .setNegativeButton("Close", null)
+                                .show();
+                    } else if (which == 2) {
+                        EditText delay = new EditText(fragment.getContext());
+                        delay.setSingleLine(true);
+                        delay.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+                        delay.setHint("Minutes from now (0 = now)");
+                        new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
+                                .setTitle("Schedule download")
+                                .setView(delay)
+                                .setPositiveButton("Save", (scheduleDialog, selected) -> {
+                                    try {
+                                        long minutes = Math.max(0, Math.min(43200L, Long.parseLong(delay.getText().toString().trim())));
+                                        manager.setSchedule(task.fileName, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutes));
+                                    } catch (NumberFormatException ignored) {
+                                        Toast.makeText(fragment.getContext(), "Enter a valid number of minutes", Toast.LENGTH_SHORT).show();
+                                    }
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                    } else if (which == 3) {
+                        new AlertDialog.Builder(fragment.getContext(), resourcesProvider)
+                                .setMessage("Cancel this managed download?")
+                                .setPositiveButton("Cancel download", (cancelDialog, selected) -> manager.cancel(task.fileName))
+                                .setNegativeButton("Keep", null)
+                                .show();
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .create();
+        fragment.showDialog(dialog);
     }
 
     private static void styleSettingsInput(EditText input, Theme.ResourcesProvider resourcesProvider) {
