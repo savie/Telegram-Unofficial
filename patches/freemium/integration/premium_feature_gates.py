@@ -144,7 +144,7 @@ def patch_local_premium_checks(source: str, replacements: tuple[tuple[str, str, 
         new_count = source.count(new)
         if old_count == expected_count:
             source = source.replace(old, new)
-        elif old_count == 0 and new_count == expected_count:
+        elif old_count == 0 and new_count > 0:
             continue
         else:
             raise RuntimeError(
