@@ -9,7 +9,8 @@ from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES
 from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filters_setup, patch_saved_messages_controller
 from .features.downloads import patch_file_load_operation, patch_file_loader
-from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_stickers_alert
+from .features.emoji_and_stickers import patch_available_reaction_cell, patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
+from .features.last_seen import patch_message_private_seen_view
 from .features.no_ads import patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
@@ -56,6 +57,10 @@ FEATURE_PATCHES = (
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
     ("ui/Cells/AppIconsSelectorCell.java", patch_app_icons_selector),
+    ("ui/Cells/StickerEmojiCell.java", patch_sticker_emoji_cell),
+    ("ui/Cells/AvailableReactionCell.java", patch_available_reaction_cell),
+    ("ui/TopicCreateFragment.java", patch_topic_create_fragment),
+    ("ui/Components/MessagePrivateSeenView.java", patch_message_private_seen_view),
 )
 
 
