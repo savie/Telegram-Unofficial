@@ -132,8 +132,8 @@ def patch_premium_activation() -> None:
     signature_end = purchase_method.find("{")
     if signature_end < 0:
         raise SystemExit("Premium purchase method signature changed.")
-    redirect = """\n        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
-        // All purchase entry points terminate here. Never fall through to Telegram billing or bot.
+    redirect = """\n        // Intercept before Telegram's billing-unavailable dialog, bot navigation, or Play Billing.
+        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
         if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) {
             return;
         }
