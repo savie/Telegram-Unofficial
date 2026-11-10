@@ -7,10 +7,11 @@ from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES
-from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller
+from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_available_reaction_cell, patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_sticker_cell, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
+from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
@@ -55,6 +56,9 @@ FEATURE_PATCHES = (
     ("ui/FilterChatlistActivity.java", patch_filter_chatlist),
     ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("ui/Components/FilterTabsView.java", patch_filter_tabs_view),
+    ("ui/UsersSelectActivity.java", patch_users_select_activity),
+    ("ui/ChatRightsEditActivity.java", patch_chat_rights_edit_activity),
+    ("ui/SelectChatUserSheet.java", patch_select_chat_user_sheet),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/Adapters/DialogsSearchAdapter.java", patch_dialogs_search_adapter),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
