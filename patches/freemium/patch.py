@@ -97,6 +97,15 @@ def apply_freemium() -> None:
         "TMessagesProj/src/main/java/org/telegram/" + relative_path
         for relative_path in BUSINESS_SOURCE_FILES
     )
+    premium_source_files = tuple(dict.fromkeys(
+        relative_path
+        for paths in PREMIUM_GATE_TARGETS.values()
+        for relative_path in paths
+    ))
+    required.extend(
+        "TMessagesProj/src/main/java/org/telegram/" + relative_path
+        for relative_path in premium_source_files
+    )
     require_files(upstream_root, tuple(required))
 
     validate_catalog_mapping()
