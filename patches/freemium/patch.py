@@ -102,7 +102,11 @@ def apply_freemium() -> None:
     validate_catalog_mapping()
     helper_path, helper_source = stage_java_helper(upstream_root)
     validate_account_storage_source(helper_source)
-    assert_no_standalone_theme_ui_modules([relative for relative, _ in FEATURE_PATCHES])
+    freemium_modules = [
+        str(path.relative_to(repo_root))
+        for path in (repo_root / "patches/freemium").rglob("*.py")
+    ]
+    assert_no_standalone_theme_ui_modules(freemium_modules)
     preview_path = java_root / "org/telegram/ui/PremiumPreviewFragment.java"
 
     staged: list[StagedFile] = []
