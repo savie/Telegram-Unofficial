@@ -1,22 +1,103 @@
-"""Integrasi gate Premium: pemetaan source dan transformasi pemeriksaan lokal."""
+"""Pemetaan audit 26 kategori Premium ke source upstream; bukan grant per fitur."""
 IMPORT_ANCHOR = "import org.telegram.messenger.UserConfig;"
 FREEMIUM_IMPORT = "import org.telegram.messenger.TeleBetaFreemium;"
 
 PREMIUM_GATE_TARGETS = {
-    "Stories": ("ui/Stories/StealthModeAlert.java", "ui/Stories/SelfStoryViewsPage.java"),
+    "Stories": (
+        "ui/Stories/StealthModeAlert.java",
+        "ui/Stories/SelfStoryViewsPage.java",
+        "ui/DialogsActivity.java",
+    ),
+    "Unlimited Cloud Storage": (
+        "messenger/FileLoader.java",
+        "messenger/MessagesController.java",
+    ),
+    "Doubled Limits": (
+        "messenger/MessagesController.java",
+        "ui/DialogsActivity.java",
+        "ui/Components/ChatActivityEnterView.java",
+        "messenger/SavedMessagesController.java",
+    ),
+    "Telegram Business": ("ui/PremiumPreviewFragment.java",),
+    "Last Seen Times": (
+        "ui/PrivacyControlActivity.java",
+        "ui/ProfileActivity.java",
+        "messenger/ContactsController.java",
+        "ui/Components/MessagePrivateSeenView.java",
+    ),
     "Voice-to-Text Conversion": ("ui/Components/TranscribeButton.java",),
-    "Real-Time Translation": ("ui/Components/TranslateButton.java", "ui/Components/TranslateAlert3.java"),
-    "Faster Download Speed": ("messenger/FileLoader.java", "messenger/FileLoadOperation.java"),
-    "Animated Emoji": ("messenger/MediaDataController.java",),
-    "Emoji Statuses": ("messenger/MediaDataController.java",),
-    "Infinite Reactions": ("ui/Components/ReactionsContainerLayout.java",),
-    "Premium Stickers": ("ui/Components/StickersAlert.java",),
+    "Faster Download Speed": (
+        "messenger/FileLoader.java",
+        "messenger/FileLoadOperation.java",
+        "ui/DialogsActivity.java",
+    ),
+    "Real-Time Translation": (
+        "ui/Components/TranslateButton.java",
+        "ui/Components/TranslateAlert3.java",
+    ),
+    "Animated Emoji": (
+        "ui/SelectAnimatedEmojiDialog.java",
+        "messenger/MediaDataController.java",
+    ),
+    "Emoji Statuses": (
+        "ui/SelectAnimatedEmojiDialog.java",
+        "ui/PeerColorActivity.java",
+    ),
     "Tags in Saved Messages": ("ui/Components/SearchTagsList.java",),
-    "Name and Profile Colors": ("ui/PeerColorActivity.java",),
+    "Name and Profile Colors": (
+        "ui/PeerColorActivity.java",
+        "ui/ProfileActivity.java",
+    ),
+    "Wallpaper for Both Sides": ("ui/ChatEditActivity.java",),
+    "Profile Badge": (
+        "ui/ProfileActivity.java",
+        "ui/ProfileActivity2.java",
+    ),
     "Paid Messages": ("ui/PrivacyControlActivity.java",),
-    "Disable Sharing": ("ui/PrivacyControlActivity.java",),
+    "Disable Sharing": (
+        "ui/PrivacyControlActivity.java",
+        "ui/ProfileActivity.java",
+    ),
+    "Advanced Chat Management": (
+        "ui/DialogsActivity.java",
+        "messenger/SavedMessagesController.java",
+    ),
+    "No Ads": (
+        "ui/DialogsActivity.java",
+        "messenger/MessagesController.java",
+        "ui/SponsoredMessageInfoView.java",
+    ),
+    "Premium App Icons": (
+        "ui/Cells/AppIconsSelectorCell.java",
+        "ui/Components/Premium/PremiumAppIconsPreviewView.java",
+    ),
+    "Infinite Reactions": ("ui/Components/ReactionsContainerLayout.java",),
+    "Animated Profile Pictures": (
+        "ui/ProfileActivity.java",
+        "ui/ProfileActivity2.java",
+    ),
+    "Premium Stickers": (
+        "ui/Components/StickersAlert.java",
+        "messenger/MediaDataController.java",
+    ),
+    "Message Effects": (
+        "ui/Components/ReactionsContainerLayout.java",
+        "ui/SelectAnimatedEmojiDialog.java",
+        "ui/Components/ChatActivityEnterView.java",
+        "messenger/SendMessagesHelper.java",
+    ),
     "AI Tools": ("ui/Components/AIEditorAlert.java",),
-    "Formatting Tools": ("ui/iv/RichEditor.java", "ui/iv/ChatAttachAlertRichLayout.java"),
+    "Formatting Tools": (
+        "ui/iv/RichEditor.java",
+        "ui/iv/ChatAttachAlertRichLayout.java",
+        "ui/Components/ChatActivityEnterView.java",
+    ),
+    "Checklists": (
+        "ui/iv/RichEditor.java",
+        "ui/iv/ChatAttachAlertRichLayout.java",
+        "messenger/MessageObject.java",
+        "messenger/SendMessagesHelper.java",
+    ),
 }
 
 
