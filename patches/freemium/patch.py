@@ -132,11 +132,9 @@ def apply_freemium() -> None:
 
     commit_staged(staged)
     print(
-        "Freemium V2 applied: account-local activation and client-side gates "
-        "for Stories, Voice-to-Text, Real-Time Translation, Saved Message Tags, "
-        "Name and Profile Colors, Faster Download Speed, Emoji and Stickers, "
-        "Reactions, Advanced Chat Management, No Ads, AI Tools, Paid Messages, "
-        "Disable Sharing, and Formatting Tools. "
+        "Freemium V2 applied: account-local activation and audited Premium/Business "
+        "entry, gate, and client action-path integrations. Server-dependent operations "
+        "remain subject to Telegram server acceptance. "
         f"Upstream revision: {upstream_revision}."
     )
 
