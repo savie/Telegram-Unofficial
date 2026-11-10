@@ -11,13 +11,13 @@ from .features.chat_management import patch_archive_settings, patch_dialog_cell_
 from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_available_reaction_cell, patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_sticker_cell, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
-from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_select_chat_user_sheet
+from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_document_layout, patch_photo_viewer_caption, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
 from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
 from .features.saved_messages import patch_search_tags
-from .features.stories import patch_expired_story_views, patch_stealth_mode, patch_stories_controller
+from .features.stories import patch_caption_container_view, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
 from .features.wallpapers import patch_theme_preview_activity
@@ -59,6 +59,9 @@ FEATURE_PATCHES = (
     ("ui/UsersSelectActivity.java", patch_users_select_activity),
     ("ui/ChatRightsEditActivity.java", patch_chat_rights_edit_activity),
     ("ui/SelectChatUserSheet.java", patch_select_chat_user_sheet),
+    ("ui/Components/ChatAttachAlertDocumentLayout.java", patch_document_layout),
+    ("ui/Components/PhotoViewerCaptionEnterView.java", patch_photo_viewer_caption),
+    ("ui/Stories/recorder/CaptionContainerView.java", patch_caption_container_view),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/Adapters/DialogsSearchAdapter.java", patch_dialogs_search_adapter),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
