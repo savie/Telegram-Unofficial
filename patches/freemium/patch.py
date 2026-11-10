@@ -151,12 +151,15 @@ def patch_premium_activation() -> None:
     if purchase_start < 0 or purchase_end < 0:
         raise SystemExit("Premium purchase method boundaries changed.")
     purchase_method = source[purchase_start:purchase_end]
-    account_line = "        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();\\n"
-    if purchase_method.count(account_line) != 1:
+    purchase_lines = purchase_method.splitlines(keepends=True)
+    account_lines = [line for line in purchase_lines if line.strip().startswith("final int account = fragment == null ? UserConfig.selectedAccount")]
+    if len(account_lines) != 1:
         raise SystemExit("Premium purchase account resolution changed.")
-    purchase_method = purchase_method.replace(account_line, "", 1)
-    signature = "BillingFlowParams.SubscriptionUpdateParams updateParams) {\\n"
-    redirect = """        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
+    purchase_method = "".join(line for line in purchase_lines if line not in account_lines)
+    signature_end = purchase_method.find("{")
+    if signature_end < 0:
+        raise SystemExit("Premium purchase method signature changed.")
+    redirect = """\n        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
         if (account >= 0) {
             try {
                 TeleBetaFreemium.activate(account);
@@ -174,9 +177,7 @@ def patch_premium_activation() -> None:
             }
         }
 """
-    if signature not in purchase_method:
-        raise SystemExit("Premium purchase method signature changed.")
-    purchase_method = purchase_method.replace(signature, signature + redirect, 1)
+    purchase_method = purchase_method[:signature_end + 1] + redirect + purchase_method[signature_end + 1:]
     source = source[:purchase_start] + purchase_method + source[purchase_end:]
     PREMIUM_PREVIEW.write_text(source, encoding="utf-8")
 
