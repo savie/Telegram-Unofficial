@@ -14,7 +14,7 @@ from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
 from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
-from .validation.patch_preflight import require_files
+from .validation.patch_preflight import require_files, require_upstream_revision
 from .validation.source_integrity import StagedFile, commit_staged
 
 
@@ -41,6 +41,7 @@ FEATURE_PATCHES = (
 def apply_freemium() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     upstream_root = repo_root / "upstream"
+    upstream_revision = require_upstream_revision(repo_root)
     java_root = upstream_root / "TMessagesProj/src/main/java"
 
     required = [
@@ -82,7 +83,8 @@ def apply_freemium() -> None:
         "Freemium V2 applied: account-local activation and client-side gates "
         "for Stories, Voice-to-Text, Real-Time Translation, Saved Message Tags, "
         "Name and Profile Colors, Faster Download Speed, Emoji and Stickers, "
-        "Reactions, AI Tools, Paid Messages, Disable Sharing, and Formatting Tools."
+        "Reactions, AI Tools, Paid Messages, Disable Sharing, and Formatting Tools. "
+        f"Upstream revision: {upstream_revision}."
     )
 
 
