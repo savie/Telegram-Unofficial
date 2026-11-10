@@ -25,6 +25,7 @@ PREMIUM_GATE_TARGETS = {
         "messenger/SavedMessagesController.java",
         "messenger/FileUploadOperation.java",
         "ui/Components/PhotoViewerCaptionEnterView.java",
+        "ui/Components/CaptionPhotoViewer.java",
     ),
     "Telegram Business": ("ui/PremiumPreviewFragment.java", "ui/SettingsActivity.java", "ui/Components/ChatGreetingsView.java"),
     "Last Seen Times": (
