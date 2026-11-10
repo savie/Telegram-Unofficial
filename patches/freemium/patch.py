@@ -87,12 +87,24 @@ public final class TeleBetaFreemium {
      * Semua kategori dan subfitur menggunakan entitlement All-access yang sama.
      * Feature ID hanya mengidentifikasi jalur implementasi, bukan hak akses terpisah.
      */
+    private static boolean contains(String[] catalog, String featureId) {
+        if (featureId == null || featureId.isEmpty()) {
+            return false;
+        }
+        for (String item : catalog) {
+            if (item.equals(featureId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean hasAccess(int account, String featureId) {
-        return featureId != null && !featureId.isEmpty() && isActive(account);
+        return contains(PREMIUM_CATALOG, featureId) && isActive(account);
     }
 
     public static boolean hasBusinessAccess(int account, String businessFeatureId) {
-        return businessFeatureId != null && !businessFeatureId.isEmpty() && isActive(account);
+        return contains(BUSINESS_CATALOG, businessFeatureId) && isActive(account);
     }
 
     public static void deactivate(int account) {
@@ -236,9 +248,19 @@ def patch_feature_gates() -> None:
             raise SystemExit(f"Freemium V2 feature source is missing: {relative_path}")
         source = path.read_text(encoding="utf-8")
         original = source
+        changed = False
         for old, new in pairs:
-            source = source.replace(old, new)
-        if source == original:
+            if old in source:
+                source = source.replace(old, new)
+                changed = True
+            elif new in source:
+                # Already patched: keep the operation idempotent.
+                continue
+            else:
+                raise SystemExit(
+                    f"Expected Premium gate is missing in {relative_path}: {old}"
+                )
+        if source == original and not all(new in original for _, new in pairs):
             raise SystemExit(f"No expected Freemium V2 gate found in {relative_path}")
         import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
         if "import org.telegram.messenger.TeleBetaFreemium;" not in source:
