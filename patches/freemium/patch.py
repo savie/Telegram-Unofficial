@@ -232,7 +232,16 @@ def patch_feature_gates() -> None:
         ],
         "TMessagesProj/src/main/java/org/telegram/ui/Business/ChatAttachAlertQuickRepliesLayout.java": [
             ("!UserConfig.getInstance(parentAlert.currentAccount).isPremium()", "!UserConfig.getInstance(parentAlert.currentAccount).isPremium() && !TeleBetaFreemium.hasBusinessAccess(parentAlert.currentAccount, \"quick_replies\")"),
-        ],   }
+        ], 
+        "TMessagesProj/src/main/java/org/telegram/ui/Stories/StealthModeAlert.java": [
+            ("UserConfig.getInstance(currentAccount).isPremium()", "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"stories\"))"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Stories/SelfStoryViewsPage.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"stories\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/AvatarConstructorFragment.java": [
+            ("UserConfig.getInstance(currentAccount).isPremium()", "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"name_profile_colors\"))"),
+        ],  }
 
     for relative_path, pairs in replacements.items():
         path = UPSTREAM_ROOT / relative_path
