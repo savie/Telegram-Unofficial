@@ -5,9 +5,11 @@ from pathlib import Path
 from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
+from .features.business import TARGETS as BUSINESS_SOURCE_FILES
+from .features.chat_management import patch_saved_messages_controller
 from .features.downloads import patch_file_load_operation, patch_file_loader
-from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_stickers_alert
-from .features.formatting_tools import patch_attach_rich_layout, patch_rich_editor
+from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_stickers_alert
+from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
 from .features.profile_and_colors import patch_peer_color_activity
 from .features.saved_messages import patch_search_tags
@@ -35,6 +37,9 @@ FEATURE_PATCHES = (
     ("ui/Components/StickersAlert.java", patch_stickers_alert),
     ("ui/Components/AIEditorAlert.java", patch_ai_editor_alert),
     ("ui/PrivacyControlActivity.java", patch_privacy_controls),
+    ("ui/SelectAnimatedEmojiDialog.java", patch_select_animated_emoji_dialog),
+    ("ui/Components/ChatActivityEnterView.java", patch_chat_activity_enter_view),
+    ("messenger/SavedMessagesController.java", patch_saved_messages_controller),
 )
 
 
@@ -51,6 +56,10 @@ def apply_freemium() -> None:
     required.extend(
         "TMessagesProj/src/main/java/org/telegram/" + relative_path
         for relative_path, _ in FEATURE_PATCHES
+    )
+    required.extend(
+        "TMessagesProj/src/main/java/org/telegram/" + relative_path
+        for relative_path in BUSINESS_SOURCE_FILES
     )
     require_files(upstream_root, tuple(required))
 
