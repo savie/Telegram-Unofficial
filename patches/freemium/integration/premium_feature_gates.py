@@ -7,6 +7,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/Stories/SelfStoryViewsPage.java",
         "ui/Stories/StoriesController.java",
         "ui/Stories/recorder/CaptionContainerView.java",
+        "ui/Stories/recorder/CaptionStory.java",
         "ui/DialogsActivity.java",
     ),
     "Unlimited Cloud Storage": (
