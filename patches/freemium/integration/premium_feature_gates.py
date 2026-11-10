@@ -15,6 +15,8 @@ PREMIUM_GATE_TARGETS = {
     "Doubled Limits": (
         "messenger/MessagesController.java",
         "ui/DialogsActivity.java",
+        "ui/ChatRightsEditActivity.java",
+        "ui/SelectChatUserSheet.java",
         "ui/Components/ChatActivityEnterView.java",
         "messenger/SavedMessagesController.java",
     ),
@@ -71,6 +73,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/FilterChatlistActivity.java",
         "ui/Components/DialogCellTags.java",
         "ui/Components/FilterTabsView.java",
+        "ui/UsersSelectActivity.java",
         "messenger/SavedMessagesController.java",
     ),
     "No Ads": (
