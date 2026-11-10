@@ -17,6 +17,7 @@ from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
 from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
+from .features.wallpapers import patch_theme_preview_activity
 from .validation.account_isolation import validate_account_storage_source
 from .validation.feature_regression import assert_no_standalone_theme_ui_modules, validate_catalog_mapping
 from .validation.patch_preflight import require_files, require_upstream_revision
@@ -51,6 +52,7 @@ FEATURE_PATCHES = (
     ("ui/FilterChatlistActivity.java", patch_filter_chatlist),
     ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("messenger/video/VideoAds.java", patch_video_ads),
+    ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
 )
 
 
