@@ -34,8 +34,6 @@ PREMIUM_GATE_TARGETS = {
     "Faster Download Speed": (
         "messenger/FileLoader.java",
         "messenger/FileLoadOperation.java",
-        "ui/Components/ChatAttachAlertDocumentLayout.java",
-        "ui/Components/PhotoViewerCaptionEnterView.java",
         "ui/DialogsActivity.java",
     ),
     "Real-Time Translation": (
@@ -57,6 +55,7 @@ PREMIUM_GATE_TARGETS = {
     "Emoji Statuses": (
         "ui/SelectAnimatedEmojiDialog.java",
         "ui/PeerColorActivity.java",
+        "ui/bots/SetupEmojiStatusSheet.java",
     ),
     "Tags in Saved Messages": ("ui/Components/SearchTagsList.java",),
     "Name and Profile Colors": (
@@ -105,6 +104,7 @@ PREMIUM_GATE_TARGETS = {
     "Premium Stickers": (
         "ui/Components/StickersAlert.java",
         "ui/Components/StickerSetBulletinLayout.java",
+        "ui/Cells/StickerCell.java",
         "ui/Cells/StickerEmojiCell.java",
         "messenger/MediaDataController.java",
     ),
@@ -112,6 +112,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/Components/ReactionsContainerLayout.java",
         "ui/SelectAnimatedEmojiDialog.java",
         "ui/Components/ChatActivityEnterView.java",
+        "ui/ReactionsDoubleTapManageActivity.java",
         "messenger/SendMessagesHelper.java",
     ),
     "AI Tools": ("ui/Components/AIEditorAlert.java",),
