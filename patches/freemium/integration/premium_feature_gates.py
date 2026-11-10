@@ -37,6 +37,9 @@ PREMIUM_GATE_TARGETS = {
     ),
     "Animated Emoji": (
         "ui/SelectAnimatedEmojiDialog.java",
+        "ui/Cells/StickerEmojiCell.java",
+        "ui/Cells/AvailableReactionCell.java",
+        "ui/TopicCreateFragment.java",
         "messenger/MediaDataController.java",
     ),
     "Emoji Statuses": (
