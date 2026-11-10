@@ -133,14 +133,18 @@ def patch_premium_activation() -> None:
     if signature_end < 0:
         raise SystemExit("Premium purchase method signature changed.")
     redirect = """\n        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
-        if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT) {
+        // All purchase entry points terminate here. Never fall through to Telegram billing or bot.
+        if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) {
+            return;
+        }
+        if (!TeleBetaFreemium.isActive(account)) {
             try {
                 TeleBetaFreemium.activate(account);
             } catch (IllegalStateException | IllegalArgumentException error) {
                 return;
             }
-            return;
         }
+        return;
 """
     purchase_method = purchase_method[:signature_end + 1] + redirect + purchase_method[signature_end + 1:]
     source = source[:purchase_start] + purchase_method + source[purchase_end:]
