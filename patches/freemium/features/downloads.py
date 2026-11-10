@@ -7,6 +7,7 @@ TARGETS = ("messenger/FileLoader.java", "messenger/FileLoadOperation.java")
 def patch_file_loader(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+        ("AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
 
 
