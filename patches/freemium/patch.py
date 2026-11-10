@@ -145,6 +145,39 @@ def patch_premium_activation() -> None:
 
 """
     source = source[:method_start] + method_replacement + source[method_end:]
+
+    purchase_start = source.find("    public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {")
+    purchase_end = source.find("    public static void fillPremiumFeaturesList", purchase_start)
+    if purchase_start < 0 or purchase_end < 0:
+        raise SystemExit("Premium purchase method boundaries changed.")
+    purchase_method = source[purchase_start:purchase_end]
+    account_line = "        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();\\n"
+    if purchase_method.count(account_line) != 1:
+        raise SystemExit("Premium purchase account resolution changed.")
+    purchase_method = purchase_method.replace(account_line, "", 1)
+    signature = "BillingFlowParams.SubscriptionUpdateParams updateParams) {\\n"
+    redirect = """        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
+        if (account >= 0) {
+            try {
+                TeleBetaFreemium.activate(account);
+                android.content.Context toastContext = fragment != null ? fragment.getParentActivity() : LaunchActivity.instance;
+                if (toastContext != null) {
+                    android.widget.Toast.makeText(toastContext, "Freemium berhasil diaktifkan untuk akun ini.", android.widget.Toast.LENGTH_SHORT).show();
+                }
+                return;
+            } catch (IllegalStateException error) {
+                android.content.Context toastContext = fragment != null ? fragment.getParentActivity() : LaunchActivity.instance;
+                if (toastContext != null) {
+                    android.widget.Toast.makeText(toastContext, "Akun Telegram belum siap untuk mengaktifkan Freemium.", android.widget.Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+        }
+"""
+    if signature not in purchase_method:
+        raise SystemExit("Premium purchase method signature changed.")
+    purchase_method = purchase_method.replace(signature, signature + redirect, 1)
+    source = source[:purchase_start] + purchase_method + source[purchase_end:]
     PREMIUM_PREVIEW.write_text(source, encoding="utf-8")
 
 def patch_feature_gates() -> None:
