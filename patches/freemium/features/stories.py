@@ -5,6 +5,7 @@ TARGETS = (
     "ui/Stories/StealthModeAlert.java",
     "ui/Stories/SelfStoryViewsPage.java",
     "ui/Stories/StoriesController.java",
+    "ui/Stories/recorder/CaptionContainerView.java",
 )
 
 
@@ -21,6 +22,13 @@ def patch_expired_story_views(source: str) -> str:
 
 
 def patch_stories_controller(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
+
+
+
+def patch_caption_container_view(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
     ))
