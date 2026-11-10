@@ -6,7 +6,7 @@ from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
-from .features.business import TARGETS as BUSINESS_SOURCE_FILES, patch_chat_greetings_view
+from .features.business import TARGETS as BUSINESS_SOURCE_FILES, patch_chat_greetings_view, patch_quick_replies_layout
 from .integration.premium_feature_gates import PREMIUM_GATE_TARGETS
 from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation, patch_file_loader
@@ -49,6 +49,7 @@ FEATURE_PATCHES = (
     ("ui/PrivacyControlActivity.java", patch_privacy_controls),
     ("ui/PrivacySettingsActivity.java", patch_privacy_settings_activity),
     ("ui/Components/ChatGreetingsView.java", patch_chat_greetings_view),
+    ("ui/Business/ChatAttachAlertQuickRepliesLayout.java", patch_quick_replies_layout),
     ("ui/SelectAnimatedEmojiDialog.java", patch_select_animated_emoji_dialog),
     ("ui/Components/ChatActivityEnterView.java", patch_chat_activity_enter_view),
     ("messenger/SavedMessagesController.java", patch_saved_messages_controller),
