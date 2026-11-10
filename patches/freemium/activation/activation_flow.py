@@ -50,6 +50,13 @@ def patch_purchase_flow(source: str) -> str:
             1,
         )
 
+    preview_gate = "if (getMessagesController().premiumFeaturesBlocked()) {"
+    unlocked_preview_gate = "if (getMessagesController().premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(currentAccount)) {"
+    if patched.count(preview_gate) == 1:
+        patched = patched.replace(preview_gate, unlocked_preview_gate, 1)
+    elif patched.count(unlocked_preview_gate) != 1:
+        raise RuntimeError("PremiumPreviewFragment availability gate anchor mismatch")
+
     # PremiumPreviewFragment owns the Premium/Business preview gates. Keep
     # Telegram's user.premium state untouched; consult local entitlement only
     # for these client-side entry points and presentation decisions.
@@ -62,3 +69,24 @@ def patch_purchase_flow(source: str) -> str:
         "TeleBetaFreemium.hasAllAccess(currentAccount)"
     )
     return patched
+
+
+
+def patch_settings_business_entry(source: str) -> str:
+    """Keep Telegram's native Premium/Business settings rows visible for Freemium."""
+    user_import = "import org.telegram.messenger.UserConfig;"
+    freemium_import = "import org.telegram.messenger.TeleBetaFreemium;"
+    if source.count(user_import) != 1:
+        raise RuntimeError("SettingsActivity UserConfig import anchor must exist exactly once")
+    old = "if (!getMessagesController().premiumFeaturesBlocked()) {"
+    new = "if (!getMessagesController().premiumFeaturesBlocked() || TeleBetaFreemium.hasAllAccess(currentAccount)) {"
+    count = source.count(old)
+    if count == 2:
+        source = source.replace(old, new)
+    elif count == 0 and source.count(new) == 2:
+        pass
+    else:
+        raise RuntimeError(f"SettingsActivity Premium/Business row anchors: expected 2, found {count}")
+    if freemium_import not in source:
+        source = source.replace(user_import, user_import + "\\n" + freemium_import, 1)
+    return source
