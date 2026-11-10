@@ -41,6 +41,7 @@ PREMIUM_GATE_TARGETS = {
     "Real-Time Translation": (
         "ui/Components/TranslateButton.java",
         "ui/Components/TranslateAlert3.java",
+        "ui/LanguageSelectActivity.java",
     ),
     "Animated Emoji": (
         "ui/SelectAnimatedEmojiDialog.java",
@@ -48,6 +49,9 @@ PREMIUM_GATE_TARGETS = {
         "ui/Cells/StickerEmojiCell.java",
         "ui/Cells/AvailableReactionCell.java",
         "ui/TopicCreateFragment.java",
+        "ui/bots/SetupEmojiStatusSheet.java",
+        "ui/Components/EmojiPacksAlert.java",
+        "ui/ReactionsDoubleTapManageActivity.java",
         "messenger/MediaDataController.java",
     ),
     "Emoji Statuses": (
