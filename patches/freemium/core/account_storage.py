@@ -14,7 +14,7 @@ public final class TeleBetaFreemium {
         if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) {
             return null;
         }
-        long userId = UserConfig.getInstance(account).getClientUserId();
+        long userId = accountUserId(account);
         if (userId <= 0 || ApplicationLoader.applicationContext == null) {
             return null;
         }
@@ -22,6 +22,13 @@ public final class TeleBetaFreemium {
             PREFIX + userId,
             Context.MODE_PRIVATE
         );
+    }
+
+    private static long accountUserId(int account) {
+        if (!UserConfig.isValidAccount(account)) {
+            return 0L;
+        }
+        return UserConfig.getInstance(account).getClientUserId();
     }
 
     public static boolean isActive(int account) {
