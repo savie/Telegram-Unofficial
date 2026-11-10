@@ -119,6 +119,18 @@ def patch_premium_activation() -> None:
             1,
         )
 
+    button_text_start = source.find("    public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {")
+    if button_text_start < 0:
+        raise SystemExit("Premium button text method changed.")
+    button_text_body = button_text_start + len("    public static String getPremiumButtonText(int currentAccount, SubscriptionTier tier) {")
+    active_button_guard = """
+        if (TeleBetaFreemium.isActive(currentAccount)) {
+            return getString(R.string.TelegramPremiumSubscribedTitle);
+        }
+"""
+    if "TeleBetaFreemium.isActive(currentAccount)" not in source[button_text_body:button_text_body + 300]:
+        source = source[:button_text_body] + active_button_guard + source[button_text_body:]
+
     purchase_start = source.find("    public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {")
     purchase_end = source.find("    public static void fillPremiumFeaturesList", purchase_start)
     if purchase_start < 0 or purchase_end < 0:
