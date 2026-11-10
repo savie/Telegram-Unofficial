@@ -18,18 +18,18 @@ def patch_dialogs_activity(source: str) -> str:
             1,
         ),
         (
-            "if (getUserConfig().isPremium()) {\\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
-            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
+            "if (getUserConfig().isPremium()) {\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
+            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
             1,
         ),
         (
-            "if (getUserConfig().isPremium()) {\\n                    maxPinnedCount = getMessagesController().maxPinnedDialogsCountPremium;",
-            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\\n                    maxPinnedCount = getMessagesController().maxPinnedDialogsCountPremium;",
+            "if (getUserConfig().isPremium()) {\n                    maxPinnedCount = getMessagesController().maxPinnedDialogsCountPremium;",
+            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\n                    maxPinnedCount = getMessagesController().maxPinnedDialogsCountPremium;",
             1,
         ),
         (
-            "if (UserConfig.getInstance(currentAccount).isPremium()) {\\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
-            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
+            "if (UserConfig.getInstance(currentAccount).isPremium()) {\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
+            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\n                    maxPinnedCount = getMessagesController().maxFolderPinnedDialogsCountPremium;",
             1,
         ),
         (
