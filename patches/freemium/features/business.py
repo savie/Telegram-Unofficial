@@ -1,0 +1,2 @@
+"""Telegram Business parent flow and its eight subfeature screens/controllers."""
+TARGETS = ("ui/Business/LocationActivity.java", "ui/Business/OpeningHoursActivity.java", "ui/Business/QuickRepliesController.java", "ui/Business/GreetMessagesActivity.java", "ui/Business/AwayMessagesActivity.java", "ui/Business/BusinessLinksController.java", "ui/Business/BusinessIntroActivity.java", "ui/Business/BusinessChatbotController.java")
