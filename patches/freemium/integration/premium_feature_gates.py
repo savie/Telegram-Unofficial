@@ -82,13 +82,15 @@ PREMIUM_GATE_TARGETS = {
         "ui/Cells/AppIconsSelectorCell.java",
         "ui/Components/Premium/PremiumAppIconsPreviewView.java",
     ),
-    "Infinite Reactions": ("ui/Components/ReactionsContainerLayout.java",),
+    "Infinite Reactions": ("ui/Components/ReactionsContainerLayout.java",
+        "ui/Cells/AvailableReactionCell.java",),
     "Animated Profile Pictures": (
         "ui/ProfileActivity.java",
         "ui/ProfileActivity2.java",
     ),
     "Premium Stickers": (
         "ui/Components/StickersAlert.java",
+        "ui/Cells/StickerEmojiCell.java",
         "messenger/MediaDataController.java",
     ),
     "Message Effects": (
