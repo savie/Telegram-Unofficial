@@ -11,7 +11,7 @@ from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_stickers_alert
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
-from .features.profile_and_colors import patch_peer_color_activity
+from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
 from .features.translation import patch_translate_alert, patch_translate_button
@@ -30,6 +30,7 @@ FEATURE_PATCHES = (
     ("ui/iv/RichEditor.java", patch_rich_editor),
     ("ui/iv/ChatAttachAlertRichLayout.java", patch_attach_rich_layout),
     ("ui/PeerColorActivity.java", patch_peer_color_activity),
+    ("ui/ProfileActivity.java", patch_profile_activity),
     ("messenger/FileLoader.java", patch_file_loader),
     ("messenger/FileLoadOperation.java", patch_file_load_operation),
     ("messenger/MediaDataController.java", patch_media_data_controller),
