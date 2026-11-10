@@ -196,7 +196,23 @@ def patch_feature_gates() -> None:
             ("!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium()", "!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
             ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
         ],
-    }
+
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/StickersAlert.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"premium_stickers\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/EmojiPacksAlert.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"premium_stickers\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/SelectAnimatedEmojiDialog.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\")"),
+            ("UserConfig.getInstance(currentAccount).isPremium()", "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\"))"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/SuggestEmojiView.java": [
+            ("SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()", "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\"))"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java": [
+            ("SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()", "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\"))"),
+        ],    }
 
     for relative_path, pairs in replacements.items():
         path = UPSTREAM_ROOT / relative_path
