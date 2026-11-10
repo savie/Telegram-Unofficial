@@ -3,7 +3,7 @@ BUSINESS_GATE_TARGETS = {
     "Location": ("ui/Business/LocationActivity.java",),
     "Opening Hours": ("ui/Business/OpeningHoursActivity.java", "ui/Business/OpeningHoursDayActivity.java"),
     "Quick Replies": ("ui/Business/QuickRepliesActivity.java", "ui/Business/QuickRepliesController.java", "ui/Business/ChatAttachAlertQuickRepliesLayout.java"),
-    "Greeting Messages": ("ui/Business/GreetMessagesActivity.java",),
+    "Greeting Messages": ("ui/Business/GreetMessagesActivity.java", "ui/Components/ChatGreetingsView.java"),
     "Away Messages": ("ui/Business/AwayMessagesActivity.java",),
     "Links to Chat": ("ui/Business/BusinessLinksActivity.java", "ui/Business/BusinessLinksController.java"),
     "Start Page": ("ui/Business/BusinessIntroActivity.java",),
