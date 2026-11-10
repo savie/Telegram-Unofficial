@@ -69,10 +69,13 @@ public final class TeleBetaFreemium {
 
     public static void activate(int account) {
         SharedPreferences prefs = preferences(account);
-        prefs.edit()
+        boolean saved = prefs.edit()
                 .putInt("schema_version", SCHEMA_VERSION)
                 .putBoolean(KEY_ACTIVE, true)
-                .apply();
+                .commit();
+        if (!saved) {
+            throw new IllegalStateException("Unable to persist the local Freemium entitlement.");
+        }
     }
 
     public static boolean redirectPurchaseToFreemium(int account) {
@@ -94,10 +97,13 @@ public final class TeleBetaFreemium {
 
     public static void deactivate(int account) {
         SharedPreferences prefs = preferences(account);
-        prefs.edit()
+        boolean saved = prefs.edit()
                 .putInt("schema_version", SCHEMA_VERSION)
                 .putBoolean(KEY_ACTIVE, false)
-                .apply();
+                .commit();
+        if (!saved) {
+            throw new IllegalStateException("Unable to persist the local Freemium entitlement state.");
+        }
     }
 }
 """
