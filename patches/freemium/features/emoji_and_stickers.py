@@ -95,3 +95,19 @@ def patch_sticker_set_bulletin_layout(source: str) -> str:
         ("!UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 1),
         ("final boolean isPremium = UserConfig.getInstance(UserConfig.selectedAccount).isPremium();", "final boolean isPremium = TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount);", 1),
     ))
+
+
+
+def patch_mentions_adapter(source: str) -> str:
+    """Buka penyisipan Premium Stickers dan Animated Emoji pada mention picker."""
+    return patch_local_premium_checks(source, (
+        ("!UserConfig.getInstance(currentAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+        ("SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()", "SharedConfig.suggestAnimatedEmoji && TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
+
+
+def patch_content_preview_viewer(source: str) -> str:
+    """Buka preview sticker Premium memakai entitlement account-local."""
+    return patch_local_premium_checks(source, (
+        ("!AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
