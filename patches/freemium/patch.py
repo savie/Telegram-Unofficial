@@ -12,7 +12,7 @@ from .features.chat_management import patch_archive_settings, patch_dialog_cell_
 from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_content_preview_viewer, patch_mentions_adapter, patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_set_bulletin_layout, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
-from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_document_layout, patch_photo_viewer_caption, patch_select_chat_user_sheet
+from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_document_layout, patch_file_upload_operation, patch_photo_viewer_caption, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_search_view_pager, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls, patch_privacy_settings_activity
@@ -69,6 +69,7 @@ FEATURE_PATCHES = (
     ("ui/SelectChatUserSheet.java", patch_select_chat_user_sheet),
     ("ui/Components/ChatAttachAlertDocumentLayout.java", patch_document_layout),
     ("ui/Components/PhotoViewerCaptionEnterView.java", patch_photo_viewer_caption),
+    ("messenger/FileUploadOperation.java", patch_file_upload_operation),
     ("ui/Stories/recorder/CaptionContainerView.java", patch_caption_container_view),
     ("ui/Stories/recorder/CaptionStory.java", patch_caption_story),
     ("messenger/video/VideoAds.java", patch_video_ads),
