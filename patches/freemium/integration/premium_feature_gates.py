@@ -104,6 +104,7 @@ PREMIUM_GATE_TARGETS = {
     ),
     "Premium Stickers": (
         "ui/Components/StickersAlert.java",
+        "ui/Components/StickerSetBulletinLayout.java",
         "ui/Cells/StickerEmojiCell.java",
         "messenger/MediaDataController.java",
     ),
