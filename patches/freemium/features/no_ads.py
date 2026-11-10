@@ -4,6 +4,7 @@ from ..integration.premium_feature_gates import patch_local_premium_checks
 TARGETS = (
     "messenger/video/VideoAds.java",
     "ui/Adapters/DialogsSearchAdapter.java",
+    "ui/Components/SearchViewPager.java",
 )
 
 
