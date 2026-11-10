@@ -6,7 +6,7 @@ from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES
-from .features.chat_management import patch_dialogs_activity, patch_saved_messages_controller
+from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filters_setup, patch_saved_messages_controller
 from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_stickers_alert
 from .features.no_ads import patch_video_ads
@@ -45,6 +45,11 @@ FEATURE_PATCHES = (
     ("ui/Components/ChatActivityEnterView.java", patch_chat_activity_enter_view),
     ("messenger/SavedMessagesController.java", patch_saved_messages_controller),
     ("ui/DialogsActivity.java", patch_dialogs_activity),
+    ("ui/ArchiveSettingsActivity.java", patch_archive_settings),
+    ("ui/FiltersSetupActivity.java", patch_filters_setup),
+    ("ui/FilterCreateActivity.java", patch_filter_create),
+    ("ui/FilterChatlistActivity.java", patch_filter_chatlist),
+    ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("messenger/video/VideoAds.java", patch_video_ads),
 )
 
