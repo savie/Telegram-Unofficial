@@ -59,6 +59,11 @@ PREMIUM_GATE_TARGETS = {
     ),
     "Advanced Chat Management": (
         "ui/DialogsActivity.java",
+        "ui/ArchiveSettingsActivity.java",
+        "ui/FiltersSetupActivity.java",
+        "ui/FilterCreateActivity.java",
+        "ui/FilterChatlistActivity.java",
+        "ui/Components/DialogCellTags.java",
         "messenger/SavedMessagesController.java",
     ),
     "No Ads": (
