@@ -29,6 +29,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/ProfileActivity.java",
         "messenger/ContactsController.java",
         "ui/Components/MessagePrivateSeenView.java",
+        "ui/PrivacySettingsActivity.java",
     ),
     "Voice-to-Text Conversion": ("ui/Components/TranscribeButton.java",),
     "Faster Download Speed": (
