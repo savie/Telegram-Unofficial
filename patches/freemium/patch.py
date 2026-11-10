@@ -6,7 +6,7 @@ from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
-from .features.business import TARGETS as BUSINESS_SOURCE_FILES
+from .features.business import TARGETS as BUSINESS_SOURCE_FILES, patch_chat_greetings_view
 from .integration.premium_feature_gates import PREMIUM_GATE_TARGETS
 from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation, patch_file_loader
@@ -15,7 +15,7 @@ from .features.last_seen import patch_message_private_seen_view
 from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_document_layout, patch_photo_viewer_caption, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
-from .features.privacy_and_sharing import patch_privacy_controls
+from .features.privacy_and_sharing import patch_privacy_controls, patch_privacy_settings_activity
 from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_caption_container_view, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
@@ -47,6 +47,8 @@ FEATURE_PATCHES = (
     ("ui/Components/StickersAlert.java", patch_stickers_alert),
     ("ui/Components/AIEditorAlert.java", patch_ai_editor_alert),
     ("ui/PrivacyControlActivity.java", patch_privacy_controls),
+    ("ui/PrivacySettingsActivity.java", patch_privacy_settings_activity),
+    ("ui/Components/ChatGreetingsView.java", patch_chat_greetings_view),
     ("ui/SelectAnimatedEmojiDialog.java", patch_select_animated_emoji_dialog),
     ("ui/Components/ChatActivityEnterView.java", patch_chat_activity_enter_view),
     ("messenger/SavedMessagesController.java", patch_saved_messages_controller),
