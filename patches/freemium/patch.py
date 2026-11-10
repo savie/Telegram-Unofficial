@@ -15,7 +15,7 @@ from .features.formatting_tools import patch_attach_rich_layout, patch_chat_acti
 from .features.privacy_and_sharing import patch_privacy_controls
 from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
 from .features.saved_messages import patch_search_tags
-from .features.stories import patch_expired_story_views, patch_stealth_mode
+from .features.stories import patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
 from .features.wallpapers import patch_theme_preview_activity
@@ -31,6 +31,7 @@ FEATURE_PATCHES = (
     ("ui/Components/TranslateAlert3.java", patch_translate_alert),
     ("ui/Stories/StealthModeAlert.java", patch_stealth_mode),
     ("ui/Stories/SelfStoryViewsPage.java", patch_expired_story_views),
+    ("ui/Stories/StoriesController.java", patch_stories_controller),
     ("ui/Components/SearchTagsList.java", patch_search_tags),
     ("ui/iv/RichEditor.java", patch_rich_editor),
     ("ui/iv/ChatAttachAlertRichLayout.java", patch_attach_rich_layout),
