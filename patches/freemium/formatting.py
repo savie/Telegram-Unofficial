@@ -29,7 +29,7 @@ def apply_rich_editor_freemium() -> None:
     if not engine_file.exists():
         raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_java = engine_file.read_text(encoding="utf-8")
-    enum_match = re.search(r"public\\s+enum\\s+Feature\\s*\\{([^}]*)\\}", engine_java)
+    enum_match = re.search(r"public\s+enum\s+Feature\s*\{([^}]*)\}", engine_java)
     if enum_match is None:
         raise SystemExit("Generated TeleBetaFreemium feature registry is missing.")
     feature_names = [name.strip() for name in enum_match.group(1).split(",") if name.strip()]
