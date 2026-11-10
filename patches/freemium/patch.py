@@ -224,6 +224,12 @@ def patch_feature_gates() -> None:
         "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java": [
             ("SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()", "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\"))"),
         ], 
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/AIEditorAlert.java": [
+            ("UserConfig.getInstance(currentAccount).isPremium()", "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"ai_tools\"))"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/messenger/FileLoadOperation.java": [
+            ("boolean premium = UserConfig.getInstance(currentAccount).isPremium();", "boolean premium = UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"faster_download_speed\");"),
+        ],
         "TMessagesProj/src/main/java/org/telegram/ui/Business/ChatAttachAlertQuickRepliesLayout.java": [
             ("!UserConfig.getInstance(parentAlert.currentAccount).isPremium()", "!UserConfig.getInstance(parentAlert.currentAccount).isPremium() && !TeleBetaFreemium.hasBusinessAccess(parentAlert.currentAccount, \"quick_replies\")"),
         ],   }
