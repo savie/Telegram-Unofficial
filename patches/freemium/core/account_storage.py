@@ -61,4 +61,7 @@ public final class TeleBetaFreemium {
 
 def stage_java_helper(upstream_root: Path) -> tuple[Path, str]:
     target = upstream_root / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
-    return target, JAVA_CLASS
+    return target, JAVA_CLASS.replace(
+        "UserConfig.getInstance(account).getClientUserId()",
+        resolve_client_user_id_expression("account"),
+    )
