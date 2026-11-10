@@ -3,10 +3,11 @@
 This patch reuses the upstream RichEditor and its existing toolbar. It only
 replaces Premium-client gates with the Tele-beta local entitlement.
 """
+import re
 from pathlib import Path
 
-ROOT = Path(".")
-ENGINE_PATCH = Path("patches/freemium/patch.py")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 
 
 def _replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -28,13 +29,15 @@ def apply_rich_editor_freemium() -> None:
     if not engine_file.exists():
         raise SystemExit("TeleBetaFreemium.java missing; apply_freemium() must run first.")
     engine_java = engine_file.read_text(encoding="utf-8")
-    old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
-    new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, RICH_EDITOR }"
-    if engine_java.count(old_feature) == 1:
-        engine_java = engine_java.replace(old_feature, new_feature, 1)
+    enum_match = re.search(r"public\\s+enum\\s+Feature\\s*\\{([^}]*)\\}", engine_java)
+    if enum_match is None:
+        raise SystemExit("Generated TeleBetaFreemium feature registry is missing.")
+    feature_names = [name.strip() for name in enum_match.group(1).split(",") if name.strip()]
+    if "RICH_EDITOR" not in feature_names:
+        feature_names.append("RICH_EDITOR")
+        updated_enum = "public enum Feature { " + ", ".join(feature_names) + " }"
+        engine_java = engine_java[:enum_match.start()] + updated_enum + engine_java[enum_match.end():]
         engine_file.write_text(engine_java, encoding="utf-8")
-    elif engine_java.count(new_feature) != 1:
-        raise SystemExit("Generated TeleBetaFreemium feature registry anchor missing or ambiguous.")
 
     # Gate 1: existing Rich Editor toolbar's premium-decorated buttons.
     rich_editor = ROOT / "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java"
