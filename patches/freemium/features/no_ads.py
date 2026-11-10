@@ -25,3 +25,11 @@ def patch_dialogs_search_adapter(source: str) -> str:
             1,
         ),
     ))
+
+
+
+def patch_search_view_pager(source: str) -> str:
+    """Pertahankan aksi Remove Ads native untuk entitlement Freemium lokal."""
+    return patch_local_premium_checks(source, (
+        ("if (UserConfig.getInstance(currentAccount).isPremium()) {", "if (TeleBetaFreemium.hasAllAccess(currentAccount) || UserConfig.getInstance(currentAccount).isPremium()) {", 1),
+    ))
