@@ -1,6 +1,8 @@
 """Generator untuk entitlement Freemium account-local berbasis clientUserId."""
 from pathlib import Path
 
+from .account_identity import resolve_client_user_id_expression
+
 JAVA_CLASS = r'''package org.telegram.messenger;
 
 import android.content.Context;
