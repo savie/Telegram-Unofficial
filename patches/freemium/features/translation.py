@@ -21,3 +21,16 @@ def patch_translate_alert(source: str) -> str:
         ("UserConfig.getInstance(currentAccount).isPremium()",
          "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
+
+
+
+def patch_language_select_activity(source: str) -> str:
+    source = patch_local_premium_checks(source, (
+        ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+        (
+            "getMessagesController().isTranslationsAutoEnabled() && !getMessagesController().premiumFeaturesBlocked()",
+            "getMessagesController().isTranslationsAutoEnabled() && (!getMessagesController().premiumFeaturesBlocked() || TeleBetaFreemium.hasAllAccess(currentAccount))",
+            2,
+        ),
+    ))
+    return source
