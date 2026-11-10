@@ -8,6 +8,7 @@ TARGETS = (
     "ui/FilterCreateActivity.java",
     "ui/FilterChatlistActivity.java",
     "ui/Components/DialogCellTags.java",
+    "ui/Components/FilterTabsView.java",
     "messenger/SavedMessagesController.java",
 )
 
@@ -63,4 +64,23 @@ def patch_filter_chatlist(source: str) -> str:
 def patch_dialog_cell_tags(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("account.getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
+
+def patch_filter_tabs_view(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        (
+            "MessagesController.getInstance(UserConfig.selectedAccount).premiumFeaturesBlocked() && (!isEditing || (viewHolder.getAdapterPosition() == 0 && tabs.get(0).isDefault && !UserConfig.getInstance(UserConfig.selectedAccount).isPremium()))",
+            "MessagesController.getInstance(UserConfig.selectedAccount).premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount) && (!isEditing || (viewHolder.getAdapterPosition() == 0 && tabs.get(0).isDefault && !TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)))",
+            1,
+        ),
+        (
+            "MessagesController.getInstance(UserConfig.selectedAccount).premiumFeaturesBlocked() && ((source.getAdapterPosition() == 0 || target.getAdapterPosition() == 0) && !UserConfig.getInstance(UserConfig.selectedAccount).isPremium())",
+            "MessagesController.getInstance(UserConfig.selectedAccount).premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount) && ((source.getAdapterPosition() == 0 || target.getAdapterPosition() == 0) && !TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount))",
+            1,
+        ),
+        (
+            "UserConfig.getInstance(UserConfig.selectedAccount).isPremium()",
+            "TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)",
+            1,
+        ),
     ))
