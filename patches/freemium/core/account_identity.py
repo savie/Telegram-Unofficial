@@ -1,14 +1,7 @@
-"""Resolusi identitas stabil akun; slot akun hanya locator sementara."""
+"""Identitas stabil Freemium; currentAccount hanya locator slot Telegram."""
 
-class AccountIdentityError(RuntimeError):
-    pass
-
-def resolve_client_user_id(account: int) -> int:
-    """Resolve clientUserId dari UserConfig pada source tree saat patch dijalankan.
-
-    Fungsi ini menghasilkan Java helper source; identitas runtime dibaca oleh Java
-    dari UserConfig.getInstance(account).getClientUserId().
-    """
-    if not isinstance(account, int) or account < 0:
-        raise AccountIdentityError("Invalid Telegram account slot")
-    return account
+def resolve_client_user_id_expression(account_expression: str = "account") -> str:
+    """Bangun ekspresi Java yang membaca clientUserId, bukan nomor slot."""
+    if not account_expression or not account_expression.replace("_", "").isalnum():
+        raise ValueError("Invalid Java account expression")
+    return "UserConfig.getInstance(" + account_expression + ").getClientUserId()"
