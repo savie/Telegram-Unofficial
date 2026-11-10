@@ -52,7 +52,11 @@ public final class TeleBetaFreemium {
             .putBoolean("active", true)
             .putLong("activated_at", activatedAt > 0L ? activatedAt : now)
             .putLong("updated_at", now);
-        return editor.commit();
+        if (!editor.commit()) {
+            return false;
+        }
+        NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.currentUserPremiumStatusChanged);
+        return true;
     }
 
     // Client-side entitlement only; never mutate Telegram's authenticated user state.
