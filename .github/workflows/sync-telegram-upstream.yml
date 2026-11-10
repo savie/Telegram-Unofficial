@@ -117,6 +117,8 @@ jobs:
       - name: Replace only upstream/ with flattened Telegram source
         if: steps.upstream.outputs.revision != steps.baseline.outputs.revision
         shell: bash
+        env:
+          UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
         run: |
           set -euo pipefail
           source="$RUNNER_TEMP/telegram-upstream"
