@@ -26,7 +26,7 @@ def patch_local_premium_checks(source: str, replacements: tuple[tuple[str, str, 
         if "package org.telegram.messenger;" not in source:
             if source.count(IMPORT_ANCHOR) != 1:
                 raise RuntimeError("UserConfig import anchor must exist exactly once")
-            source = source.replace(IMPORT_ANCHOR, IMPORT_ANCHOR + "\\n" + FREEMIUM_IMPORT, 1)
+            source = source.replace(IMPORT_ANCHOR, IMPORT_ANCHOR + "\n" + FREEMIUM_IMPORT, 1)
 
     for old, new, expected_count in replacements:
         old_count = source.count(old)
