@@ -9,7 +9,7 @@ from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES
 from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation, patch_file_loader
-from .features.emoji_and_stickers import patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
+from .features.emoji_and_stickers import patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_set_bulletin_layout, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
 from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_document_layout, patch_photo_viewer_caption, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_video_ads
@@ -73,6 +73,7 @@ FEATURE_PATCHES = (
     ("ui/bots/SetupEmojiStatusSheet.java", patch_setup_emoji_status_sheet),
     ("ui/Components/EmojiPacksAlert.java", patch_emoji_packs_alert),
     ("ui/ReactionsDoubleTapManageActivity.java", patch_reactions_double_tap_manage),
+    ("ui/Components/StickerSetBulletinLayout.java", patch_sticker_set_bulletin_layout),
     ("ui/LanguageSelectActivity.java", patch_language_select_activity),
     ("ui/Components/MessagePrivateSeenView.java", patch_message_private_seen_view),
 )
