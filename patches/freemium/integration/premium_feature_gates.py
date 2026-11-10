@@ -47,7 +47,8 @@ PREMIUM_GATE_TARGETS = {
         "ui/PeerColorActivity.java",
         "ui/ProfileActivity.java",
     ),
-    "Wallpaper for Both Sides": ("ui/ChatEditActivity.java",),
+    "Wallpaper for Both Sides": ("ui/ThemePreviewActivity.java",
+        "messenger/ChatThemeController.java",),
     "Profile Badge": (
         "ui/ProfileActivity.java",
         "ui/ProfileActivity2.java",
