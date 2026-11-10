@@ -23,6 +23,22 @@ public final class TeleBetaFreemium {
     private static final String KEY_ACTIVE = "all_access_active";
     private static final int SCHEMA_VERSION = 2;
 
+    // Katalog produk V2: satu entitlement memberikan akses ke seluruh katalog.
+    public static final String[] PREMIUM_CATALOG = {
+            "stories", "unlimited_cloud_storage", "doubled_limits", "telegram_business",
+            "last_seen_times", "voice_to_text", "faster_download_speed", "real_time_translation",
+            "animated_emoji", "emoji_statuses", "saved_message_tags", "name_profile_colors",
+            "two_sided_wallpaper", "profile_badge", "paid_messages", "disable_sharing",
+            "advanced_chat_management", "no_ads", "premium_app_icons", "infinite_reactions",
+            "animated_profile_pictures", "premium_stickers", "message_effects", "ai_tools",
+            "formatting_tools", "checklists"
+    };
+
+    public static final String[] BUSINESS_CATALOG = {
+            "location", "opening_hours", "quick_replies", "greeting_messages",
+            "away_messages", "chat_links", "start_page", "chatbots"
+    };
+
     private TeleBetaFreemium() {
     }
 
@@ -57,6 +73,18 @@ public final class TeleBetaFreemium {
                 .putInt("schema_version", SCHEMA_VERSION)
                 .putBoolean(KEY_ACTIVE, true)
                 .apply();
+    }
+
+    /**
+     * Semua kategori dan subfitur menggunakan entitlement All-access yang sama.
+     * Feature ID hanya mengidentifikasi jalur implementasi, bukan hak akses terpisah.
+     */
+    public static boolean hasAccess(int account, String featureId) {
+        return featureId != null && !featureId.isEmpty() && isActive(account);
+    }
+
+    public static boolean hasBusinessAccess(int account, String businessFeatureId) {
+        return businessFeatureId != null && !businessFeatureId.isEmpty() && isActive(account);
     }
 
     public static void deactivate(int account) {
