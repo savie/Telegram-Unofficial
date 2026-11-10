@@ -4,7 +4,11 @@ from pathlib import Path
 
 from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
+from .features.ai_tools import patch_ai_editor_alert
+from .features.downloads import patch_file_load_operation, patch_file_loader
+from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_stickers_alert
 from .features.formatting_tools import patch_attach_rich_layout, patch_rich_editor
+from .features.privacy_and_sharing import patch_privacy_controls
 from .features.profile_and_colors import patch_peer_color_activity
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
@@ -24,6 +28,13 @@ FEATURE_PATCHES = (
     ("ui/iv/RichEditor.java", patch_rich_editor),
     ("ui/iv/ChatAttachAlertRichLayout.java", patch_attach_rich_layout),
     ("ui/PeerColorActivity.java", patch_peer_color_activity),
+    ("messenger/FileLoader.java", patch_file_loader),
+    ("messenger/FileLoadOperation.java", patch_file_load_operation),
+    ("messenger/MediaDataController.java", patch_media_data_controller),
+    ("ui/Components/ReactionsContainerLayout.java", patch_reactions_container),
+    ("ui/Components/StickersAlert.java", patch_stickers_alert),
+    ("ui/Components/AIEditorAlert.java", patch_ai_editor_alert),
+    ("ui/PrivacyControlActivity.java", patch_privacy_controls),
 )
 
 
@@ -70,7 +81,8 @@ def apply_freemium() -> None:
     print(
         "Freemium V2 applied: account-local activation and client-side gates "
         "for Stories, Voice-to-Text, Real-Time Translation, Saved Message Tags, "
-        "Name and Profile Colors, and Formatting Tools."
+        "Name and Profile Colors, Faster Download Speed, Emoji and Stickers, "
+        "Reactions, AI Tools, Paid Messages, Disable Sharing, and Formatting Tools."
     )
 
 
