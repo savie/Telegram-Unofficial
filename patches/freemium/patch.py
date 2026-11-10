@@ -9,6 +9,7 @@ from .features.business import TARGETS as BUSINESS_SOURCE_FILES
 from .features.chat_management import patch_dialogs_activity, patch_saved_messages_controller
 from .features.downloads import patch_file_load_operation, patch_file_loader
 from .features.emoji_and_stickers import patch_media_data_controller, patch_reactions_container, patch_select_animated_emoji_dialog, patch_stickers_alert
+from .features.no_ads import patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls
 from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
@@ -44,6 +45,7 @@ FEATURE_PATCHES = (
     ("ui/Components/ChatActivityEnterView.java", patch_chat_activity_enter_view),
     ("messenger/SavedMessagesController.java", patch_saved_messages_controller),
     ("ui/DialogsActivity.java", patch_dialogs_activity),
+    ("messenger/video/VideoAds.java", patch_video_ads),
 )
 
 
