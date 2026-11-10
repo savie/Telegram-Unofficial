@@ -91,6 +91,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/SponsoredMessageInfoView.java",
         "messenger/video/VideoAds.java",
         "ui/Adapters/DialogsSearchAdapter.java",
+        "ui/Components/SearchViewPager.java",
     ),
     "Premium App Icons": (
         "ui/Cells/AppIconsSelectorCell.java",
