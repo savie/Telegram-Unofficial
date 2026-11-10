@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   sync-upstream:
-    name: Sync Telegram source and recursive submodules
+    name: Sync Telegram source inside upstream/
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -30,8 +30,22 @@ jobs:
           ref: master
           fetch-depth: 0
           persist-credentials: true
+          submodules: false
 
-      - name: Resolve latest upstream revision
+      - name: Validate repository layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d upstream || {
+            echo "::error::The vendored Telegram source directory upstream/ does not exist. Run the migration workflow first."
+            exit 1
+          }
+          test -f .github/workflows/sync-telegram-upstream.yml
+          test -f README.md
+          test -d docs
+          test -d patches
+
+      - name: Resolve current Telegram Android upstream HEAD
         id: upstream
         shell: bash
         run: |
@@ -43,95 +57,94 @@ jobs:
             exit 1
           }
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
-          echo "Latest Telegram Android revision: $revision"
+          echo "Current Telegram Android upstream HEAD: $revision"
 
-      - name: Read current vendored revision
+      - name: Read previous upstream revision when available
         id: baseline
         shell: bash
         run: |
           set -euo pipefail
-          test -s UPSTREAM_TELEGRAM_COMMIT
-          current="$(tr -d '[:space:]' < UPSTREAM_TELEGRAM_COMMIT)"
-          [[ "$current" =~ ^[0-9a-f]{40}$ ]] || {
-            echo "::error::UPSTREAM_TELEGRAM_COMMIT must contain a full commit SHA."
-            exit 1
-          }
+          if [ -s UPSTREAM_TELEGRAM_COMMIT ]; then
+            current="$(tr -d '[:space:]' < UPSTREAM_TELEGRAM_COMMIT)"
+            [[ "$current" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::UPSTREAM_TELEGRAM_COMMIT exists but does not contain a full commit SHA."
+              exit 1
+            }
+          else
+            current=""
+            echo "No revision marker exists yet; this run will establish the baseline."
+          fi
           echo "revision=$current" >> "$GITHUB_OUTPUT"
-          echo "Current vendored revision: $current"
+          echo "Previous upstream revision: ${current:-not recorded}"
 
-      - name: Skip without downloading when upstream is unchanged
+      - name: Skip download when upstream is unchanged
         if: steps.upstream.outputs.revision == steps.baseline.outputs.revision
         shell: bash
         run: |
-          echo "No upstream changes. Source and submodules were not downloaded."
+          echo "Telegram Android upstream is unchanged. The vendored source was not downloaded."
 
-      - name: Fetch exact upstream source and recursive submodules
+      - name: Fetch current upstream and all recursive submodules
         if: steps.upstream.outputs.revision != steps.baseline.outputs.revision
         shell: bash
         env:
           UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
         run: |
           set -euo pipefail
-          git init /tmp/telegram-upstream
-          git -C /tmp/telegram-upstream remote add origin https://github.com/TelegramOrg/Telegram-Android.git
-          git -C /tmp/telegram-upstream fetch --depth=1 origin "$UPSTREAM_REVISION"
-          git -C /tmp/telegram-upstream checkout --detach FETCH_HEAD
+          source="$RUNNER_TEMP/telegram-upstream"
+          rm -rf "$source"
 
-          actual="$(git -C /tmp/telegram-upstream rev-parse HEAD)"
+          git clone --no-checkout https://github.com/TelegramOrg/Telegram-Android.git "$source"
+          git -C "$source" fetch --depth=1 origin "$UPSTREAM_REVISION"
+          git -C "$source" checkout --detach FETCH_HEAD
+
+          actual="$(git -C "$source" rev-parse HEAD)"
           test "$actual" = "$UPSTREAM_REVISION"
 
-          # Checkout every submodule at the exact gitlink commit recorded by
-          # upstream, including nested submodules.
-          git -C /tmp/telegram-upstream submodule sync --recursive
-          git -C /tmp/telegram-upstream submodule update --init --recursive --jobs 8
+          git -C "$source" submodule sync --recursive
+          git -C "$source" submodule update --init --recursive --jobs 8
 
-          if git -C /tmp/telegram-upstream submodule status --recursive | grep -E '^[+-U]'; then
-            echo "::error::At least one upstream submodule is not at its pinned commit."
+          if git -C "$source" submodule status --recursive | grep -E '^[+-U]'; then
+            echo "::error::At least one upstream submodule is not checked out at its recorded commit."
             exit 1
           fi
 
-          test -f /tmp/telegram-upstream/gradlew
-          test -f /tmp/telegram-upstream/TMessagesProj/build.gradle
-          test -d /tmp/telegram-upstream/TMessagesProj_AppStandalone
-          test -f /tmp/telegram-upstream/TMessagesProj_Modules/media/core_settings.gradle
-          echo "Fetched source and all recursive submodules for $actual."
+          test -f "$source/gradlew"
+          test -f "$source/TMessagesProj/build.gradle"
+          test -d "$source/TMessagesProj_AppStandalone"
+          test -f "$source/TMessagesProj_Modules/media/core_settings.gradle"
+          echo "Fetched Telegram Android $actual and all recursive submodules."
 
-      - name: Sync source and flatten submodules into regular files
+      - name: Replace only upstream/ with flattened Telegram source
         if: steps.upstream.outputs.revision != steps.baseline.outputs.revision
         shell: bash
-        env:
-          UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
         run: |
           set -euo pipefail
+          source="$RUNNER_TEMP/telegram-upstream"
+          destination="$GITHUB_WORKSPACE/upstream"
 
-          # Copy the initialized worktree, including submodule contents.
-          # Exclude Git metadata so no submodule gitlinks or .git files are
-          # introduced into the Tele-ß repository.
-          rsync -a --delete \
-            --exclude='/.git/' \
-            --exclude='.git' \
-            --exclude='/.github/' \
-            --exclude='/.migration/' \
-            --exclude='/README.md' \
-            --exclude='/patches/' \
-            --exclude='/docs/' \
-            --exclude='/UPSTREAM_TELEGRAM_COMMIT' \
-            /tmp/telegram-upstream/ ./
+          # This sync is scoped exclusively to upstream/. It never rsyncs to
+          # the repository root and never deletes Tele-ß-owned root files.
+          mkdir -p "$destination"
+          rsync -a --delete             --exclude='.git'             --exclude='.git/'             --exclude='.gitmodules'             "$source/" "$destination/"
 
-          # Keep the upstream .gitmodules manifest as provenance metadata.
-          # Its dependency directories are now ordinary files in Tele-ß.
-          rm -rf /tmp/telegram-upstream
-          rm -rf upstream/Telegram-Android
-          rmdir upstream 2>/dev/null || true
+          # Git metadata and submodule manifests are not required for builds.
+          find "$destination" -name .git -type d -prune -exec rm -rf {} +
+          find "$destination" -name .git -type f -delete
+          find "$destination" -name .gitmodules -type f -delete
           printf '%s\n' "$UPSTREAM_REVISION" > UPSTREAM_TELEGRAM_COMMIT
+          rm -rf "$source"
 
-          test -f gradlew
-          test -f TMessagesProj/build.gradle
-          test -d TMessagesProj_AppStandalone
-          test -f TMessagesProj_Modules/media/core_settings.gradle
-          test -f .gitmodules
+          test -f upstream/gradlew
+          test -f upstream/TMessagesProj/build.gradle
+          test -d upstream/TMessagesProj_AppStandalone
+          test -f upstream/TMessagesProj_Modules/media/core_settings.gradle
+          test -f .github/workflows/sync-telegram-upstream.yml
+          test -f README.md
+          test -d docs
+          test -d patches
+          test ! -e .gitmodules
 
-      - name: Verify vendored source and stage changes
+      - name: Verify vendored layout and stage changes
         if: steps.upstream.outputs.revision != steps.baseline.outputs.revision
         id: changes
         shell: bash
@@ -140,18 +153,27 @@ jobs:
           git add -A
 
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
-            echo "::error::A Git submodule gitlink remains. All submodule contents must be regular files."
+            echo "::error::A Git submodule gitlink remains. All upstream content must be regular files."
             exit 1
           fi
 
-          git cat-file -e ":TMessagesProj_Modules/media/core_settings.gradle"
+          test -f upstream/gradlew
+          test -f upstream/TMessagesProj/build.gradle
+          test -d upstream/TMessagesProj_AppStandalone
+          test -f upstream/TMessagesProj_Modules/media/core_settings.gradle
+          test -s UPSTREAM_TELEGRAM_COMMIT
+          test -f .github/workflows/sync-telegram-upstream.yml
+          test -f README.md
+          test -d docs
+          test -d patches
+          test ! -e .gitmodules
 
+          git diff --cached --stat
           if git diff --cached --quiet; then
-            echo "No file changes after syncing the pinned upstream snapshot."
+            echo "No file changes after syncing the current upstream snapshot."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff --cached --stat
           fi
 
       - name: Commit upstream update to master
@@ -161,7 +183,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: sync Telegram Android source and submodules"
+          git commit -m "build: sync Telegram source under upstream"
           git push origin HEAD:master
 
       - name: Publish sync summary
@@ -173,13 +195,11 @@ jobs:
           {
             echo "## Telegram Android upstream sync"
             echo
-            echo "- Current vendored revision: `$CURRENT_REVISION`"
-            echo "- Latest upstream revision: `$UPSTREAM_REVISION`"
-            if [ "$UPSTREAM_REVISION" = "$CURRENT_REVISION" ]; then
-              echo "- Result: already synchronized; no source or submodule download performed."
-            else
-              echo "- Result: source and recursive submodule contents synchronized."
-              echo "- Submodule representation: flattened regular files; no Git gitlinks."
-              echo "- Upstream .gitmodules: retained as metadata."
-            fi
+            echo "- Previous revision: ${CURRENT_REVISION:-not recorded}"
+            echo "- Current upstream HEAD: `$UPSTREAM_REVISION`"
+            echo "- Destination: `upstream/` only"
+            echo "- Root Tele-ß files and directories: preserved"
+            echo "- Recursive upstream submodules: flattened into regular files"
+            echo "- Git metadata and .gitmodules manifests: excluded from vendored source"
+            echo "- Git submodule entries: none"
           } >> "$GITHUB_STEP_SUMMARY"
