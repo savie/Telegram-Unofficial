@@ -1,2 +1,10 @@
-"""Wallpaper for Both Sides per-dialog wallpaper flow; not global themes."""
-TARGETS = ("ui/ChatEditActivity.java", "messenger/MessagesController.java")
+"""Wallpaper for Both Sides: buka gate apply-to-both pada editor upstream."""
+from ..integration.premium_feature_gates import patch_local_premium_checks
+
+TARGETS = ("ui/ThemePreviewActivity.java", "messenger/ChatThemeController.java")
+
+
+def patch_theme_preview_activity(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
