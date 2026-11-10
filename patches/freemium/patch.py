@@ -8,7 +8,7 @@ from .features.formatting_tools import patch_attach_rich_layout, patch_rich_edit
 from .features.profile_and_colors import patch_peer_color_activity
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
-from .features.translation import patch_translate_button
+from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
 from .validation.patch_preflight import require_files
 from .validation.source_integrity import StagedFile, commit_staged
@@ -17,6 +17,7 @@ from .validation.source_integrity import StagedFile, commit_staged
 FEATURE_PATCHES = (
     ("ui/Components/TranscribeButton.java", patch_transcribe_button),
     ("ui/Components/TranslateButton.java", patch_translate_button),
+    ("ui/Components/TranslateAlert3.java", patch_translate_alert),
     ("ui/Stories/StealthModeAlert.java", patch_stealth_mode),
     ("ui/Stories/SelfStoryViewsPage.java", patch_expired_story_views),
     ("ui/Components/SearchTagsList.java", patch_search_tags),
