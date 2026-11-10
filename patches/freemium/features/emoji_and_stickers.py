@@ -10,6 +10,9 @@ TARGETS = (
     "ui/Cells/StickerEmojiCell.java",
     "ui/Cells/AvailableReactionCell.java",
     "ui/TopicCreateFragment.java",
+    "ui/bots/SetupEmojiStatusSheet.java",
+    "ui/Components/EmojiPacksAlert.java",
+    "ui/ReactionsDoubleTapManageActivity.java",
 )
 
 
@@ -58,4 +61,25 @@ def patch_available_reaction_cell(source: str) -> str:
 def patch_topic_create_fragment(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
+
+
+
+def patch_setup_emoji_status_sheet(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
+
+
+def patch_emoji_packs_alert(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 3),
+        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 4),
+    ))
+
+
+def patch_reactions_double_tap_manage(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
