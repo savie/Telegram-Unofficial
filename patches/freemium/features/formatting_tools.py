@@ -1,6 +1,7 @@
 """Formatting Tools dan Checklists: toolbar, draft, lock state, serta send path."""
 from ..integration.premium_feature_gates import patch_local_premium_checks
 from .checklists import patch_checklist_attach_layout, patch_checklist_rich_editor
+from .message_effects import patch_effect_send_gate
 
 TARGETS = (
     "ui/iv/RichEditor.java",
@@ -24,6 +25,7 @@ def patch_attach_rich_layout(source: str) -> str:
 
 
 def patch_chat_activity_enter_view(source: str) -> str:
+    source = patch_effect_send_gate(source)
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 5),
     ))
