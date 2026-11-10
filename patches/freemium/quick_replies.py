@@ -6,7 +6,8 @@ Does not use Telegram Business Quick Replies RPC.
 from pathlib import Path
 import re
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 
 
 def _replace_once(source: str, old: str, new: str, label: str) -> str:
