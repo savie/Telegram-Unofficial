@@ -6,7 +6,8 @@ Telegram account entitlements, server byte budgets, or network throughput.
 from pathlib import Path
 import re
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 
 
 def _replace_once(source: str, old: str, new: str, label: str) -> str:
@@ -787,7 +788,7 @@ public final class TeleBetaLocalDownloadManager {
     # Do not add a manager-only item to the chat overflow menu. Manual file
     # download entry points are intercepted in shared media/search/audio views.
     # Keep the Freemium feature registry aligned with this manager.
-    freemium_patch = ROOT / "patches/freemium/patch.py"
+    freemium_patch = REPO_ROOT / "patches/freemium/patch.py"
     freemium_source = freemium_patch.read_text(encoding="utf-8")
     old_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS }"
     new_feature = "public enum Feature { CUSTOM_THEMES, CHAT_CUSTOMIZATION, CUSTOM_UI, ADVANCED_DOWNLOADS, ADVANCED_PRIVACY, APP_ICONS, LOCAL_DOWNLOAD_MANAGER }"
