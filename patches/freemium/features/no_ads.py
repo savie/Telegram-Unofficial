@@ -29,7 +29,34 @@ def patch_dialogs_search_adapter(source: str) -> str:
 
 
 def patch_search_view_pager(source: str) -> str:
-    """Pertahankan aksi Remove Ads native untuk entitlement Freemium lokal."""
-    return patch_local_premium_checks(source, (
-        ("if (UserConfig.getInstance(currentAccount).isPremium()) {", "if (TeleBetaFreemium.hasAllAccess(currentAccount) || UserConfig.getInstance(currentAccount).isPremium()) {", 1),
-    ))
+    """Hapus sponsored search ads secara lokal tanpa memanggil API disableAds."""
+    old = """if (UserConfig.getInstance(currentAccount).isPremium()) {
+                            fragment.getMessagesController().disableAds(true);
+                            removeAllAds();
+                            BulletinFactory.of(fragment)
+                                .createAdReportedBulletin(LocaleController.getString(R.string.AdHidden))
+                                .show();
+                        } else {
+                            new PremiumFeatureBottomSheet(fragment, PremiumPreviewFragment.PREMIUM_FEATURE_ADS, true).show();
+                        }"""
+    new = """if (UserConfig.getInstance(currentAccount).isPremium()) {
+                            fragment.getMessagesController().disableAds(true);
+                            removeAllAds();
+                            BulletinFactory.of(fragment)
+                                .createAdReportedBulletin(LocaleController.getString(R.string.AdHidden))
+                                .show();
+                        } else if (TeleBetaFreemium.hasAllAccess(currentAccount)) {
+                            removeAllAds();
+                            BulletinFactory.of(fragment)
+                                .createAdReportedBulletin(LocaleController.getString(R.string.AdHidden))
+                                .show();
+                        } else {
+                            new PremiumFeatureBottomSheet(fragment, PremiumPreviewFragment.PREMIUM_FEATURE_ADS, true).show();
+                        }"""
+    if source.count(old) == 1:
+        source = source.replace(old, new, 1)
+    elif source.count(new) == 1:
+        pass
+    else:
+        raise RuntimeError("SearchViewPager Remove Ads action anchor mismatch")
+    return patch_local_premium_checks(source, ())
