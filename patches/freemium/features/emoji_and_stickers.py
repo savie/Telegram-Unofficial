@@ -6,6 +6,7 @@ TARGETS = (
     "ui/SelectAnimatedEmojiDialog.java",
     "ui/Components/ReactionsContainerLayout.java",
     "ui/Components/StickersAlert.java",
+    "ui/Cells/StickerCell.java",
     "ui/Cells/StickerEmojiCell.java",
     "ui/Cells/AvailableReactionCell.java",
     "ui/TopicCreateFragment.java",
@@ -33,6 +34,12 @@ def patch_reactions_container(source: str) -> str:
 def patch_stickers_alert(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
+
+
+def patch_sticker_cell(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 2),
     ))
 
 
