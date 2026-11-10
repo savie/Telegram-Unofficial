@@ -37,7 +37,7 @@ def patch_dialogs_activity(source: str) -> str:
 
 def patch_archive_settings(source: str) -> str:
     return patch_local_premium_checks(source, (
-        ("!getUserConfig().isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+        ("!getUserConfig().isPremium()", "!TeleBetaFreemium.hasAllAccess(getCurrentAccount())", 1),
     ))
 
 
