@@ -4,6 +4,7 @@ from ..integration.premium_feature_gates import patch_local_premium_checks
 TARGETS = (
     "ui/Components/TranslateButton.java",
     "ui/Components/TranslateAlert3.java",
+    "ui/LanguageSelectActivity.java",
 )
 
 
