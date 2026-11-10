@@ -8,6 +8,7 @@ TARGETS = (
     "ui/Components/PhotoViewerCaptionEnterView.java",
     "ui/Components/CaptionPhotoViewer.java",
     "messenger/FileUploadOperation.java",
+    "messenger/FileLoader.java",
 )
 
 
@@ -34,6 +35,12 @@ def patch_photo_viewer_caption(source: str) -> str:
         ("!UserConfig.getInstance(currentAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
 
+
+
+def patch_file_loader_upload_limit(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
 
 
 def patch_file_upload_operation(source: str) -> str:
