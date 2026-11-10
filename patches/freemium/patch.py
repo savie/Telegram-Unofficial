@@ -18,7 +18,7 @@ from .features.formatting_tools import patch_attach_rich_layout, patch_chat_acti
 from .features.privacy_and_sharing import patch_privacy_controls, patch_privacy_settings_activity
 from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
 from .features.saved_messages import patch_search_tags
-from .features.stories import patch_caption_container_view, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
+from .features.stories import patch_caption_container_view, patch_caption_story, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_language_select_activity, patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
 from .features.wallpapers import patch_theme_preview_activity
@@ -70,6 +70,7 @@ FEATURE_PATCHES = (
     ("ui/Components/ChatAttachAlertDocumentLayout.java", patch_document_layout),
     ("ui/Components/PhotoViewerCaptionEnterView.java", patch_photo_viewer_caption),
     ("ui/Stories/recorder/CaptionContainerView.java", patch_caption_container_view),
+    ("ui/Stories/recorder/CaptionStory.java", patch_caption_story),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/Adapters/DialogsSearchAdapter.java", patch_dialogs_search_adapter),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
