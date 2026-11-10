@@ -42,14 +42,20 @@ public final class TeleBetaFreemium {
 
     public static boolean activate(int account) {
         SharedPreferences preferences = prefs(account);
-        return preferences != null && preferences.edit()
+        if (preferences == null) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        long activatedAt = preferences.getLong("activated_at", 0L);
+        SharedPreferences.Editor editor = preferences.edit()
             .putInt("schema_version", SCHEMA_VERSION)
             .putBoolean("active", true)
-            .commit();
+            .putLong("activated_at", activatedAt > 0L ? activatedAt : now)
+            .putLong("updated_at", now);
+        return editor.commit();
     }
 
-    // Used only by client-side feature/UI gates. It does not alter Telegram's
-    // authenticated user object or claim server-side Telegram Premium status.
+    // Client-side entitlement only; never mutate Telegram's authenticated user state.
     public static boolean hasAllAccess(int account) {
         return UserConfig.isValidAccount(account)
             && (UserConfig.getInstance(account).isPremium() || isActive(account));
