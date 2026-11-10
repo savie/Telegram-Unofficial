@@ -1,4 +1,5 @@
 """Generator untuk entitlement Freemium account-local berbasis clientUserId."""
+from pathlib import Path
 
 JAVA_CLASS = r'''package org.telegram.messenger;
 
