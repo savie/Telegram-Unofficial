@@ -2,7 +2,8 @@
 import re
 from pathlib import Path
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 
 def apply_freemium():
     target = ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/TeleBetaFreemium.java"
