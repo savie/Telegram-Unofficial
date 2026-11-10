@@ -120,7 +120,7 @@ def patch_premium_activation() -> None:
         )
 
     method_start = source.find("    private void updateButtonText(boolean animated) {")
-    method_end = source.find("    @Override\\n    public boolean isLightStatusBar()", method_start)
+    method_end = source.find("    @Override\n    public boolean isLightStatusBar()", method_start)
     if method_start < 0 or method_end < 0:
         raise SystemExit("PremiumPreviewFragment updateButtonText method boundaries changed.")
     method_replacement = """    private void updateButtonText(boolean animated) {
