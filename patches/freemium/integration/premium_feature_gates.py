@@ -1,5 +1,4 @@
 """Pemetaan audit 26 kategori Premium ke source upstream; bukan grant per fitur."""
-IMPORT_ANCHOR = "import org.telegram.messenger.UserConfig;"
 FREEMIUM_IMPORT = "import org.telegram.messenger.TeleBetaFreemium;"
 
 PREMIUM_GATE_TARGETS = {
@@ -104,11 +103,12 @@ PREMIUM_GATE_TARGETS = {
 
 def patch_local_premium_checks(source: str, replacements: tuple[tuple[str, str, int], ...]) -> str:
     """Alihkan gate Premium lokal; kelas messenger satu package tidak butuh import."""
-    if FREEMIUM_IMPORT not in source:
-        if "package org.telegram.messenger;" not in source:
-            if source.count(IMPORT_ANCHOR) != 1:
-                raise RuntimeError("UserConfig import anchor must exist exactly once")
-            source = source.replace(IMPORT_ANCHOR, IMPORT_ANCHOR + "\n" + FREEMIUM_IMPORT, 1)
+    if FREEMIUM_IMPORT not in source and "package org.telegram.messenger;" not in source:
+        package_start = source.find("package ")
+        package_end = source.find(";", package_start)
+        if package_start < 0 or package_end < 0:
+            raise RuntimeError("Java package declaration is required for Freemium import")
+        source = source[:package_end + 1] + "\n\n" + FREEMIUM_IMPORT + source[package_end + 1:]
 
     for old, new, expected_count in replacements:
         old_count = source.count(old)
