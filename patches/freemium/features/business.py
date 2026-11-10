@@ -23,7 +23,14 @@ def patch_chat_greetings_view(source: str) -> str:
 
 def patch_quick_replies_layout(source: str) -> str:
     """Buka gate pemanggilan Quick Replies Business tanpa mengganti UI/controller upstream."""
-    return patch_local_premium_checks(source, (
+    source = patch_local_premium_checks(source, (
         ("if (!UserConfig.getInstance(parentAlert.currentAccount).isPremium()) {",
          "if (!TeleBetaFreemium.hasAllAccess(parentAlert.currentAccount)) {", 1),
     ))
+    old_account = "QuickRepliesController.getInstance(UserConfig.selectedAccount).sendQuickReplyTo("
+    new_account = "QuickRepliesController.getInstance(parentAlert.currentAccount).sendQuickReplyTo("
+    if source.count(old_account) == 1:
+        source = source.replace(old_account, new_account, 1)
+    elif source.count(old_account) != 0 or source.count(new_account) != 1:
+        raise RuntimeError("Quick Replies send action account context anchor mismatch")
+    return source
