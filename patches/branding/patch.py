@@ -3,7 +3,8 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 
 def replace_once(path: Path, pattern: str, replacement: str, label: str, flags=0):
     original = path.read_text(encoding="utf-8")
