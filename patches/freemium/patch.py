@@ -2,7 +2,7 @@
 """Orkestrasi patch Freemium V2; seluruh source di-stage sebelum ditulis."""
 from pathlib import Path
 
-from .activation.activation_flow import patch_purchase_flow
+from .activation.activation_flow import patch_purchase_flow, patch_settings_business_entry
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
@@ -29,6 +29,7 @@ from .validation.source_integrity import StagedFile, commit_staged
 
 
 FEATURE_PATCHES = (
+    ("ui/SettingsActivity.java", patch_settings_business_entry),
     ("ui/Components/TranscribeButton.java", patch_transcribe_button),
     ("ui/Components/TranslateButton.java", patch_translate_button),
     ("ui/Components/TranslateAlert3.java", patch_translate_alert),
