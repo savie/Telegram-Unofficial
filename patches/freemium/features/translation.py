@@ -11,7 +11,7 @@ def patch_translate_button(source: str) -> str:
     # The button owns both the translation-menu and language-action gates.
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()",
-         "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+         "TeleBetaFreemium.hasAllAccess(currentAccount)", 3),
     ))
 
 
