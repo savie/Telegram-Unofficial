@@ -4,8 +4,26 @@ from pathlib import Path
 
 from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
+from .features.formatting_tools import patch_attach_rich_layout, patch_rich_editor
+from .features.profile_and_colors import patch_peer_color_activity
+from .features.saved_messages import patch_search_tags
+from .features.stories import patch_expired_story_views, patch_stealth_mode
+from .features.translation import patch_translate_button
+from .features.voice_to_text import patch_transcribe_button
 from .validation.patch_preflight import require_files
 from .validation.source_integrity import StagedFile, commit_staged
+
+
+FEATURE_PATCHES = (
+    ("ui/Components/TranscribeButton.java", patch_transcribe_button),
+    ("ui/Components/TranslateButton.java", patch_translate_button),
+    ("ui/Stories/StealthModeAlert.java", patch_stealth_mode),
+    ("ui/Stories/SelfStoryViewsPage.java", patch_expired_story_views),
+    ("ui/Components/SearchTagsList.java", patch_search_tags),
+    ("ui/iv/RichEditor.java", patch_rich_editor),
+    ("ui/iv/ChatAttachAlertRichLayout.java", patch_attach_rich_layout),
+    ("ui/PeerColorActivity.java", patch_peer_color_activity),
+)
 
 
 def apply_freemium() -> None:
@@ -13,19 +31,20 @@ def apply_freemium() -> None:
     upstream_root = repo_root / "upstream"
     java_root = upstream_root / "TMessagesProj/src/main/java"
 
-    require_files(
-        upstream_root,
-        (
-            "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java",
-            "TMessagesProj/src/main/java/org/telegram/ui/PremiumPreviewFragment.java",
-        ),
+    required = [
+        "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java",
+        "TMessagesProj/src/main/java/org/telegram/ui/PremiumPreviewFragment.java",
+    ]
+    required.extend(
+        "TMessagesProj/src/main/java/org/telegram/" + relative_path
+        for relative_path, _ in FEATURE_PATCHES
     )
+    require_files(upstream_root, tuple(required))
 
     helper_path, helper_source = stage_java_helper(upstream_root)
     preview_path = java_root / "org/telegram/ui/PremiumPreviewFragment.java"
 
     staged: list[StagedFile] = []
-
     helper_original = helper_path.read_text(encoding="utf-8") if helper_path.exists() else None
     if helper_original != helper_source:
         staged.append(StagedFile(helper_path, helper_original, helper_source))
@@ -35,14 +54,22 @@ def apply_freemium() -> None:
     if preview_updated != preview_original:
         staged.append(StagedFile(preview_path, preview_original, preview_updated))
 
+    for relative_path, transform in FEATURE_PATCHES:
+        target = java_root / "org/telegram" / relative_path
+        original = target.read_text(encoding="utf-8")
+        updated = transform(original)
+        if updated != original:
+            staged.append(StagedFile(target, original, updated))
+
     if not staged:
         print("Freemium V2 already applied; no source changes required.")
         return
 
     commit_staged(staged)
     print(
-        "Freemium V2 applied: account-local entitlement helper and "
-        "Telegram Premium purchase-flow redirection."
+        "Freemium V2 applied: account-local activation and client-side gates "
+        "for Stories, Voice-to-Text, Real-Time Translation, Saved Message Tags, "
+        "Name and Profile Colors, and Formatting Tools."
     )
 
 
