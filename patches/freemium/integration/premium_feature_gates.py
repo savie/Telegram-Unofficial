@@ -37,6 +37,7 @@ PREMIUM_GATE_TARGETS = {
     ),
     "Animated Emoji": (
         "ui/SelectAnimatedEmojiDialog.java",
+        "ui/Cells/StickerCell.java",
         "ui/Cells/StickerEmojiCell.java",
         "ui/Cells/AvailableReactionCell.java",
         "ui/TopicCreateFragment.java",
@@ -69,6 +70,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/FilterCreateActivity.java",
         "ui/FilterChatlistActivity.java",
         "ui/Components/DialogCellTags.java",
+        "ui/Components/FilterTabsView.java",
         "messenger/SavedMessagesController.java",
     ),
     "No Ads": (
