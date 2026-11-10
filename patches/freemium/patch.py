@@ -179,6 +179,12 @@ def patch_premium_activation() -> None:
 """
     purchase_method = purchase_method[:signature_end + 1] + redirect + purchase_method[signature_end + 1:]
     source = source[:purchase_start] + purchase_method + source[purchase_end:]
+    click_gate = "if (type == FEATURES_BUSINESS && getUserConfig().isPremium()) {"
+    click_gate_local = "if (type == FEATURES_BUSINESS && (getUserConfig().isPremium() || TeleBetaFreemium.hasBusinessAccess(currentAccount, \"telegram_business\"))) {"
+    if source.count(click_gate) != 1:
+        raise SystemExit("PremiumPreviewFragment Business navigation gate changed.")
+    source = source.replace(click_gate, click_gate_local, 1)
+
     PREMIUM_PREVIEW.write_text(source, encoding="utf-8")
 
 def patch_feature_gates() -> None:
@@ -217,7 +223,10 @@ def patch_feature_gates() -> None:
         ],
         "TMessagesProj/src/main/java/org/telegram/ui/Adapters/StickersAdapter.java": [
             ("SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()", "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"animated_emoji\"))"),
-        ],    }
+        ], 
+        "TMessagesProj/src/main/java/org/telegram/ui/Business/ChatAttachAlertQuickRepliesLayout.java": [
+            ("!UserConfig.getInstance(parentAlert.currentAccount).isPremium()", "!UserConfig.getInstance(parentAlert.currentAccount).isPremium() && !TeleBetaFreemium.hasBusinessAccess(parentAlert.currentAccount, \"quick_replies\")"),
+        ],   }
 
     for relative_path, pairs in replacements.items():
         path = UPSTREAM_ROOT / relative_path
