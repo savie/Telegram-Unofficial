@@ -12,6 +12,7 @@ PREMIUM_GATE_TARGETS = {
     "Unlimited Cloud Storage": (
         "messenger/FileLoader.java",
         "messenger/MessagesController.java",
+        "ui/Components/ChatAttachAlertDocumentLayout.java",
     ),
     "Doubled Limits": (
         "messenger/MessagesController.java",
@@ -20,6 +21,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/SelectChatUserSheet.java",
         "ui/Components/ChatActivityEnterView.java",
         "messenger/SavedMessagesController.java",
+        "ui/Components/PhotoViewerCaptionEnterView.java",
     ),
     "Telegram Business": ("ui/PremiumPreviewFragment.java",),
     "Last Seen Times": (
