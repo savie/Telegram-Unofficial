@@ -5,6 +5,7 @@ from pathlib import Path
 from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .features.ai_tools import patch_ai_editor_alert
+from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES
 from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filters_setup, patch_saved_messages_controller
 from .features.downloads import patch_file_load_operation, patch_file_loader
@@ -53,6 +54,7 @@ FEATURE_PATCHES = (
     ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
+    ("ui/Cells/AppIconsSelectorCell.java", patch_app_icons_selector),
 )
 
 
