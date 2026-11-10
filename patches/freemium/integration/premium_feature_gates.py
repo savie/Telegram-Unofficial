@@ -6,6 +6,7 @@ PREMIUM_GATE_TARGETS = {
         "ui/Stories/StealthModeAlert.java",
         "ui/Stories/SelfStoryViewsPage.java",
         "ui/Stories/StoriesController.java",
+        "ui/Stories/recorder/CaptionContainerView.java",
         "ui/DialogsActivity.java",
     ),
     "Unlimited Cloud Storage": (
@@ -31,6 +32,8 @@ PREMIUM_GATE_TARGETS = {
     "Faster Download Speed": (
         "messenger/FileLoader.java",
         "messenger/FileLoadOperation.java",
+        "ui/Components/ChatAttachAlertDocumentLayout.java",
+        "ui/Components/PhotoViewerCaptionEnterView.java",
         "ui/DialogsActivity.java",
     ),
     "Real-Time Translation": (
