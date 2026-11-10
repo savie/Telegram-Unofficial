@@ -7,7 +7,7 @@ PROTECTED = True
 
 def patch_app_icons_selector(source: str) -> str:
     return patch_local_premium_checks(source, (
-        ("!UserConfig.hasPremiumOnAccounts()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+        ("!UserConfig.hasPremiumOnAccounts()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
         (
             "if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked())",
             "if (MessagesController.getInstance(currentAccount).premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(currentAccount))",
