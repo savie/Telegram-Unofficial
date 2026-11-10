@@ -21,7 +21,7 @@ def patch_business_activity_gate(source: str) -> str:
         source = source.replace(anchor, "import org.telegram.messenger.TeleBetaFreemium;\n" + anchor, 1)
 
     guard = "if (getMessagesController().premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(currentAccount)) {\n            return false;\n        }"
-    method = re.search(r"(?m)^\\s*(?:public|protected) boolean onFragmentCreate\\(\\)\\s*\\{", source)
+    method = re.search(r"(?m)^\s*(?:public|protected) boolean onFragmentCreate\(\)\s*\{", source)
     if method:
         body_start = method.end()
         if guard in source:
@@ -29,7 +29,7 @@ def patch_business_activity_gate(source: str) -> str:
         source = source[:body_start] + "\n        " + guard + source[body_start:]
         return source
 
-    class_match = re.search(r"(?m)^public class [^{]+\\{", source)
+    class_match = re.search(r"(?m)^public class [^{]+\{", source)
     if not class_match:
         raise RuntimeError("Business activity class declaration missing")
     method_source = (
