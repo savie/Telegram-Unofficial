@@ -1,3 +1,4 @@
 """Aktivasi lokal Freemium V2."""
-from .activation_flow import activation_java_guard
-__all__ = ["activation_java_guard"]
+from .activation_flow import patch_purchase_flow
+
+__all__ = ["patch_purchase_flow"]
