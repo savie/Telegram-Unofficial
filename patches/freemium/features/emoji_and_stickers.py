@@ -89,6 +89,6 @@ def patch_reactions_double_tap_manage(source: str) -> str:
 
 def patch_sticker_set_bulletin_layout(source: str) -> str:
     return patch_local_premium_checks(source, (
-        ("!UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 2),
+        ("!UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 1),
         ("final boolean isPremium = UserConfig.getInstance(UserConfig.selectedAccount).isPremium();", "final boolean isPremium = TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount);", 1),
     ))
