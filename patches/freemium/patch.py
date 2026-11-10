@@ -190,7 +190,7 @@ def patch_feature_gates() -> None:
         ],
         "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java": [
             ("!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium()", "!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
-            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
+            ("if (!UserConfig.getInstance(currentAccount).isPremium())", "if (!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\"))"),
         ],
         "TMessagesProj/src/main/java/org/telegram/ui/iv/ChatAttachAlertRichLayout.java": [
             ("!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium()", "!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
@@ -208,12 +208,12 @@ def patch_feature_gates() -> None:
             source = source.replace(old, new)
         if source == original:
             raise SystemExit(f"No expected Freemium V2 gate found in {relative_path}")
-        import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+        import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
         if "import org.telegram.messenger.TeleBetaFreemium;" not in source:
             package_line = next((line for line in source.splitlines(keepends=True) if line.startswith("package ")), None)
             if package_line is None:
                 raise SystemExit(f"Java package declaration missing: {relative_path}")
-            source = source.replace(package_line, package_line + "\\n" + import_line, 1)
+            source = source.replace(package_line, package_line + "\n" + import_line, 1)
         path.write_text(source, encoding="utf-8")
 
 
