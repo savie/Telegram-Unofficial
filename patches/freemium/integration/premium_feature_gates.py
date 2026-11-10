@@ -37,7 +37,6 @@ PREMIUM_GATE_TARGETS = {
     ),
     "Voice-to-Text Conversion": ("ui/Components/TranscribeButton.java",),
     "Faster Download Speed": (
-        "messenger/FileLoader.java",
         "messenger/FileLoadOperation.java",
         "ui/DialogsActivity.java",
     ),
