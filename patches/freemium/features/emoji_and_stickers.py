@@ -1,5 +1,6 @@
 """Animated Emoji, Emoji Statuses, Infinite Reactions dan Premium Stickers."""
 from ..integration.premium_feature_gates import patch_local_premium_checks
+from .message_effects import patch_effect_emoji_picker, patch_effect_reaction_picker
 
 TARGETS = (
     "messenger/MediaDataController.java",
@@ -24,12 +25,14 @@ def patch_media_data_controller(source: str) -> str:
 
 
 def patch_select_animated_emoji_dialog(source: str) -> str:
+    source = patch_effect_emoji_picker(source)
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 8),
     ))
 
 
 def patch_reactions_container(source: str) -> str:
+    source = patch_effect_reaction_picker(source)
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 7),
     ))
