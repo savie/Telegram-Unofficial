@@ -88,5 +88,5 @@ def patch_settings_business_entry(source: str) -> str:
     else:
         raise RuntimeError(f"SettingsActivity Premium/Business row anchors: expected 2, found {count}")
     if freemium_import not in source:
-        source = source.replace(user_import, user_import + "\\n" + freemium_import, 1)
+        source = source.replace(user_import, user_import + "\n" + freemium_import, 1)
     return source
