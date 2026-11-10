@@ -13,6 +13,7 @@ TARGETS = (
     "ui/bots/SetupEmojiStatusSheet.java",
     "ui/Components/EmojiPacksAlert.java",
     "ui/ReactionsDoubleTapManageActivity.java",
+    "ui/Components/StickerSetBulletinLayout.java",
 )
 
 
@@ -82,4 +83,12 @@ def patch_reactions_double_tap_manage(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
+
+
+
+def patch_sticker_set_bulletin_layout(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("!UserConfig.getInstance(UserConfig.selectedAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)", 2),
+        ("final boolean isPremium = UserConfig.getInstance(UserConfig.selectedAccount).isPremium();", "final boolean isPremium = TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount);", 1),
     ))
