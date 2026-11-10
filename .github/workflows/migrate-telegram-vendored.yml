@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   vendor-source:
-    name: Update vendored Telegram source in upstream/
+    name: Move Telegram source into upstream/
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -67,24 +67,50 @@ jobs:
           test -d "$source/TMessagesProj_AppStandalone"
           test -f "$source/TMessagesProj_Modules/media/core_settings.gradle"
 
-      - name: Replace only the vendored source in upstream/
+      - name: Move Telegram source from root into upstream/
         shell: bash
         run: |
           set -euo pipefail
           source="$RUNNER_TEMP/telegram-upstream"
           destination="upstream"
 
-          # Telegram source belongs inside upstream/, never at repository root.
-          # --delete removes stale Telegram files only within upstream/.
-          # Recursive submodule contents are copied as ordinary files.
+          # Replace any previous vendored directory or submodule with a plain directory.
+          git rm -rf --ignore-unmatch "$destination"
+          rm -rf "$destination"
           mkdir -p "$destination"
+
+          # Preserve Tele-ß-owned root paths; copy Telegram source as regular files.
           rsync -a --delete \
             --exclude='.git' \
             --exclude='.git/' \
             --exclude='.gitmodules' \
+            --exclude='.github/' \
+            --exclude='.migration/' \
+            --exclude='README.md' \
+            --exclude='patches/' \
+            --exclude='docs/' \
             "$source/" "$destination/"
 
-          # Remove obsolete repository-level submodule metadata.
+          # Remove only root-level paths that belong to Telegram upstream.
+          # The explicit Tele-ß paths above are never removed.
+          while IFS= read -r -d '' entry; do
+            name="$(basename "$entry")"
+            case "$name" in
+              .git|.github|.migration|README.md|patches|docs|.gitmodules)
+                continue
+                ;;
+            esac
+            rm -rf -- "./$name"
+          done < <(find "$source" -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name '.github' \
+            ! -name '.migration' \
+            ! -name 'README.md' \
+            ! -name 'patches' \
+            ! -name 'docs' \
+            ! -name '.gitmodules' -print0)
+
+          # The upstream .gitmodules is metadata; vendored submodule contents are files.
           rm -f .gitmodules
           rm -rf "$source"
 
@@ -98,8 +124,11 @@ jobs:
           test -d patches
           test -f README.md
           test ! -e .gitmodules
+          test ! -e gradlew
+          test ! -e TMessagesProj
+          test ! -e TMessagesProj_AppStandalone
 
-      - name: Verify vendored source and stage exact changes
+      - name: Verify vendored layout and stage exact changes
         id: changes
         shell: bash
         run: |
@@ -120,23 +149,26 @@ jobs:
           test -d patches
           test -f README.md
           test ! -e .gitmodules
+          test ! -e gradlew
+          test ! -e TMessagesProj
+          test ! -e TMessagesProj_AppStandalone
 
           git diff --cached --stat
           if git diff --cached --quiet; then
-            echo "Vendored Telegram source already matches current upstream."
+            echo "Repository already matches the vendored layout."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit and push source replacement to master
+      - name: Commit and push migration to master
         if: steps.changes.outputs.changed == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "build: update vendored Telegram source"
+          git commit -m "build: move Telegram source into upstream directory"
           git push origin HEAD:master
 
       - name: Publish migration summary
@@ -145,14 +177,15 @@ jobs:
           UPSTREAM_REVISION: ${{ steps.upstream.outputs.revision }}
         run: |
           {
-            echo "## Telegram Android source vendoring"
+            echo "## Telegram Android source migration"
             echo
             echo "- Upstream: `TelegramOrg/Telegram-Android`"
             echo "- Upstream HEAD: `$UPSTREAM_REVISION`"
             echo "- Destination: `upstream/`"
-            echo "- Stale Telegram files inside `upstream/`: removed by `rsync --delete`"
+            echo "- Telegram source previously at root: moved out of root"
+            echo "- Stale files in vendored source: removed"
             echo "- Recursive upstream submodules: flattened into regular files"
-            echo "- Repository root files and Tele-ß-owned directories: preserved"
-            echo "- Root Git submodule metadata: absent"
+            echo "- Tele-ß-owned root paths: preserved"
+            echo "- Git submodule metadata: absent"
             echo "- Branch: `master`"
           } >> "$GITHUB_STEP_SUMMARY"
