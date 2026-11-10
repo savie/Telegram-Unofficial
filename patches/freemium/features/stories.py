@@ -6,6 +6,7 @@ TARGETS = (
     "ui/Stories/SelfStoryViewsPage.java",
     "ui/Stories/StoriesController.java",
     "ui/Stories/recorder/CaptionContainerView.java",
+    "ui/Stories/recorder/CaptionStory.java",
 )
 
 
@@ -31,4 +32,11 @@ def patch_stories_controller(source: str) -> str:
 def patch_caption_container_view(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
+
+
+
+def patch_caption_story(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
