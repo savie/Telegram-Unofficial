@@ -119,33 +119,6 @@ def patch_premium_activation() -> None:
             1,
         )
 
-    method_start = source.find("    private void updateButtonText(boolean animated) {")
-    method_end = source.find("    @Override\n    public boolean isLightStatusBar()", method_start)
-    if method_start < 0 or method_end < 0:
-        raise SystemExit("PremiumPreviewFragment updateButtonText method boundaries changed.")
-    method_replacement = """    private void updateButtonText(boolean animated) {
-        if (premiumButtonView == null) {
-            return;
-        }
-        boolean active = TeleBetaFreemium.isActive(currentAccount);
-        premiumButtonView.setButton(active ? "Freemium Aktif" : "Aktifkan Freemium", null, animated);
-        buttonContainerInternal.setOnClickListener(v -> {
-            if (TeleBetaFreemium.isActive(currentAccount)) {
-                return;
-            }
-            try {
-                TeleBetaFreemium.activate(currentAccount);
-                updateButtonText(true);
-                android.widget.Toast.makeText(getContext(), "Freemium berhasil diaktifkan.", android.widget.Toast.LENGTH_SHORT).show();
-            } catch (IllegalStateException error) {
-                android.widget.Toast.makeText(getContext(), "Akun Telegram belum siap untuk mengaktifkan Freemium.", android.widget.Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-"""
-    source = source[:method_start] + method_replacement + source[method_end:]
-
     purchase_start = source.find("    public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {")
     purchase_end = source.find("    public static void fillPremiumFeaturesList", purchase_start)
     if purchase_start < 0 or purchase_end < 0:
@@ -160,21 +133,13 @@ def patch_premium_activation() -> None:
     if signature_end < 0:
         raise SystemExit("Premium purchase method signature changed.")
     redirect = """\n        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
-        if (account >= 0) {
+        if (account >= 0 && account < UserConfig.MAX_ACCOUNT_COUNT) {
             try {
                 TeleBetaFreemium.activate(account);
-                android.content.Context toastContext = fragment != null ? fragment.getParentActivity() : LaunchActivity.instance;
-                if (toastContext != null) {
-                    android.widget.Toast.makeText(toastContext, "Freemium berhasil diaktifkan untuk akun ini.", android.widget.Toast.LENGTH_SHORT).show();
-                }
-                return;
-            } catch (IllegalStateException error) {
-                android.content.Context toastContext = fragment != null ? fragment.getParentActivity() : LaunchActivity.instance;
-                if (toastContext != null) {
-                    android.widget.Toast.makeText(toastContext, "Akun Telegram belum siap untuk mengaktifkan Freemium.", android.widget.Toast.LENGTH_LONG).show();
-                }
+            } catch (IllegalStateException | IllegalArgumentException error) {
                 return;
             }
+            return;
         }
 """
     purchase_method = purchase_method[:signature_end + 1] + redirect + purchase_method[signature_end + 1:]
