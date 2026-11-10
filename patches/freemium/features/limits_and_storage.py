@@ -6,6 +6,7 @@ TARGETS = (
     "ui/SelectChatUserSheet.java",
     "ui/Components/ChatAttachAlertDocumentLayout.java",
     "ui/Components/PhotoViewerCaptionEnterView.java",
+    "messenger/FileUploadOperation.java",
 )
 
 
@@ -30,4 +31,11 @@ def patch_document_layout(source: str) -> str:
 def patch_photo_viewer_caption(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("!UserConfig.getInstance(currentAccount).isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+    ))
+
+
+
+def patch_file_upload_operation(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
     ))
