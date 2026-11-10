@@ -7,13 +7,14 @@ on:
     paths:
       - ".github/workflows/build-android.yml"
       - "UPSTREAM_TELEGRAM_COMMIT"
-      - "gradlew"
-      - "gradle/**"
-      - "build.gradle"
-      - "settings.gradle"
-      - "gradle.properties"
-      - "TMessagesProj/**"
-      - "TMessagesProj_AppStandalone/**"
+      - "upstream/gradlew"
+      - "upstream/gradle/**"
+      - "upstream/build.gradle"
+      - "upstream/settings.gradle"
+      - "upstream/gradle.properties"
+      - "upstream/TMessagesProj/**"
+      - "upstream/TMessagesProj_AppStandalone/**"
+      - "upstream/TMessagesProj_Modules/**"
       - "patches/**"
 
 permissions:
@@ -35,7 +36,7 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: Validate root-level vendored Telegram source
+      - name: Validate upstream Telegram source
         shell: bash
         run: |
           set -euo pipefail
@@ -45,20 +46,19 @@ jobs:
             echo "::error::UPSTREAM_TELEGRAM_COMMIT must contain a full commit SHA."
             exit 1
           }
-          test -f gradlew
-          test -f TMessagesProj/build.gradle
-          test -f TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
-          test -d TMessagesProj_AppStandalone
-          test -f TMessagesProj_Modules/media/core_settings.gradle
+          test -f upstream/gradlew
+          test -f upstream/TMessagesProj/build.gradle
+          test -f upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+          test -d upstream/TMessagesProj_AppStandalone
+          test -f upstream/TMessagesProj_Modules/media/core_settings.gradle
 
-          # .gitmodules is retained as upstream provenance metadata. Its
-          # submodule contents are flattened into regular files in Tele-ß.
+          # Upstream source and recursive submodules are vendored as regular files under upstream/.
           if git ls-files --stage | awk '$1 == "160000" { print; found=1 } END { exit found ? 0 : 1 }'; then
             echo "::error::Vendored source must not contain Git submodule entries."
             exit 1
           fi
 
-          echo "Building vendored Telegram source at $revision."
+          echo "Building upstream/ Telegram source at $revision."
 
       - name: Prepare isolated build workspace
         shell: bash
@@ -83,13 +83,13 @@ jobs:
           # separate from the clean vendored Telegram source in the repository.
           test -d "$build_dir/patches"
           test -f "$build_dir/patches/apply.py"
-          test -f "$build_dir/gradlew"
-          test -f "$build_dir/TMessagesProj/build.gradle"
-          test -f "$build_dir/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java"
-          test -f "$build_dir/TMessagesProj_Modules/media/core_settings.gradle"
-          test -d "$build_dir/TMessagesProj_AppStandalone"
+          test -f "$build_dir/upstream/gradlew"
+          test -f "$build_dir/upstream/TMessagesProj/build.gradle"
+          test -f "$build_dir/upstream/TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java"
+          test -f "$build_dir/upstream/TMessagesProj_Modules/media/core_settings.gradle"
+          test -d "$build_dir/upstream/TMessagesProj_AppStandalone"
 
-          chmod +x "$build_dir/gradlew"
+          chmod +x "$build_dir/upstream/gradlew"
           echo "TELEBETA_BUILD_DIR=$build_dir" >> "$GITHUB_ENV"
           echo "Prepared isolated workspace from Tele-ß vendored source at $revision."
 
@@ -159,7 +159,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/telebeta-native-cache
-          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
+          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'upstream/TMessagesProj/jni/**', 'upstream/TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('upstream/TMessagesProj/jni/**/*.c', 'upstream/TMessagesProj/jni/**/*.cc', 'upstream/TMessagesProj/jni/**/*.cpp', 'upstream/TMessagesProj/jni/**/*.h', 'upstream/TMessagesProj/jni/**/*.hpp', 'upstream/TMessagesProj/jni/**/*.S') }}
           restore-keys: |
             telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-
 
@@ -177,7 +177,7 @@ jobs:
           set -euo pipefail
           cd "$TELEBETA_BUILD_DIR"
           python3 patches/apply.py
-          keytool -list -keystore TMessagesProj/config/release.keystore \
+          keytool -list -keystore upstream/TMessagesProj/config/release.keystore \
             -storepass "$TELEBETA_KEYSTORE_PASSWORD" -alias "$TELEBETA_KEY_ALIAS" >/dev/null
           echo "Tele-ß signing certificate verified."
 
@@ -185,7 +185,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$TELEBETA_BUILD_DIR"
+          cd "$TELEBETA_BUILD_DIR/upstream"
           chmod +x gradlew
           ./gradlew --no-daemon --build-cache --parallel \
             :TMessagesProj_AppStandalone:processAfatStandaloneGoogleServices \
@@ -242,13 +242,13 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/telebeta-native-cache
-          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'TMessagesProj/jni/**', 'TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('TMessagesProj/jni/**/*.c', 'TMessagesProj/jni/**/*.cc', 'TMessagesProj/jni/**/*.cpp', 'TMessagesProj/jni/**/*.h', 'TMessagesProj/jni/**/*.hpp', 'TMessagesProj/jni/**/*.S') }}
+          key: telebeta-native-v2-${{ runner.os }}-ndk27-cmake322-ccache45-${{ hashFiles('UPSTREAM_TELEGRAM_COMMIT', 'upstream/TMessagesProj/jni/**', 'upstream/TMessagesProj/build.gradle', 'patches/build_cache/**') }}-${{ hashFiles('upstream/TMessagesProj/jni/**/*.c', 'upstream/TMessagesProj/jni/**/*.cc', 'upstream/TMessagesProj/jni/**/*.cpp', 'upstream/TMessagesProj/jni/**/*.h', 'upstream/TMessagesProj/jni/**/*.hpp', 'upstream/TMessagesProj/jni/**/*.S') }}
 
       - name: Prepare R8 mapping artifact
         shell: bash
         run: |
           set -euo pipefail
-          mapping_root="$TELEBETA_BUILD_DIR/TMessagesProj_AppStandalone/build/outputs/mapping"
+          mapping_root="$TELEBETA_BUILD_DIR/upstream/TMessagesProj_AppStandalone/build/outputs/mapping"
           mapping_file="$(find "$mapping_root" -type f -name mapping.txt -print -quit 2>/dev/null || true)"
 
           if [ -z "$mapping_file" ] || [ ! -s "$mapping_file" ]; then
@@ -279,6 +279,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: tele-ß_${{ github.run_number }}
-          path: ${{ runner.temp }}/telebeta-build/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
+          path: ${{ runner.temp }}/telebeta-build/upstream/TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
           retention-days: 14
