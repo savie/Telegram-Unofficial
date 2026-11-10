@@ -16,6 +16,8 @@ from .features.saved_messages import patch_search_tags
 from .features.stories import patch_expired_story_views, patch_stealth_mode
 from .features.translation import patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
+from .validation.account_isolation import validate_account_storage_source
+from .validation.feature_regression import assert_no_standalone_theme_ui_modules, validate_catalog_mapping
 from .validation.patch_preflight import require_files, require_upstream_revision
 from .validation.source_integrity import StagedFile, commit_staged
 
@@ -65,7 +67,10 @@ def apply_freemium() -> None:
     )
     require_files(upstream_root, tuple(required))
 
+    validate_catalog_mapping()
     helper_path, helper_source = stage_java_helper(upstream_root)
+    validate_account_storage_source(helper_source)
+    assert_no_standalone_theme_ui_modules([relative for relative, _ in FEATURE_PATCHES])
     preview_path = java_root / "org/telegram/ui/PremiumPreviewFragment.java"
 
     staged: list[StagedFile] = []
