@@ -19,3 +19,11 @@ def patch_chat_greetings_view(source: str) -> str:
             2,
         ),
     ))
+
+
+def patch_quick_replies_layout(source: str) -> str:
+    """Buka gate pemanggilan Quick Replies Business tanpa mengganti UI/controller upstream."""
+    return patch_local_premium_checks(source, (
+        ("if (!UserConfig.getInstance(parentAlert.currentAccount).isPremium()) {",
+         "if (!TeleBetaFreemium.hasAllAccess(parentAlert.currentAccount)) {", 1),
+    ))
