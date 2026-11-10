@@ -12,7 +12,7 @@ def patch_video_ads(source: str) -> str:
     return patch_local_premium_checks(source, (
         (
             "if (UserConfig.getInstance(currentAccount).isPremium() && MessagesController.getInstance(currentAccount).isSponsoredDisabled())",
-            "if (TeleBetaFreemium.hasAllAccess(currentAccount))",
+            "if (TeleBetaFreemium.isActive(currentAccount) || (UserConfig.getInstance(currentAccount).isPremium() && MessagesController.getInstance(currentAccount).isSponsoredDisabled()))",
             1,
         ),
     ))
