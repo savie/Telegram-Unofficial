@@ -176,6 +176,47 @@ def patch_premium_activation() -> None:
 
     PREMIUM_PREVIEW.write_text(source, encoding="utf-8")
 
+def patch_feature_gates() -> None:
+    """Hubungkan gate UI yang sudah terpetakan ke entitlement All-access V2."""
+    replacements = {
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/SearchTagsList.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"saved_message_tags\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateButton.java": [
+            ("UserConfig.getInstance(currentAccount).isPremium()", "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.hasAccess(currentAccount, \"real_time_translation\"))"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/Components/TranslateAlert3.java": [
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"real_time_translation\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/iv/RichEditor.java": [
+            ("!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium()", "!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
+        ],
+        "TMessagesProj/src/main/java/org/telegram/ui/iv/ChatAttachAlertRichLayout.java": [
+            ("!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium()", "!MessagesController.getInstance(currentAccount).richEditorAllowed() && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
+            ("!UserConfig.getInstance(currentAccount).isPremium()", "!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.hasAccess(currentAccount, \"formatting_tools\")"),
+        ],
+    }
+
+    for relative_path, pairs in replacements.items():
+        path = UPSTREAM_ROOT / relative_path
+        if not path.is_file():
+            raise SystemExit(f"Freemium V2 feature source is missing: {relative_path}")
+        source = path.read_text(encoding="utf-8")
+        original = source
+        for old, new in pairs:
+            source = source.replace(old, new)
+        if source == original:
+            raise SystemExit(f"No expected Freemium V2 gate found in {relative_path}")
+        import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+        if "import org.telegram.messenger.TeleBetaFreemium;" not in source:
+            package_line = next((line for line in source.splitlines(keepends=True) if line.startswith("package ")), None)
+            if package_line is None:
+                raise SystemExit(f"Java package declaration missing: {relative_path}")
+            source = source.replace(package_line, package_line + "\\n" + import_line, 1)
+        path.write_text(source, encoding="utf-8")
+
+
 def apply_freemium() -> None:
     if not (UPSTREAM_ROOT / "TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java").is_file():
         raise SystemExit("UserConfig.java is missing from upstream source.")
@@ -183,6 +224,7 @@ def apply_freemium() -> None:
         raise SystemExit("PremiumPreviewFragment.java is missing from upstream source.")
     write_core()
     patch_premium_activation()
+    patch_feature_gates()
 
 if __name__ == "__main__":
     apply_freemium()
