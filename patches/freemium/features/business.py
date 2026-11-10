@@ -18,26 +18,26 @@ def patch_business_activity_gate(source: str) -> str:
         anchor = "import org.telegram."
         if source.count(anchor) < 1:
             raise RuntimeError("Business activity import anchor missing")
-        source = source.replace(anchor, "import org.telegram.messenger.TeleBetaFreemium;\\n" + anchor, 1)
+        source = source.replace(anchor, "import org.telegram.messenger.TeleBetaFreemium;\n" + anchor, 1)
 
-    guard = "if (getMessagesController().premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(currentAccount)) {\\n            return false;\\n        }"
+    guard = "if (getMessagesController().premiumFeaturesBlocked() && !TeleBetaFreemium.hasAllAccess(currentAccount)) {\n            return false;\n        }"
     method = re.search(r"(?m)^\\s*(?:public|protected) boolean onFragmentCreate\\(\\)\\s*\\{", source)
     if method:
         body_start = method.end()
         if guard in source:
             return source
-        source = source[:body_start] + "\\n        " + guard + source[body_start:]
+        source = source[:body_start] + "\n        " + guard + source[body_start:]
         return source
 
     class_match = re.search(r"(?m)^public class [^{]+\\{", source)
     if not class_match:
         raise RuntimeError("Business activity class declaration missing")
     method_source = (
-        "\\n    @Override\\n"
-        "    public boolean onFragmentCreate() {\\n"
-        "        " + guard + "\\n"
-        "        return super.onFragmentCreate();\\n"
-        "    }\\n"
+        "\n    @Override\n"
+        "    public boolean onFragmentCreate() {\n"
+        "        " + guard + "\n"
+        "        return super.onFragmentCreate();\n"
+        "    }\n"
     )
     return source[:class_match.end()] + method_source + source[class_match.end():]
 
