@@ -1,5 +1,5 @@
 """Name and Profile Colors serta Profile Badge; tidak membuat kategori Theme/UI."""
-from ..integration.gate_patch import patch_local_premium_checks
+from ..integration.premium_feature_gates import patch_local_premium_checks
 
 TARGETS = ("ui/PeerColorActivity.java",)
 

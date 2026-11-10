@@ -1,5 +1,5 @@
 """Voice-to-Text Conversion: buka gate client-side pada tombol dan jalur transkripsi."""
-from ..integration.gate_patch import patch_local_premium_checks
+from ..integration.premium_feature_gates import patch_local_premium_checks
 
 TARGETS = ("ui/Components/TranscribeButton.java",)
 

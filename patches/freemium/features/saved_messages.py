@@ -1,5 +1,5 @@
 """Tags in Saved Messages: buka seluruh gate daftar dan interaksi tag lokal."""
-from ..integration.gate_patch import patch_local_premium_checks
+from ..integration.premium_feature_gates import patch_local_premium_checks
 
 TARGETS = ("ui/Components/SearchTagsList.java",)
 
