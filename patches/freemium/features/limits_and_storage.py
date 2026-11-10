@@ -6,6 +6,7 @@ TARGETS = (
     "ui/SelectChatUserSheet.java",
     "ui/Components/ChatAttachAlertDocumentLayout.java",
     "ui/Components/PhotoViewerCaptionEnterView.java",
+    "ui/Components/CaptionPhotoViewer.java",
     "messenger/FileUploadOperation.java",
 )
 
@@ -38,4 +39,11 @@ def patch_photo_viewer_caption(source: str) -> str:
 def patch_file_upload_operation(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
+    ))
+
+
+
+def patch_caption_photo_viewer(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("UserConfig.getInstance(currentAccount).isPremium() ? getCaptionPremiumLimit() : getCaptionDefaultLimit()", "TeleBetaFreemium.hasAllAccess(currentAccount) ? getCaptionPremiumLimit() : getCaptionDefaultLimit()", 1),
     ))
