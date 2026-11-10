@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Entry point patch Freemium V2; detail implementasi berada di modul bertanggung jawab."""
+"""Orkestrasi patch Freemium V2; seluruh source di-stage sebelum ditulis."""
 from pathlib import Path
 
+from .activation.activation_flow import patch_purchase_flow
 from .core.account_storage import stage_java_helper
 from .validation.patch_preflight import require_files
 from .validation.source_integrity import StagedFile, commit_staged
 
 
 def apply_freemium() -> None:
-    """Preflight, stage seluruh perubahan Freemium, lalu commit secara deterministik."""
     repo_root = Path(__file__).resolve().parents[2]
     upstream_root = repo_root / "upstream"
     java_root = upstream_root / "TMessagesProj/src/main/java"
+
     require_files(
         upstream_root,
         (
@@ -21,24 +22,28 @@ def apply_freemium() -> None:
     )
 
     helper_path, helper_source = stage_java_helper(upstream_root)
-    staged = []
-    if helper_path.exists():
-        original = helper_path.read_text(encoding="utf-8")
-        if original != helper_source:
-            staged.append(StagedFile(helper_path, original, helper_source))
-    else:
-        # A new file is staged with an empty expected original; commit_staged
-        # handles creation only after every existing target has passed preflight.
-        staged.append(StagedFile(helper_path, "", helper_source))
+    preview_path = java_root / "org/telegram/ui/PremiumPreviewFragment.java"
 
-    for item in staged:
-        if item.path.exists() and item.path.read_text(encoding="utf-8") != item.original:
-            raise RuntimeError(f"Source changed after staging: {item.path}")
-        if not item.path.exists() and item.original:
-            raise RuntimeError(f"Staged source disappeared: {item.path}")
-    for item in staged:
-        item.path.parent.mkdir(parents=True, exist_ok=True)
-        item.path.write_text(item.updated, encoding="utf-8")
+    staged: list[StagedFile] = []
+
+    helper_original = helper_path.read_text(encoding="utf-8") if helper_path.exists() else None
+    if helper_original != helper_source:
+        staged.append(StagedFile(helper_path, helper_original, helper_source))
+
+    preview_original = preview_path.read_text(encoding="utf-8")
+    preview_updated = patch_purchase_flow(preview_original)
+    if preview_updated != preview_original:
+        staged.append(StagedFile(preview_path, preview_original, preview_updated))
+
+    if not staged:
+        print("Freemium V2 already applied; no source changes required.")
+        return
+
+    commit_staged(staged)
+    print(
+        "Freemium V2 applied: account-local entitlement helper and "
+        "Telegram Premium purchase-flow redirection."
+    )
 
 
 if __name__ == "__main__":
