@@ -1,4 +1,4 @@
-"""Feature implementation registry. Theme/UI customization is intentionally excluded."""
+"""Registry of catalog feature implementation modules. Theme/UI source is mapped into its owning catalog feature."""
 FEATURE_MODULES = (
     "stories", "limits_and_storage", "business", "last_seen", "voice_to_text",
     "downloads", "translation", "emoji_and_stickers", "saved_messages",
