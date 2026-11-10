@@ -3,7 +3,8 @@ import json
 import os
 from pathlib import Path
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 PLUGIN = "apply plugin: 'com.google.gms.google-services'"
 
 def remove_library_google_services_plugin():
