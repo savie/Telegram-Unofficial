@@ -4,6 +4,9 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parent
+REPO_ROOT = ROOT.parent
+UPSTREAM_ROOT = REPO_ROOT / "upstream"
+
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -16,7 +19,23 @@ from freemium.download_manager import apply_local_download_manager
 from signing.patch import configure_signing
 
 
+def validate_workspace() -> None:
+    required_paths = (
+        UPSTREAM_ROOT / "gradlew",
+        UPSTREAM_ROOT / "gradle.properties",
+        UPSTREAM_ROOT / "TMessagesProj/build.gradle",
+        UPSTREAM_ROOT / "TMessagesProj_AppStandalone/build.gradle",
+    )
+    missing = [str(path.relative_to(REPO_ROOT)) for path in required_paths if not path.is_file()]
+    if missing:
+        raise SystemExit(
+            "Vendored Telegram source is incomplete under upstream/: "
+            + ", ".join(missing)
+        )
+
+
 def main() -> None:
+    validate_workspace()
     configure_api()
     configure_signing()
     configure_branding()
