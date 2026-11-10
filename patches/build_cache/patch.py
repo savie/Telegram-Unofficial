@@ -2,7 +2,8 @@
 
 from pathlib import Path
 
-ROOT = Path(".")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = REPO_ROOT / "upstream"
 TARGET = ROOT / "TMessagesProj/build.gradle"
 MARKER = "'-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'"
 ARGUMENTS = """                arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23',
