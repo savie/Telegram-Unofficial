@@ -9,6 +9,7 @@ TARGETS = (
     "ui/FilterChatlistActivity.java",
     "ui/Components/DialogCellTags.java",
     "ui/Components/FilterTabsView.java",
+    "ui/UsersSelectActivity.java",
     "messenger/SavedMessagesController.java",
 )
 
@@ -83,4 +84,11 @@ def patch_filter_tabs_view(source: str) -> str:
             "TeleBetaFreemium.hasAllAccess(UserConfig.selectedAccount)",
             1,
         ),
+    ))
+
+
+
+def patch_users_select_activity(source: str) -> str:
+    return patch_local_premium_checks(source, (
+        ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 2),
     ))
