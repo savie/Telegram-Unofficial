@@ -119,24 +119,20 @@ def patch_premium_activation() -> None:
             1,
         )
 
-    method_anchor = """    private void updateButtonText(boolean animated) {
-        if (premiumButtonView == null) {
-            return;
-        }"""
-    replacement = """    private void updateButtonText(boolean animated) {
+    method_start = source.find("    private void updateButtonText(boolean animated) {")
+    method_end = source.find("    @Override\\n    public boolean isLightStatusBar()", method_start)
+    if method_start < 0 or method_end < 0:
+        raise SystemExit("PremiumPreviewFragment updateButtonText method boundaries changed.")
+    method_replacement = """    private void updateButtonText(boolean animated) {
         if (premiumButtonView == null) {
             return;
         }
-        // Tele-ß grants one local all-access entitlement; Telegram billing is not invoked.
-        if (TeleBetaFreemium.isActive(currentAccount)) {
-            premiumButtonView.setButton("Freemium Aktif", null, animated);
-            buttonContainerInternal.setOnClickListener(v -> {
-                android.widget.Toast.makeText(getContext(), "Semua fitur Freemium sudah aktif untuk akun ini.", android.widget.Toast.LENGTH_SHORT).show();
-            });
-            return;
-        }
-        premiumButtonView.setButton("Aktifkan Freemium", null, animated);
+        boolean active = TeleBetaFreemium.isActive(currentAccount);
+        premiumButtonView.setButton(active ? "Freemium Aktif" : "Aktifkan Freemium", null, animated);
         buttonContainerInternal.setOnClickListener(v -> {
+            if (TeleBetaFreemium.isActive(currentAccount)) {
+                return;
+            }
             try {
                 TeleBetaFreemium.activate(currentAccount);
                 updateButtonText(true);
@@ -145,35 +141,10 @@ def patch_premium_activation() -> None:
                 android.widget.Toast.makeText(getContext(), "Akun Telegram belum siap untuk mengaktifkan Freemium.", android.widget.Toast.LENGTH_LONG).show();
             }
         });
-        return;"""
-    if replacement not in source:
-        if method_anchor not in source:
-            raise SystemExit("PremiumPreviewFragment updateButtonText anchor not found.")
-        source = source.replace(method_anchor, replacement, 1)
-    elif "TeleBetaFreemium.isActive(currentAccount)" not in source:
-        raise SystemExit("Unexpected PremiumPreviewFragment patch state.")
-    purchase_anchor = """    public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
-        if (BuildVars.IS_BILLING_UNAVAILABLE) {"""
-    purchase_replacement = """    public static void buyPremium(BaseFragment fragment, SubscriptionTier tier, String source, boolean forcePremium, BillingFlowParams.SubscriptionUpdateParams updateParams) {
-        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();
-        if (TeleBetaFreemium.redirectPurchaseToFreemium(account)) {
-            android.content.Context toastContext = fragment != null ? fragment.getParentActivity() : LaunchActivity.instance;
-            if (toastContext != null) {
-                android.widget.Toast.makeText(toastContext, "Freemium berhasil diaktifkan untuk akun ini.", android.widget.Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-        if (BuildVars.IS_BILLING_UNAVAILABLE) {"""
-    if purchase_replacement not in source:
-        if purchase_anchor not in source:
-            raise SystemExit("Premium purchase entry point anchor not found.")
-        source = source.replace(purchase_anchor, purchase_replacement, 1)
-        account_line = "        final int account = fragment == null ? UserConfig.selectedAccount : fragment.getCurrentAccount();"
-        last_account = source.rfind(account_line)
-        if last_account < 0:
-            raise SystemExit("Original Premium purchase account declaration not found.")
-        source = source[:last_account] + "        // Account was resolved before local Freemium activation.\n" + source[last_account + len(account_line):]
+    }
 
+"""
+    source = source[:method_start] + method_replacement + source[method_end:]
     PREMIUM_PREVIEW.write_text(source, encoding="utf-8")
 
 def patch_feature_gates() -> None:
