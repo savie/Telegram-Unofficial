@@ -58,8 +58,16 @@ def patch_sticker_emoji_cell(source: str) -> str:
 
 
 def patch_available_reaction_cell(source: str) -> str:
+    anchor = "UserConfig.getInstance(currentAccount).isPremium()"
+    replacement = "TeleBetaFreemium.hasAllAccess(currentAccount)"
+    old_count = source.count(anchor)
+    if old_count != 1:
+        raise RuntimeError(
+            "AvailableReactionCell Premium gate mismatch: "
+            f"expected exactly 1 anchor, found {old_count}"
+        )
     return patch_local_premium_checks(source, (
-        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
+        (anchor, replacement, 1),
     ))
 
 
@@ -84,10 +92,27 @@ def patch_emoji_packs_alert(source: str) -> str:
 
 
 def patch_reactions_double_tap_manage(source: str) -> str:
-    return patch_local_premium_checks(source, (
-        ("getUserConfig().isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
-        ("UserConfig.getInstance(currentAccount).isPremium()", "TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
-    ))
+    replacements = (
+        (
+            "getUserConfig().isPremium()",
+            "TeleBetaFreemium.hasAllAccess(currentAccount)",
+            1,
+        ),
+        (
+            "UserConfig.getInstance(currentAccount).isPremium()",
+            "TeleBetaFreemium.hasAllAccess(currentAccount)",
+            1,
+        ),
+    )
+    for anchor, _, expected_count in replacements:
+        old_count = source.count(anchor)
+        if old_count != expected_count:
+            raise RuntimeError(
+                "ReactionsDoubleTapManageActivity Premium gate mismatch: "
+                f"expected {expected_count} occurrence(s) of {anchor!r}, "
+                f"found {old_count}"
+            )
+    return patch_local_premium_checks(source, replacements)
 
 
 
@@ -136,9 +161,6 @@ def patch_custom_emoji_reactions_window(source: str) -> str:
 
     method_source = source[method_start:method_end]
     old_count = method_source.count(anchor)
-    new_count = method_source.count(replacement)
-    if old_count == 0 and new_count == 1:
-        return source
     if old_count != 1:
         raise RuntimeError(
             "Expected exactly one Premium gate in onEmojiSelected, "
