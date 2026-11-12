@@ -6,6 +6,7 @@ TARGETS = (
     "messenger/MediaDataController.java",
     "ui/SelectAnimatedEmojiDialog.java",
     "ui/Components/ReactionsContainerLayout.java",
+    "ui/Components/Reactions/CustomEmojiReactionsWindow.java",
     "ui/Components/StickersAlert.java",
     "ui/Cells/StickerCell.java",
     "ui/Cells/StickerEmojiCell.java",
@@ -111,3 +112,41 @@ def patch_content_preview_viewer(source: str) -> str:
     return patch_local_premium_checks(source, (
         ("!AccountInstance.getInstance(currentAccount).getUserConfig().isPremium()", "!TeleBetaFreemium.hasAllAccess(currentAccount)", 1),
     ))
+
+def patch_custom_emoji_reactions_window(source: str) -> str:
+    """Buka gate pemilihan Premium Reaction untuk entitlement lokal Tele-ß."""
+    anchor = (
+        "!UserConfig.getInstance("
+        "baseFragment.getCurrentAccount()).isPremium()"
+    )
+    replacement = (
+        "!TeleBetaFreemium.hasAllAccess("
+        "baseFragment.getCurrentAccount())"
+    )
+
+    method_start = source.find("protected void onEmojiSelected(")
+    method_end = source.find(
+        "\n    private void showUnlockPremiumAlert()",
+        method_start,
+    )
+    if method_start < 0 or method_end < 0:
+        raise RuntimeError(
+            "CustomEmojiReactionsWindow.onEmojiSelected anchor not found"
+        )
+
+    method_source = source[method_start:method_end]
+    old_count = method_source.count(anchor)
+    new_count = method_source.count(replacement)
+    if old_count == 0 and new_count == 1:
+        return source
+    if old_count != 1:
+        raise RuntimeError(
+            "Expected exactly one Premium gate in onEmojiSelected, "
+            f"found {old_count}"
+        )
+
+    return patch_local_premium_checks(
+        source,
+        ((anchor, replacement, 1),),
+    )
+
