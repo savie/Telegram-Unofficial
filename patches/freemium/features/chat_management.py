@@ -2,6 +2,7 @@
 from ..integration.premium_feature_gates import patch_local_premium_checks
 
 TARGETS = (
+    "ui/ChatActivity.java",
     "ui/DialogsActivity.java",
     "ui/ArchiveSettingsActivity.java",
     "ui/FiltersSetupActivity.java",
@@ -88,6 +89,44 @@ def patch_filter_tabs_view(source: str) -> str:
         ),
     ))
 
+
+
+def patch_chat_activity_saved_message_tags(source: str) -> str:
+    replacements = (
+        (
+            "actionMode.setItemVisibility(tag_message, getUserConfig().isPremium() ? View.VISIBLE : View.GONE);",
+            "actionMode.setItemVisibility(tag_message, TeleBetaFreemium.hasAllAccess(currentAccount) ? View.VISIBLE : View.GONE);",
+            1,
+        ),
+        (
+            "tagItem.setVisibility(getUserConfig().isPremium() && (",
+            "tagItem.setVisibility(TeleBetaFreemium.hasAllAccess(currentAccount) && (",
+            1,
+        ),
+        (
+            "if (getDialogId() != getUserConfig().getClientUserId() || !getUserConfig().isPremium()) return;",
+            "if (getDialogId() != getUserConfig().getClientUserId() || !TeleBetaFreemium.hasAllAccess(currentAccount)) return;",
+            1,
+        ),
+    )
+
+    # Pastikan setiap anchor berada dalam kondisi original atau sudah ter-patch.
+    # Anchor hilang, duplikat, atau kondisi campuran harus gagal.
+    for old, new, expected_count in replacements:
+        old_count = source.count(old)
+        new_count = source.count(new)
+
+        original_state = old_count == expected_count and new_count == 0
+        patched_state = old_count == 0 and new_count == expected_count
+
+        if not (original_state or patched_state):
+            raise RuntimeError(
+                "ChatActivity Saved Messages Tags anchor mismatch: "
+                f"expected original={expected_count}, replacement={expected_count}; "
+                f"found original={old_count}, replacement={new_count}"
+            )
+
+    return patch_local_premium_checks(source, replacements)
 
 
 def patch_users_select_activity(source: str) -> str:

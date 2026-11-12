@@ -8,7 +8,7 @@ from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES, patch_business_activity_gate, patch_chat_greetings_view, patch_quick_replies_layout
 from .integration.premium_feature_gates import PREMIUM_GATE_TARGETS
-from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
+from .features.chat_management import patch_archive_settings, patch_chat_activity_saved_message_tags, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation
 from .features.emoji_and_stickers import patch_content_preview_viewer, patch_custom_emoji_reactions_window, patch_mentions_adapter, patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_set_bulletin_layout, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
@@ -75,6 +75,7 @@ FEATURE_PATCHES = (
     ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("ui/Components/FilterTabsView.java", patch_filter_tabs_view),
     ("ui/UsersSelectActivity.java", patch_users_select_activity),
+    ("ui/ChatActivity.java", patch_chat_activity_saved_message_tags),
     ("ui/ChatRightsEditActivity.java", patch_chat_rights_edit_activity),
     ("ui/SelectChatUserSheet.java", patch_select_chat_user_sheet),
     ("ui/Components/ChatAttachAlertDocumentLayout.java", patch_document_layout),
