@@ -362,3 +362,176 @@ def patch_user_object_profile_style(source: str) -> str:
 
 
 TARGETS = ("messenger/UserObject.java",)
+
+
+def patch_peer_color_activity(source: str) -> str:
+    source = _ensure_import(
+        source,
+        "import org.telegram.messenger.UserConfig;\\n",
+        "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n",
+        "PeerColorActivity",
+    )
+    source = _replace_exact(
+        source,
+        "getUserConfig().isPremium()",
+        "(getUserConfig().isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        5,
+        "PeerColorActivity account-local entitlement checks",
+    )
+    source = _replace_exact(
+        source,
+        """                    selectedEmojiCollectible = user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null;
+                    selectedPeerCollectible = null;""",
+        """                    TLRPC.TL_emojiStatusCollectible localProfileCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(currentAccount, user);
+                    selectedEmojiCollectible = localProfileCollectible != null ? localProfileCollectible : (user != null && user.emoji_status instanceof TLRPC.TL_emojiStatusCollectible ? (TLRPC.TL_emojiStatusCollectible) user.emoji_status : null);
+                    selectedPeerCollectible = null;""",
+        1,
+        "PeerColorActivity restore local profile collectible",
+    )
+    source = _replace_exact(
+        source,
+        """                    selectedEmojiCollectible = null;
+                    selectedPeerCollectible = user != null && user.color instanceof TLRPC.TL_peerColorCollectible ? (TLRPC.TL_peerColorCollectible) user.color : null;""",
+        """                    selectedEmojiCollectible = null;
+                    TLRPC.TL_peerColorCollectible localNameCollectible = TeleBetaLocalProfileStyle.getNameCollectible(currentAccount, user);
+                    selectedPeerCollectible = localNameCollectible != null ? localNameCollectible : (user != null && user.color instanceof TLRPC.TL_peerColorCollectible ? (TLRPC.TL_peerColorCollectible) user.color : null);""",
+        1,
+        "PeerColorActivity restore local name collectible",
+    )
+    source = _replace_exact(
+        source,
+        """    private void buttonClick() {
+        if (loading) {
+            return;
+        }
+        if (isChannel) {""",
+        """    private void buttonClick() {
+        if (loading) {
+            return;
+        }
+        if (isTeleBetaLocalProfileStyleEnabled()) {
+            apply();
+            finishFragment();
+            showBulletin();
+            return;
+        }
+        if (isChannel) {""",
+        1,
+        "PeerColorActivity local button flow",
+    )
+    source = _replace_exact(
+        source,
+        """        public void updateButton(boolean animated) {
+            if (selectedResaleGift != null) {""",
+        """        public void updateButton(boolean animated) {
+            if (selectedResaleGift != null && !isTeleBetaLocalProfileStyleEnabled()) {""",
+        1,
+        "PeerColorActivity local resale-button handling",
+    )
+    source = _replace_exact(
+        source,
+        "    private boolean applyingName, applyingProfile;",
+        """    private boolean isTeleBetaLocalProfileStyleEnabled() {
+        return !isChannel && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount));
+    }
+
+    private boolean applyingName, applyingProfile;""",
+        1,
+        "PeerColorActivity local entitlement helper",
+    )
+    source = _replace_exact(
+        source,
+        """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (me.color == null) {""",
+        """            final TLRPC.User me = getUserConfig().getCurrentUser();
+            if (isTeleBetaLocalProfileStyleEnabled()) {
+                TeleBetaLocalProfileStyle.save(
+                    currentAccount,
+                    me.id,
+                    namePage.selectedColor,
+                    profilePage.selectedColor,
+                    profilePage.selectedEmoji,
+                    namePage.selectedPeerCollectible,
+                    profilePage.selectedEmojiCollectible
+                );
+                NotificationCenter.getInstance(currentAccount).postNotificationName(
+                    NotificationCenter.updateInterfaces,
+                    MessagesController.UPDATE_MASK_NAME | MessagesController.UPDATE_MASK_AVATAR
+                );
+                return;
+            }
+            if (me.color == null) {""",
+        1,
+        "PeerColorActivity local profile style persistence",
+    )
+    source = _replace_exact(
+        source,
+        "                } else if (selectedColor < 7) {",
+        "                } else if (selectedColor >= 0 && selectedColor < Theme.keys_avatar_nameInMessage.length) {",
+        1,
+        "PeerColorActivity selected-color palette bounds",
+    )
+    source = _replace_exact(
+        source,
+        "if (colorId < 7)",
+        "if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length)",
+        3,
+        "PeerColorActivity color-id palette bounds",
+    )
+    source = _replace_exact(
+        source,
+        """                final ArrayList<Integer> colors = dark && p.dark_colors != null ? p.dark_colors : p.colors;
+
+                final int color1 = colors.get(0) | 0xFF000000;""",
+        """                ArrayList<Integer> colors = dark && p.dark_colors != null && !p.dark_colors.isEmpty() ? p.dark_colors : p.colors;
+                if (colors == null || colors.isEmpty()) {
+                    colors = new ArrayList<>();
+                    colors.add(p.accent_color);
+                }
+
+                final int color1 = colors.get(0) | 0xFF000000;""",
+        2,
+        "PeerColorActivity collectible palette fallback",
+    )
+    return source
+
+
+def patch_profile_activity(source: str) -> str:
+    source = _ensure_import(
+        source,
+        "import org.telegram.messenger.UserObject;\\n",
+        "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n",
+        "ProfileActivity",
+    )
+    source = _replace_exact(
+        source,
+        "getUserConfig().isPremium()",
+        "(getUserConfig().isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        5,
+        "ProfileActivity account-local entitlement checks",
+    )
+    source = _replace_exact(
+        source,
+        "UserConfig.getInstance(currentAccount).isPremium()",
+        "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        3,
+        "ProfileActivity account-local entitlement checks",
+    )
+    return _replace_exact(
+        source,
+        "            peerColor = MessagesController.PeerColor.fromCollectible(user.emoji_status);",
+        """            TLRPC.TL_emojiStatusCollectible localProfileCollectible = TeleBetaLocalProfileStyle.getProfileCollectible(currentAccount, user);
+            if (localProfileCollectible != null) {
+                user.emoji_status = localProfileCollectible;
+            }
+            peerColor = MessagesController.PeerColor.fromCollectible(user.emoji_status);""",
+        1,
+        "ProfileActivity local collectible rendering",
+    )
+
+
+TARGETS = (
+    "messenger/UserObject.java",
+    "ui/PeerColorActivity.java",
+    "ui/ProfileActivity.java",
+)
