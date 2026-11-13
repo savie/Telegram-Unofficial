@@ -172,3 +172,72 @@ def patch_custom_emoji_reactions_window(source: str) -> str:
         ((anchor, replacement, 1),),
     )
 
+
+
+def _replace_exact_local(source: str, old: str, new: str, expected: int, label: str) -> str:
+    old_count = source.count(old)
+    new_count = source.count(new)
+    if old_count == expected:
+        return source.replace(old, new, expected)
+    if old_count == 0 and new_count == expected:
+        return source
+    raise RuntimeError(
+        f"{label}: expected {expected} anchor(s), found old={old_count}, patched={new_count}"
+    )
+
+
+def _ensure_freemium_import(source: str, label: str) -> str:
+    import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    if import_line in source:
+        return source
+    anchor = "import org.telegram.messenger.UserConfig;\\n"
+    if source.count(anchor) != 1:
+        raise RuntimeError(f"{label}: UserConfig import anchor must occur exactly once")
+    return source.replace(anchor, anchor + import_line, 1)
+
+
+def patch_stickers_adapter(source: str) -> str:
+    source = _ensure_freemium_import(source, "StickersAdapter")
+    return _replace_exact_local(
+        source,
+        "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()",
+        "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        1,
+        "StickersAdapter animated emoji suggestion gate",
+    )
+
+
+def patch_suggest_emoji_view(source: str) -> str:
+    source = _ensure_freemium_import(source, "SuggestEmojiView")
+    return _replace_exact_local(
+        source,
+        "SharedConfig.suggestAnimatedEmoji && UserConfig.getInstance(currentAccount).isPremium()",
+        "SharedConfig.suggestAnimatedEmoji && (UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        2,
+        "SuggestEmojiView animated emoji suggestion gates",
+    )
+
+
+def patch_stickers_alert(source: str) -> str:
+    source = _ensure_freemium_import(source, "StickersAlert")
+    source = _replace_exact_local(
+        source,
+        """    private void checkPremiumStickers() {
+        if (stickerSet != null) {
+            stickerSet = MessagesController.getInstance(currentAccount).filterPremiumStickers(stickerSet);""",
+        """    private void checkPremiumStickers() {
+        if (stickerSet != null && !TeleBetaFreemium.isActive(currentAccount)) {
+            stickerSet = MessagesController.getInstance(currentAccount).filterPremiumStickers(stickerSet);""",
+        1,
+        "StickersAlert filterPremiumStickers gate",
+    )
+    source = _replace_exact_local(
+        source,
+        "UserConfig.getInstance(currentAccount).isPremium()",
+        "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount))",
+        2,
+        "StickersAlert local Premium entitlement checks",
+    )
+    return source
+
+
