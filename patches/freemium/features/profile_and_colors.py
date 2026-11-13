@@ -1,4 +1,5 @@
 """Local Name/Profile Colors and collectible overlays, stored per Telegram account."""
+import re
 from pathlib import Path
 from ..integration.premium_feature_gates import patch_local_premium_checks
 
@@ -381,24 +382,15 @@ def patch_avatar_drawable_profile_style(source: str) -> str:
 
 
 def patch_chat_message_cell_profile_style(source: str) -> str:
-    # Clamp colorId immediately after retrieval.
-    source = _replace_exact(
-        source,
-        "int colorId = UserObject.getColorId(messageObject.getSenderId());",
-        "int colorId = UserObject.getColorId(messageObject.getSenderId());\n                    if (colorId < 0) colorId = 0;",
-        3,
-        "ChatMessageCell colorId clamping",
-    )
-    # Keep the array bounds guard as a second layer of protection.
-    source = _replace_exact(
-        source,
-        "if (colorId < 7) {",
-        "if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {",
-        3,
-        "ChatMessageCell color palette bounds",
+    import re
+    # Clamp colorId jika negatif, tepat sebelum cek < 7
+    # Regex ini akan mencocokkan "if (colorId < 7)" meskipun ada spasi berlebih
+    source = re.sub(
+        r'if\s*\(\s*colorId\s*<\s*7\s*\)',
+        'if (colorId < 0) colorId = 0; if (colorId < 7)',
+        source
     )
     return source
-
 
 def patch_message_topic_button_color_id(source: str) -> str:
     return _replace_exact(
