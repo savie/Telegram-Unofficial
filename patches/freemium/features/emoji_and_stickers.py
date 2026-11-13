@@ -187,10 +187,10 @@ def _replace_exact_local(source: str, old: str, new: str, expected: int, label: 
 
 
 def _ensure_freemium_import(source: str, label: str) -> str:
-    import_line = "import org.telegram.messenger.TeleBetaFreemium;\\n"
+    import_line = "import org.telegram.messenger.TeleBetaFreemium;\n"
     if import_line in source:
         return source
-    anchor = "import org.telegram.messenger.UserConfig;\\n"
+    anchor = "import org.telegram.messenger.UserConfig;\n"
     if source.count(anchor) != 1:
         raise RuntimeError(f"{label}: UserConfig import anchor must occur exactly once")
     return source.replace(anchor, anchor + import_line, 1)
