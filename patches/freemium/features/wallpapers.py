@@ -24,8 +24,8 @@ def _ensure_import(source: str, anchor: str, import_line: str, label: str) -> st
 def patch_theme(source: str) -> str:
     source = _ensure_import(
         source,
-        "import org.telegram.messenger.MessagesController;\\n",
-        "import org.telegram.messenger.TeleBetaFreemium;\\n",
+        "import org.telegram.messenger.MessagesController;\n",
+        "import org.telegram.messenger.TeleBetaFreemium;\n",
         "Theme",
     )
     return _replace_exact(
@@ -44,8 +44,8 @@ def patch_theme(source: str) -> str:
 def patch_theme_preview_activity(source: str) -> str:
     source = _ensure_import(
         source,
-        "import org.telegram.messenger.MessagesController;\\n",
-        "import org.telegram.messenger.TeleBetaFreemium;\\n",
+        "import org.telegram.messenger.MessagesController;\n",
+        "import org.telegram.messenger.TeleBetaFreemium;\n",
         "ThemePreviewActivity",
     )
     source = _replace_exact(
@@ -75,8 +75,8 @@ def patch_theme_preview_activity(source: str) -> str:
 def patch_chat_theme_bottom_sheet(source: str) -> str:
     source = _ensure_import(
         source,
-        "import org.telegram.messenger.ChatThemeController;\\n",
-        "import org.telegram.messenger.TeleBetaFreemium;\\n",
+        "import org.telegram.messenger.ChatThemeController;\n",
+        "import org.telegram.messenger.TeleBetaFreemium;\n",
         "ChatThemeBottomSheet",
     )
     return _replace_exact(
