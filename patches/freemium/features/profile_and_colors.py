@@ -364,6 +364,13 @@ def patch_user_object_profile_style(source: str) -> str:
 
 def patch_avatar_drawable_profile_style(source: str) -> str:
     """Amankan indeks palette AvatarDrawable untuk warna lokal/collectible."""
+    source = _replace_exact(
+        source,
+        "        return Math.abs(id % Theme.keys_avatar_background.length);",
+        "        return Math.floorMod(id, (long) Theme.keys_avatar_background.length);",
+        1,
+        "AvatarDrawable background palette index",
+    )
     return _replace_exact(
         source,
         "        return LocaleController.getString(resIds[color % resIds.length]);",
