@@ -381,34 +381,63 @@ def patch_avatar_drawable_profile_style(source: str) -> str:
 
 
 def patch_chat_message_cell_profile_style(source: str) -> str:
-    """Hindari indeks palette negatif dari local/collectible profile colors."""
-    replacements = (
-        (
-            """                    if (colorId < 7) {
-                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
-            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
-                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
-            "ChatMessageCell outbound name",
-        ),
-        (
-            """                    if (colorId < 7) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
-            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
-                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
-            "ChatMessageCell name",
-        ),
-        (
-            """                    if (colorId < 7) {
-                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
-            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
-                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
-            "ChatMessageCell forwarded name",
-        ),
+    # Clamp colorId immediately after retrieval.
+    source = _replace_exact(
+        source,
+        "int colorId = UserObject.getColorId(messageObject.getSenderId());",
+        "int colorId = UserObject.getColorId(messageObject.getSenderId());\n                    if (colorId < 0) colorId = 0;",
+        3,
+        "ChatMessageCell colorId clamping",
     )
-    for old, new, label in replacements:
-        source = _replace_exact(source, old, new, 1, label)
+    # Keep the array bounds guard as a second layer of protection.
+    source = _replace_exact(
+        source,
+        "if (colorId < 7) {",
+        "if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {",
+        3,
+        "ChatMessageCell color palette bounds",
+    )
     return source
 
+
+def patch_message_topic_button_color_id(source: str) -> str:
+    return _replace_exact(
+        source,
+        "if (colorId < 7) {",
+        "if (colorId < 0) { colorId = 0; } if (colorId < 7) {",
+        1,
+        "MessageTopicButton colorId clamping",
+    )
+
+
+def patch_reply_message_line_color_id(source: str) -> str:
+    return _replace_exact(
+        source,
+        "if (colorId < 7) {",
+        "if (colorId < 0) { colorId = 0; } if (colorId < 7) {",
+        1,
+        "ReplyMessageLine colorId clamping",
+    )
+
+
+def patch_giveaway_results_message_cell_color_id(source: str) -> str:
+    return _replace_exact(
+        source,
+        "if (colorId < 7) {",
+        "if (colorId < 0) { colorId = 0; } if (colorId < 7) {",
+        1,
+        "GiveawayResultsMessageCell colorId clamping",
+    )
+
+
+def patch_giveaway_message_cell_color_id(source: str) -> str:
+    return _replace_exact(
+        source,
+        "if (colorId < 7) {",
+        "if (colorId < 0) { colorId = 0; } if (colorId < 7) {",
+        1,
+        "GiveawayMessageCell colorId clamping",
+    )
 
 
 TARGETS = (
@@ -578,4 +607,8 @@ TARGETS = (
     "messenger/UserObject.java",
     "ui/PeerColorActivity.java",
     "ui/ProfileActivity.java",
+    "ui/Components/Forum/MessageTopicButton.java",
+    "ui/Components/ReplyMessageLine.java",
+    "ui/Components/Premium/boosts/cells/msg/GiveawayResultsMessageCell.java",
+    "ui/Components/Premium/boosts/cells/msg/GiveawayMessageCell.java",
 )
