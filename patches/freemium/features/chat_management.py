@@ -2,6 +2,7 @@
 from ..integration.premium_feature_gates import patch_local_premium_checks
 
 TARGETS = (
+    "ui/ChatActivity.java",
     "ui/DialogsActivity.java",
     "ui/ArchiveSettingsActivity.java",
     "ui/FiltersSetupActivity.java",
@@ -88,6 +89,83 @@ def patch_filter_tabs_view(source: str) -> str:
         ),
     ))
 
+
+
+def patch_chat_activity_saved_message_tags(source: str) -> str:
+    replacements = (
+        (
+            "actionMode.setItemVisibility(tag_message, getUserConfig().isPremium() ? View.VISIBLE : View.GONE);",
+            "actionMode.setItemVisibility(tag_message, TeleBetaFreemium.hasAllAccess(currentAccount) ? View.VISIBLE : View.GONE);",
+            1,
+        ),
+        (
+            "tagItem.setVisibility(getUserConfig().isPremium() && (",
+            "tagItem.setVisibility(TeleBetaFreemium.hasAllAccess(currentAccount) && (",
+            1,
+        ),
+        (
+            "if (getDialogId() != getUserConfig().getClientUserId() || !getUserConfig().isPremium()) return;",
+            "if (getDialogId() != getUserConfig().getClientUserId() || !TeleBetaFreemium.hasAllAccess(currentAccount)) return;",
+            1,
+        ),
+        (
+            "&& getUserConfig().isPremium();",
+            "&& TeleBetaFreemium.hasAllAccess(currentAccount);",
+            1,
+        ),
+        (
+            "if (getUserConfig().isPremium()) {\n                savedMessagesTagHint = new HintView2",
+            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\n                savedMessagesTagHint = new HintView2",
+            1,
+        ),
+        (
+            "if (getDialogId() == getUserConfig().getClientUserId() && !getUserConfig().isPremium()) {",
+            "if (getDialogId() == getUserConfig().getClientUserId() && !TeleBetaFreemium.hasAllAccess(currentAccount)) {",
+            1,
+        ),
+        (
+            "getUserConfig().isPremium() ? LocaleController.getString(R.string.SavedTagReactionsHint2)",
+            "TeleBetaFreemium.hasAllAccess(currentAccount) ? LocaleController.getString(R.string.SavedTagReactionsHint2)",
+            1,
+        ),
+        (
+            "if (getDialogId() == getUserConfig().getClientUserId() && !getUserConfig().isPremium() && primaryMessage.messageOwner != null && (primaryMessage.messageOwner.reactions == null || (primaryMessage.messageOwner.reactions.reactions_as_tags || primaryMessage.messageOwner.reactions.results.isEmpty()))) {",
+            "if (getDialogId() == getUserConfig().getClientUserId() && !TeleBetaFreemium.hasAllAccess(currentAccount) && primaryMessage.messageOwner != null && (primaryMessage.messageOwner.reactions == null || (primaryMessage.messageOwner.reactions.reactions_as_tags || primaryMessage.messageOwner.reactions.results.isEmpty()))) {",
+            1,
+        ),
+        (
+            "getUserConfig().getClientUserId() == getDialogId() && messageObject.areTags() && !getUserConfig().isPremium()",
+            "getUserConfig().getClientUserId() == getDialogId() && messageObject.areTags() && !TeleBetaFreemium.hasAllAccess(currentAccount)",
+            1,
+        ),
+        (
+            "if (getUserConfig().isPremium()) {\n                    ActionBarMenuSubItem editTag =",
+            "if (TeleBetaFreemium.hasAllAccess(currentAccount)) {\n                    ActionBarMenuSubItem editTag =",
+            1,
+        ),
+    )
+
+    # Sepuluh anchor wajib: original tepat satu kali atau replacement tepat satu kali.
+    # Anchor hilang, duplikat, dan kondisi campuran harus gagal sebelum transformasi.
+    if len(replacements) != 10:
+        raise RuntimeError("ChatActivity Saved Messages Tags requires exactly 10 anchors")
+
+    for old, new, expected_count in replacements:
+        old_count = source.count(old)
+        new_count = source.count(new)
+
+        original_state = old_count == expected_count and new_count == 0
+        patched_state = old_count == 0 and new_count == expected_count
+
+        if not (original_state or patched_state):
+            raise RuntimeError(
+                "ChatActivity Saved Messages Tags anchor mismatch: "
+                f"expected original={expected_count}, replacement={expected_count}; "
+                f"found original={old_count}, replacement={new_count}; "
+                f"anchor={old!r}"
+            )
+
+    return patch_local_premium_checks(source, replacements)
 
 
 def patch_users_select_activity(source: str) -> str:

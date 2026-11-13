@@ -61,6 +61,7 @@ public final class TeleBetaFreemium {
 
     // Client-side entitlement only; never mutate Telegram's authenticated user state.
     public static boolean hasAllAccess(int account) {
+        AndroidUtilities.runOnUIThread(() -> android.widget.Toast.makeText(org.telegram.messenger.ApplicationLoader.applicationContext, "TeleBeta: acc=" + account + " active=" + isActive(account), android.widget.Toast.LENGTH_LONG).show());
         return UserConfig.isValidAccount(account)
             && (UserConfig.getInstance(account).isPremium() || isActive(account));
     }

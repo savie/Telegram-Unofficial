@@ -8,20 +8,20 @@ from .features.ai_tools import patch_ai_editor_alert
 from .features.app_icons import patch_app_icons_selector
 from .features.business import TARGETS as BUSINESS_SOURCE_FILES, patch_business_activity_gate, patch_chat_greetings_view, patch_quick_replies_layout
 from .integration.premium_feature_gates import PREMIUM_GATE_TARGETS
-from .features.chat_management import patch_archive_settings, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
+from .features.chat_management import patch_archive_settings, patch_chat_activity_saved_message_tags, patch_dialog_cell_tags, patch_dialogs_activity, patch_filter_chatlist, patch_filter_create, patch_filter_tabs_view, patch_filters_setup, patch_saved_messages_controller, patch_users_select_activity
 from .features.downloads import patch_file_load_operation
-from .features.emoji_and_stickers import patch_content_preview_viewer, patch_mentions_adapter, patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_set_bulletin_layout, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
+from .features.emoji_and_stickers import patch_stickers_adapter, patch_suggest_emoji_view, patch_content_preview_viewer, patch_custom_emoji_reactions_window, patch_mentions_adapter, patch_available_reaction_cell, patch_emoji_packs_alert, patch_media_data_controller, patch_reactions_container, patch_reactions_double_tap_manage, patch_select_animated_emoji_dialog, patch_setup_emoji_status_sheet, patch_sticker_cell, patch_sticker_set_bulletin_layout, patch_sticker_emoji_cell, patch_stickers_alert, patch_topic_create_fragment
 from .features.last_seen import patch_message_private_seen_view
 from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_caption_photo_viewer, patch_document_layout, patch_file_loader_upload_limit, patch_file_upload_operation, patch_photo_viewer_caption, patch_select_chat_user_sheet
 from .features.no_ads import patch_dialogs_search_adapter, patch_search_view_pager, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls, patch_privacy_settings_activity
-from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity
+from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity, patch_user_object_profile_style, patch_avatar_drawable_profile_style, patch_chat_message_cell_profile_style, stage_local_profile_style
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_caption_container_view, patch_caption_story, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_language_select_activity, patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
-from .features.wallpapers import patch_theme_preview_activity
+from .features.wallpapers import patch_theme, patch_theme_preview_activity, patch_chat_theme_bottom_sheet
 from .validation.account_isolation import validate_account_storage_source
 from .validation.feature_regression import assert_no_standalone_theme_ui_modules, validate_catalog_mapping
 from .validation.patch_preflight import require_files, require_upstream_revision
@@ -50,13 +50,19 @@ FEATURE_PATCHES = (
     ("ui/iv/ChatAttachAlertRichLayout.java", patch_attach_rich_layout),
     ("ui/PeerColorActivity.java", patch_peer_color_activity),
     ("ui/ProfileActivity.java", patch_profile_activity),
+    ("messenger/UserObject.java", patch_user_object_profile_style),
+    ("ui/Components/AvatarDrawable.java", patch_avatar_drawable_profile_style),
+    ("ui/Cells/ChatMessageCell.java", patch_chat_message_cell_profile_style),
     ("messenger/FileLoader.java", patch_file_loader_upload_limit),
     ("messenger/FileLoadOperation.java", patch_file_load_operation),
     ("messenger/MediaDataController.java", patch_media_data_controller),
     ("ui/Components/ReactionsContainerLayout.java", patch_reactions_container),
+    ("ui/Components/Reactions/CustomEmojiReactionsWindow.java", patch_custom_emoji_reactions_window),
     ("ui/Adapters/MentionsAdapter.java", patch_mentions_adapter),
     ("ui/ContentPreviewViewer.java", patch_content_preview_viewer),
     ("ui/Components/SearchViewPager.java", patch_search_view_pager),
+    ("ui/Adapters/StickersAdapter.java", patch_stickers_adapter),
+    ("ui/Components/SuggestEmojiView.java", patch_suggest_emoji_view),
     ("ui/Components/StickersAlert.java", patch_stickers_alert),
     ("ui/Components/AIEditorAlert.java", patch_ai_editor_alert),
     ("ui/PrivacyControlActivity.java", patch_privacy_controls),
@@ -74,6 +80,7 @@ FEATURE_PATCHES = (
     ("ui/Components/DialogCellTags.java", patch_dialog_cell_tags),
     ("ui/Components/FilterTabsView.java", patch_filter_tabs_view),
     ("ui/UsersSelectActivity.java", patch_users_select_activity),
+    ("ui/ChatActivity.java", patch_chat_activity_saved_message_tags),
     ("ui/ChatRightsEditActivity.java", patch_chat_rights_edit_activity),
     ("ui/SelectChatUserSheet.java", patch_select_chat_user_sheet),
     ("ui/Components/ChatAttachAlertDocumentLayout.java", patch_document_layout),
@@ -84,7 +91,9 @@ FEATURE_PATCHES = (
     ("ui/Stories/recorder/CaptionStory.java", patch_caption_story),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/Adapters/DialogsSearchAdapter.java", patch_dialogs_search_adapter),
+    ("ui/ActionBar/Theme.java", patch_theme),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
+    ("ui/Components/ChatThemeBottomSheet.java", patch_chat_theme_bottom_sheet),
     ("ui/Cells/AppIconsSelectorCell.java", patch_app_icons_selector),
     ("ui/Cells/StickerCell.java", patch_sticker_cell),
     ("ui/Cells/StickerEmojiCell.java", patch_sticker_emoji_cell),
@@ -131,6 +140,7 @@ def apply_freemium() -> None:
     validate_catalog_mapping()
     helper_path, helper_source = stage_java_helper(upstream_root)
     validate_account_storage_source(helper_source)
+    local_profile_style_path, local_profile_style_source = stage_local_profile_style(upstream_root)
     freemium_modules = [
         str(path.relative_to(repo_root))
         for path in (repo_root / "patches/freemium").rglob("*.py")
@@ -142,6 +152,9 @@ def apply_freemium() -> None:
     helper_original = helper_path.read_text(encoding="utf-8") if helper_path.exists() else None
     if helper_original != helper_source:
         staged.append(StagedFile(helper_path, helper_original, helper_source))
+    local_profile_style_original = local_profile_style_path.read_text(encoding="utf-8") if local_profile_style_path.exists() else None
+    if local_profile_style_original != local_profile_style_source:
+        staged.append(StagedFile(local_profile_style_path, local_profile_style_original, local_profile_style_source))
 
     preview_original = preview_path.read_text(encoding="utf-8")
     preview_updated = patch_purchase_flow(preview_original)
