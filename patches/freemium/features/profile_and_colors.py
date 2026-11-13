@@ -1,5 +1,6 @@
 """Local Name/Profile Colors and collectible overlays, stored per Telegram account."""
 from pathlib import Path
+from ..integration.premium_feature_gates import patch_local_premium_checks
 
 
 def _replace_exact(source: str, old: str, new: str, expected: int, label: str) -> str:
@@ -411,12 +412,7 @@ TARGETS = (
 
 
 def patch_peer_color_activity(source: str) -> str:
-    source = _ensure_import(
-        source,
-        "import org.telegram.messenger.UserConfig;\\n",
-        "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n",
-        "PeerColorActivity",
-    )
+    source = source.replace("package org.telegram.ui;", "package org.telegram.ui;\nimport org.telegram.messenger.TeleBetaFreemium;\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;")
     source = _replace_exact(
         source,
         "getUserConfig().isPremium()",
@@ -543,12 +539,7 @@ def patch_peer_color_activity(source: str) -> str:
 
 
 def patch_profile_activity(source: str) -> str:
-    source = _ensure_import(
-        source,
-        "import org.telegram.messenger.UserObject;\\n",
-        "import org.telegram.messenger.TeleBetaFreemium;\\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;\\n",
-        "ProfileActivity",
-    )
+    source = source.replace("package org.telegram.ui;", "package org.telegram.ui;\nimport org.telegram.messenger.TeleBetaFreemium;\nimport org.telegram.messenger.TeleBetaLocalProfileStyle;")
     source = _replace_exact(
         source,
         "getUserConfig().isPremium()",
