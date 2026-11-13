@@ -21,7 +21,7 @@ from .features.saved_messages import patch_search_tags
 from .features.stories import patch_caption_container_view, patch_caption_story, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_language_select_activity, patch_translate_alert, patch_translate_button
 from .features.voice_to_text import patch_transcribe_button
-from .features.wallpapers import patch_theme_preview_activity
+from .features.wallpapers import patch_theme, patch_theme_preview_activity, patch_chat_theme_bottom_sheet
 from .validation.account_isolation import validate_account_storage_source
 from .validation.feature_regression import assert_no_standalone_theme_ui_modules, validate_catalog_mapping
 from .validation.patch_preflight import require_files, require_upstream_revision
@@ -87,7 +87,9 @@ FEATURE_PATCHES = (
     ("ui/Stories/recorder/CaptionStory.java", patch_caption_story),
     ("messenger/video/VideoAds.java", patch_video_ads),
     ("ui/Adapters/DialogsSearchAdapter.java", patch_dialogs_search_adapter),
+    ("ui/ActionBar/Theme.java", patch_theme),
     ("ui/ThemePreviewActivity.java", patch_theme_preview_activity),
+    ("ui/Components/ChatThemeBottomSheet.java", patch_chat_theme_bottom_sheet),
     ("ui/Cells/AppIconsSelectorCell.java", patch_app_icons_selector),
     ("ui/Cells/StickerCell.java", patch_sticker_cell),
     ("ui/Cells/StickerEmojiCell.java", patch_sticker_emoji_cell),
