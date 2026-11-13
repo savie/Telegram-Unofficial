@@ -8,6 +8,8 @@ TARGETS = (
     "ui/Components/ReactionsContainerLayout.java",
     "ui/Components/Reactions/CustomEmojiReactionsWindow.java",
     "ui/Components/StickersAlert.java",
+    "ui/Adapters/StickersAdapter.java",
+    "ui/Components/SuggestEmojiView.java",
     "ui/Cells/StickerCell.java",
     "ui/Cells/StickerEmojiCell.java",
     "ui/Cells/AvailableReactionCell.java",
@@ -233,11 +235,16 @@ def patch_stickers_alert(source: str) -> str:
     )
     source = _replace_exact_local(
         source,
-        "UserConfig.getInstance(currentAccount).isPremium()",
-        "(UserConfig.getInstance(currentAccount).isPremium() || TeleBetaFreemium.isActive(currentAccount))",
-        2,
-        "StickersAlert local Premium entitlement checks",
+        "if (!UserConfig.getInstance(currentAccount).isPremium() && MessageObject.isPremiumEmojiPack(stickerSet))",
+        "if (!UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.isActive(currentAccount) && MessageObject.isPremiumEmojiPack(stickerSet))",
+        1,
+        "StickersAlert pack description gate",
+    )
+    source = _replace_exact_local(
+        source,
+        "stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium() && customButtonDelegate == null",
+        "stickerSet.set.emojis && !UserConfig.getInstance(currentAccount).isPremium() && !TeleBetaFreemium.isActive(currentAccount) && customButtonDelegate == null",
+        1,
+        "StickersAlert pack_gate",
     )
     return source
-
-

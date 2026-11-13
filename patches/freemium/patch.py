@@ -16,7 +16,7 @@ from .features.limits_and_storage import patch_chat_rights_edit_activity, patch_
 from .features.no_ads import patch_dialogs_search_adapter, patch_search_view_pager, patch_video_ads
 from .features.formatting_tools import patch_attach_rich_layout, patch_chat_activity_enter_view, patch_rich_editor
 from .features.privacy_and_sharing import patch_privacy_controls, patch_privacy_settings_activity
-from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity, patch_user_object_profile_style, stage_local_profile_style
+from .features.profile_and_colors import patch_peer_color_activity, patch_profile_activity, patch_user_object_profile_style, patch_avatar_drawable_profile_style, patch_chat_message_cell_profile_style, stage_local_profile_style
 from .features.saved_messages import patch_search_tags
 from .features.stories import patch_caption_container_view, patch_caption_story, patch_expired_story_views, patch_stealth_mode, patch_stories_controller
 from .features.translation import patch_language_select_activity, patch_translate_alert, patch_translate_button
@@ -51,6 +51,8 @@ FEATURE_PATCHES = (
     ("ui/PeerColorActivity.java", patch_peer_color_activity),
     ("ui/ProfileActivity.java", patch_profile_activity),
     ("messenger/UserObject.java", patch_user_object_profile_style),
+    ("ui/Components/AvatarDrawable.java", patch_avatar_drawable_profile_style),
+    ("ui/Cells/ChatMessageCell.java", patch_chat_message_cell_profile_style),
     ("messenger/FileLoader.java", patch_file_loader_upload_limit),
     ("messenger/FileLoadOperation.java", patch_file_load_operation),
     ("messenger/MediaDataController.java", patch_media_data_controller),

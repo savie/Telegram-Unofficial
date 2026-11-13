@@ -361,7 +361,53 @@ def patch_user_object_profile_style(source: str) -> str:
     return source
 
 
-TARGETS = ("messenger/UserObject.java",)
+def patch_avatar_drawable_profile_style(source: str) -> str:
+    """Amankan indeks palette AvatarDrawable untuk warna lokal/collectible."""
+    return _replace_exact(
+        source,
+        "        return LocaleController.getString(resIds[color % resIds.length]);",
+        "        return LocaleController.getString(resIds[Math.floorMod(color, resIds.length)]);",
+        1,
+        "AvatarDrawable colorName palette index",
+    )
+
+
+def patch_chat_message_cell_profile_style(source: str) -> str:
+    """Hindari indeks palette negatif dari local/collectible profile colors."""
+    replacements = (
+        (
+            """                    if (colorId < 7) {
+                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        color = getThemedColor(Theme.keys_avatar_nameInMessage[colorId]);""",
+            "ChatMessageCell outbound name",
+        ),
+        (
+            """                    if (colorId < 7) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        Theme.chat_namePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            "ChatMessageCell name",
+        ),
+        (
+            """                    if (colorId < 7) {
+                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            """                    if (colorId >= 0 && colorId < Theme.keys_avatar_nameInMessage.length) {
+                        Theme.chat_forwardNamePaint.setColor(getThemedColor(Theme.keys_avatar_nameInMessage[colorId]));""",
+            "ChatMessageCell forwarded name",
+        ),
+    )
+    for old, new, label in replacements:
+        source = _replace_exact(source, old, new, 1, label)
+    return source
+
+
+
+TARGETS = (
+    "messenger/UserObject.java",
+    "ui/Components/AvatarDrawable.java",
+    "ui/Cells/ChatMessageCell.java",
+)
 
 
 def patch_peer_color_activity(source: str) -> str:
