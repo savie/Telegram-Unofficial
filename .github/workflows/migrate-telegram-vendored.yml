@@ -53,7 +53,7 @@ jobs:
           git -C "$source" submodule sync --recursive
           git -C "$source" submodule update --init --recursive --jobs 8
 
-          if git -C "$source" submodule status --recursive | grep -E '^[+-U]'; then
+          if git -C "$source" submodule status --recursive | grep -E '^[+U]'; then
             echo "::error::An upstream submodule is not checked out at its recorded commit."
             exit 1
           fi
